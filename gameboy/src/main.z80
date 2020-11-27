@@ -1,0 +1,47 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+SECTION "main", ROM0
+
+main::
+  ld a,IEF_VBLANK
+  ldh [rIE],a  ; enable IRQs
+  xor a
+  ldh [rIF],a
+  ldh [nmis],a
+  ei
+
+  ; Load title screen
+  call lcd_off
+  ld de, logo_iur
+  ld hl, CHRRAM0
+  call unpack_iu_file
+  ld hl, SCRN_TMP
+  ldxy de, 0, 2
+  lb bc, 20, 3
+  call load_nam
+
+  ld a, %11100100
+  ld [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  ldh [rLCDC], a
+
+.waitloop:
+  rst wait_vblank_irq
+  call read_pad
+  ldh a, [new_keys]
+  and PADF_A|PADF_START
+  jr z, .waitloop
+
+  call lcd_off
+forever:
+  halt
+  jr forever
+
+
+
+
+
+
+
+logo_iur: incbin "obj/gb/logo.iur"

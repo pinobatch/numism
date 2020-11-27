@@ -53,25 +53,6 @@ SECTION "incruniq", ROM0
 
 
 ;;
-; @param BC tile data base address
-; @param L file ID
-allhuffdata_unpack_iu_file_l::
-  push bc
-  call allhuffdata_fetch_file_l
-  ld a, b
-  pop bc
-  push hl
-  ld h, b
-  ld l, c
-  ld b, a
-  call pb16_unpack_block
-  pop hl
-
-  if 0
-  ; this can just fall through if unpack_iu_file does not exist
-  jr iur_unpack_2hl_bytes
-
-;;
 ; Unpack IU file at DE to tiles at HL and map at SCRN_TMP
 unpack_iu_file::
   ld a,[de]  ; Fetch tile count
@@ -81,7 +62,6 @@ unpack_iu_file::
 
   ld h, d
   ld l, e
-  endc
 
 iur_unpack_2hl_bytes::
   ld a, [hl+]  ; Fetch tilemap size

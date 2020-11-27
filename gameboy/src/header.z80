@@ -1,0 +1,60 @@
+;
+; ROM header for Game Boy
+;
+; Copyright 2020 Damian Yerrick
+; 
+; This software is provided 'as-is', without any express or implied
+; warranty.  In no event will the authors be held liable for any damages
+; arising from the use of this software.
+; 
+; Permission is granted to anyone to use this software for any purpose,
+; including commercial applications, and to alter it and redistribute it
+; freely, subject to the following restrictions:
+; 
+; 1. The origin of this software must not be misrepresented; you must not
+;    claim that you wrote the original software. If you use this software
+;    in a product, an acknowledgment in the product documentation would be
+;    appreciated but is not required.
+; 2. Altered source versions must be plainly marked as such, and must not be
+;    misrepresented as being the original software.
+; 3. This notice may not be removed or altered from any source distribution.
+;
+
+
+; Instead of vectors, 8080 family CPUs (including Z80 in Game Gear
+; SM83 in Game Boy) have RSTs ("reset trampolines"?) spaced 8 bytes
+; apart.  There are eight for short encodings of CALL with specific
+; addresses ($C7, $CF, ..., $FF for CALL $0000, CALL $0008, ...,
+; CALL $0038) and five for interrupt service routines (ISR).
+; Fill them with JPs to the actual handlers.
+SECTION "rst00", ROM0[$0000]
+  ret
+; $08 is memset_tiny in init.z80; $10 is wait_vblank_irq in ppuclear.z80
+SECTION "rst18", ROM0[$0018]
+  ret
+SECTION "rst20", ROM0[$0020]
+  ret
+SECTION "rst28", ROM0[$0028]
+  ret
+SECTION "rst30", ROM0[$0030]
+  ret
+SECTION "rst38", ROM0[$0038]
+  ret
+; $40 is vblank_handler in ppuclear.z80
+SECTION "rst48", ROM0[$0048]
+  reti  ; jp stat_handler
+SECTION "rst50", ROM0[$0050]
+  reti  ; jp timer_handler
+SECTION "rst58", ROM0[$0058]
+  reti  ; jp serial_handler
+SECTION "rst60", ROM0[$0060]
+  reti  ; jp joypad_handler
+
+SECTION "header", ROM0[$0100]
+  nop
+  jp reset_handler
+
+  ; Space for rgbfix to add the ROM header
+  rept $150-$104
+    db $00
+  endr

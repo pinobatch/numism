@@ -1,1 +1,16 @@
 *.o
+*.nes
+*.gb
+*.nes.deb
+*.ram.nl
+*.dbg
+*.map
+*.sym
+*.chr
+*.2b
+*.iur
+nes/numism.nes
+nes/map.txt
+*.cdl
+__pycache__
+

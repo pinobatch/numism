@@ -1,0 +1,157 @@
+;
+; Basic LCD routines for Game Boy
+;
+; Copyright 2018 Damian Yerrick
+; 
+; This software is provided 'as-is', without any express or implied
+; warranty.  In no event will the authors be held liable for any damages
+; arising from the use of this software.
+; 
+; Permission is granted to anyone to use this software for any purpose,
+; including commercial applications, and to alter it and redistribute it
+; freely, subject to the following restrictions:
+; 
+; 1. The origin of this software must not be misrepresented; you must not
+;    claim that you wrote the original software. If you use this software
+;    in a product, an acknowledgment in the product documentation would be
+;    appreciated but is not required.
+; 2. Altered source versions must be plainly marked as such, and must not be
+;    misrepresented as being the original software.
+; 3. This notice may not be removed or altered from any source distribution.
+;
+include "src/hardware.inc"
+include "src/global.inc"
+
+section "irqvars",HRAM
+nmis:: ds 1
+
+; The display list at $CE00-$CE9F gets DMA'd to OAM after every frame
+; in which sprites moved.  Also called "shadow OAM".
+section "ram_ppuclear",WRAM0,ALIGN[8]
+SOAM:: ds 160
+oam_used:: ds 1  ; How much of the display list is used
+
+SECTION "vblank_handler", ROM0[$0040]
+  push af
+  ldh a,[nmis]
+  inc a
+  ldh [nmis],a
+  pop af
+  reti
+
+SECTION "wait_vblank_irq_tail", ROM0[$0049]
+wait_vblank_irq_tail:
+  halt
+  cp [hl]
+  jr z, wait_vblank_irq_tail
+  ret
+
+; A lot of this file is broken into little tiny sections, one for
+; each routine, so that the linker can squeeze them into tiny holes
+; between aligned or fixed-address sections
+
+SECTION "lcd_off", ROM0
+;;
+; Waits for blanking and turns off rendering.
+;
+; Unlike NES and Super NES, which continuously generate a video
+; signal to keep the TV's hsync and vsync circuits occupied, the
+; Game Boy LCD uses freesync.  Thus the LCD driver halts entirely
+; when rendering is off, not increasing rLY.  Stopping the video
+; signal outside vblank confuses the circuitry in the LCD panel,
+; causing it to get stuck on a scanline.  This stuck state is the
+; same as the dark horizontal line when you turn off the Game Boy.
+;
+; Turning rendering on, by contrast, can be done at any time and
+; is done by writing the nametable base addresses and sprite size
+; to rLCDC with bit 7 set to true.
+lcd_off::
+  call busy_wait_vblank
+
+  ; Use a RMW instruction to turn off only bit 7
+  ld hl, rLCDC
+  res 7, [hl]
+  ret
+
+SECTION "wait_vblank_irq", ROM0[wait_vblank_irq]
+;;
+; Waits for the vblank ISR to increment the count of vertical blanks.
+; Will lock up if DI, vblank IRQ off, or LCD off.
+; Clobbers A, HL
+wait_vblank_irq_impl::
+  ld hl,nmis
+  ld a,[hl]
+  jr wait_vblank_irq_tail
+
+SECTION "busy_wait_vblank", ROM0
+
+;;
+; Waits for forced blank (rLCDC bit 7 clear) or vertical blank
+; (rLY >= 144).  Use before VRAM upload or before clearing rLCDC bit 7.
+busy_wait_vblank::
+  ; If rLCDC bit 7 already clear, we're already in forced blanking
+  ldh a,[rLCDC]
+  rlca
+  ret nc
+
+  ; Otherwise, wait for rLCDC to become 144 (not 145) because rLY=0
+  ; represents both the prerender line and the first visible line.
+  ; This differs from Super NES, where the first visible line is 1,
+  ; and NES, which has a post-render line numbered 240 between
+  ; picture and vblank.
+.wait:
+  ldh a, [rLY]
+  cp 144
+  jr c, .wait
+  ret
+
+SECTION "wait_not_vblank", ROM0
+
+;;
+; Busy-wait for being out of vblank.  Use this for game loop timing
+; if interrupts aren't in use yet.
+wait_not_vblank::
+  ldh a, [rLY]
+  cp 144
+  jr nc, wait_not_vblank
+  ret
+
+SECTION "cls", ROM0
+
+clear_scrn0_to_0::
+  ld h, 0
+clear_scrn0_to_h::
+  ld de,_SCRN0
+  ld bc,32*32
+  jp memset
+
+SECTION "rom_ppuclear", ROM0
+
+load_full_nam::
+  ld bc,256*20+18
+;;
+; Copies a B column by C row tilemap from HL to screen at DE.
+load_nam::
+  push bc
+  push de
+  .byteloop:
+    ld a,[hl+]
+    ld [de],a
+    inc de
+    dec b
+    jr nz,.byteloop
+
+  ; Move to next screen row
+  pop de
+  ld a,32
+  add e
+  ld e,a
+  jr nc,.no_inc_d
+    inc d
+  .no_inc_d:
+
+  ; Restore width; do more rows remain?
+  pop bc
+  dec c
+  jr nz,load_nam
+  ret
