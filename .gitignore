@@ -8,6 +8,7 @@
 *.sym
 *.chr
 *.2b
+*.1b
 *.iur
 nes/numism.nes
 nes/map.txt

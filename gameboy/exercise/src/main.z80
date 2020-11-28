@@ -1,0 +1,58 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+SECTION "main", ROM0
+
+main::
+  ld a,IEF_VBLANK
+  ldh [rIE],a  ; enable IRQs
+  xor a
+  ldh [rIF],a
+  ldh [nmis],a
+  ei
+
+  ; Load CHR
+  call lcd_off
+  ld de, font_1b
+  ld bc, (-320) & $FFFF
+  ld hl, CHRRAM2
+  .loop
+    ld a, [de]
+    inc de
+    ld [hl+], a
+    ld [hl+], a
+    inc c
+    jr nz, .loop
+    inc b
+    jr nz, .loop
+
+  ; Clear screen
+  ld h, 36
+  call clear_scrn0_to_h
+
+  ld a, %11100100
+  ld [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ldh [rLCDC], a
+  
+  ldxy hl, 1, 1
+  ld a, $11  ; 'H'
+  ld [hl+], a
+  inc a      ; 'I'
+  ld [hl+], a
+
+.waitloop:
+  rst wait_vblank_irq
+  call read_pad
+  ldh a, [new_keys]
+  and PADF_A|PADF_START
+  jr z, .waitloop
+
+  call lcd_off
+forever:
+  halt
+  jr forever
+
+
+
+font_1b: incbin "obj/gb/Crash_dump_uncial.1b"

@@ -1,0 +1,18 @@
+Game Boy instruction exerciser
+==============================
+
+This is a small ROM used to interactively test CPU instruction
+behavior in a Game Boy emulator, even one without a debugger.
+Use it to demonstrate half-carry and DAA behavior differences.
+
+* `INST`: Edit up to 6 bytes of machine code
+* `EXEC`: Set to `OFF` (don't run), `PRESS A` (run when A is pressed
+  and released), or `AUTO` (run after each digit change)
+* `AF`, `BC`, `DE`, `HL`, `SP`: Set registers before execution, and
+  see results after execution
+* After `AF` result word is `ZNHC`, with space written instead if
+  flag is clear
+
+The instruction is placed at $C000, to be followed by
+`NOP NOP JP after_inst`.
+
