@@ -1,6 +1,36 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
+inst_length equ 6
+inst_epilog_length equ 5
+
+RUNTYPE_OFF equ 0
+RUNTYPE_PRESS_A equ 1
+RUNTYPE_ON equ 2
+NUM_RUNTYPES equ 3
+
+SECTION "instram", HRAM
+inst:        ds inst_length
+inst_epilog: ds inst_epilog_length
+runtype: ds 1
+a_pressed_by_self: ds 1
+cursor_x: ds 1
+cursor_y: ds 1
+input_regs:
+input_af: ds 2
+input_bc: ds 2
+input_de: ds 2
+input_hl: ds 2
+input_sp: ds 2
+result_regs:
+result_af: ds 2
+result_bc: ds 2
+result_de: ds 2
+result_hl: ds 2
+result_sp: ds 2
+sp_save: ds 2
+
+
 SECTION "main", ROM0
 
 main::
@@ -13,9 +43,10 @@ main::
 
   ; Load CHR
   call lcd_off
+  call run_dma
   ld de, font_1b
   ld bc, (-320) & $FFFF
-  ld hl, CHRRAM2
+  ld hl, CHRRAM0
   .loop
     ld a, [de]
     inc de
@@ -29,30 +60,474 @@ main::
   ; Clear screen
   ld h, 36
   call clear_scrn0_to_h
+  call draw_labels
+
+  ; Clear input registers
+  ld c, result_regs-inst+result_regs-input_regs
+  ld hl, inst
+  xor a
+  rst memset_tiny
+  ld a, $D0
+  ldh [input_sp+1], a
+  ld a, $80
+  ldh [input_af+1], a
 
   ld a, %11100100
-  ld [rBGP], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ldh [rBGP], a
+  ldh [rOBP0], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
   ldh [rLCDC], a
-  
-  ldxy hl, 1, 1
-  ld a, $11  ; 'H'
-  ld [hl+], a
-  inc a      ; 'I'
-  ld [hl+], a
 
-.waitloop:
-  rst wait_vblank_irq
-  call read_pad
-  ldh a, [new_keys]
-  and PADF_A|PADF_START
-  jr z, .waitloop
+  call draw_input_regs
+  call draw_result_regs
+  call draw_inst
+  call draw_runtype
 
-  call lcd_off
 forever:
-  halt
+  call read_pad
+  call handle_input
+
+  xor a
+  ld [oam_used], a
+  call draw_cursor
+  call lcd_clear_oam
+
+  rst wait_vblank_irq
+  call run_dma
+  ldxy de, 0, 17
+  ld c, low(nmis)
+  call draw_2dig_c
+  ld c, low(cursor_x)
+  call draw_2dig_c
+  call draw_2dig_c
+  ld c, low(runtype)
+  call draw_2dig_c
   jr forever
 
 
+; Instruction execution ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+run_inst:
+  ; Write the instruction epilog
+  ld hl, inst_epilog_src
+  ld de, inst_epilog
+  ld bc, inst_epilog_length
+  call memcpy
+
+  ; Save stack for return
+  di
+  ld [sp_save], sp
+
+  ; Load input register values
+  ld sp, input_regs
+  pop af
+  pop bc
+  pop de
+  pop hl  ; ignored; will load H, L, A later
+  pop hl
+  ld sp, hl
+  ldh a, [input_hl+0]
+  ld l, a
+  ldh a, [input_hl+1]
+  ld h, a
+  ldh a, [input_af+1]
+  jp inst
+
+inst_after:
+  ; Save registers at end
+  ld [result_sp], sp
+  ld sp, result_sp
+  push hl
+  push de
+  push bc
+  push af
+
+  ; Restore stack and return
+  ld sp, sp_save
+  pop hl
+  ld sp, hl
+  ei
+  jp draw_result_regs
+
+inst_epilog_src:
+  nop
+  nop
+  jp inst_after
+
+; Drawing labels ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+draw_labels:
+  ld hl, labels
+  .lineloop:
+    ld a, [hl+]
+    or a
+    ret z
+    ld e, a
+    ld a, [hl+]
+    ld d, a
+    .charloop:
+      ld a, [hl+]
+      cp $FF
+      jr z, .lineloop
+      ld [de], a
+      inc e
+      jr .charloop
 
 font_1b: incbin "obj/gb/Crash_dump_uncial.1b"
+
+charmap "0", 0
+charmap "1", 1
+charmap "2", 2
+charmap "3", 3
+charmap "4", 4
+charmap "5", 5
+charmap "6", 6
+charmap "7", 7
+charmap "8", 8
+charmap "9", 9
+charmap "A", 10
+charmap "B", 11
+charmap "C", 12
+charmap "D", 13
+charmap "E", 14
+charmap "F", 15
+charmap "G", 16
+charmap "H", 17
+charmap "I", 18
+charmap "J", 19
+charmap "K", 20
+charmap "L", 21
+charmap "M", 22
+charmap "N", 23
+charmap "O", 24
+charmap "P", 25
+charmap "Q", 26
+charmap "R", 27
+charmap "S", 28
+charmap "T", 29
+charmap "U", 30
+charmap "V", 31
+charmap "W", 32
+charmap "X", 33
+charmap "Y", 34
+charmap "Z", 35
+charmap " ", 36
+charmap ":", 37
+
+labels:
+  dwxy 1, 1
+  db "INST", $FF
+  dwxy 1, 2
+  db "RUN:", $FF
+  dwxy 3, 4
+  db "AF", $FF
+  dwxy 3, 5
+  db "BC", $FF
+  dwxy 3, 6
+  db "DE", $FF
+  dwxy 3, 7
+  db "HL", $FF
+  dwxy 3, 8
+  db "SP", $FF
+  db $00
+
+; Drawing editable fields ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SECTION "draw_fields", ROM0, ALIGN[3]
+runtypenames:
+  db "OFF     "
+  db "PRESS A "
+  db "AUTO    "
+
+draw_inst:
+  lb bc, inst_length, low(inst)
+  ldxy de, 6, 1
+  .loop:
+    call draw_2dig_c
+    dec b
+    jr nz, .loop
+  ret
+
+draw_runtype:
+  ldh a, [runtype]
+  add a
+  add a
+  add a
+  add low(runtypenames)
+  ld l, a
+  adc high(runtypenames)
+  sub l
+  ld h, a
+  ldxy de, 6, 2
+  .loop:
+    ld a, [hl+]
+    ld b, a
+    ld a, [hl+]
+    ld c, a
+    call hblank_put_bc
+    ld a, l
+    and $07
+    jr nz, .loop
+  ret
+
+draw_input_regs:
+  ld c, low(input_regs)
+  ldxy de, 6, 4
+  jr draw_regvalues
+
+draw_result_regs:
+  ld c, low(result_regs)
+  ldxy de, 11, 4
+  ; fall through
+;;
+; @param C values source
+; @param DE tilemap position of input AF or output AF
+draw_regvalues:
+  ld b, (result_regs-input_regs)/2
+  .regloop:
+    inc c
+    call draw_2dig_c
+    dec c
+    dec c
+    call draw_2dig_c
+    inc c
+    ld a, 28
+    add e
+    ld e, a
+    adc d
+    sub e
+    ld d, a
+    dec b
+    jr nz, .regloop
+  ret
+  
+;;
+; Waits for mode 1, draws 2 digits at [$FF00+C] to [DE]
+draw_2dig_c:
+  push bc
+  ld a, [$FF00+c]
+  and $F0
+  swap a
+  ld b, a
+  ld a, [$FF00+c]
+  and $0F
+  ld c, a
+  call hblank_put_bc
+  pop bc
+  inc c
+  ret
+
+;;
+; Waits for mode 0 or 1, then writes B and C in hex to [DE]
+hblank_put_bc:
+  ldh a, [rSTAT]
+  bit 1, a
+  jr nz, hblank_put_bc
+  ld a, b
+  ld [de], a
+  inc e
+  ld a, c
+  ld [de], a
+  inc e
+  ret
+
+
+; TODO: Drawing editor sprite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+draw_cursor:
+  ld hl, oam_used
+  ld l, [hl]
+
+  ldh a, [cursor_y]
+  cp 2
+  ccf    ; CF=1 if >= 2 else 0
+  adc 3  ; 3, 4, 6, 7, 8, 9, 10
+  add a  ; taking into account 8 visible and 16 invisible margin
+  add a
+  add a
+  ld [hl+], a
+
+  ldh a, [cursor_y]
+  cp 1
+  ldh a, [cursor_x]
+  jr nz, .not_line_1
+    xor a
+  .not_line_1:
+  add 6
+  add a
+  add a
+  add a
+  ld [hl+], a
+
+  ld a, 39
+  ld [hl+], a
+  xor a
+  ld [hl+], a
+
+  ld a, l
+  ld [oam_used], a
+  ret
+
+; TODO: Moving cursor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SECTION "handle_input", ROM0, ALIGN[3]
+
+
+handle_input:
+  ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
+  call autorepeat
+
+  ldh a, [new_keys]
+  ld b, a
+  bit PADB_A, b
+  jr z, .not_add_a
+    ld a, 1
+    ldh [a_pressed_by_self], a
+  .not_add_a:
+
+  ; If A is currently down, change this digit
+  ldh a, [cur_keys]
+  bit PADB_A, a
+  jr z, .not_a_held
+    ld a, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
+    and b
+    ret z  ; Return if nothing pressed on Control Pad
+
+    xor a  ; A was not pressed by self
+    ldh [a_pressed_by_self], a
+
+    ; Don't change any digit if on runtype line
+    ldh a, [cursor_y]
+    cp 1
+    jr z, .y_is_1
+
+    ; Begin calculating address of digit to change
+    jr c, .changing_inst_digit
+      ; Change a reg digit
+      add a
+      add low(input_regs) - 4
+      ld c, a
+      ld a, [cursor_x]
+      xor 2  ; these rows are little endian
+      jr .change_digit_a_of_c
+    .changing_inst_digit:
+      ld c, low(inst)
+      ld a, [cursor_x]
+    .change_digit_a_of_c:
+
+    ; Find byte A/2 of this value
+    ld e, a  ; E bit 0 clear for high nibble, set for low
+    and $0E
+    rra
+    add c
+    ld c, a  ; C points at byte to edit
+
+    ; Find add mask
+    rr e   ; C = 1 if low nibble else 0
+    sbc a  ; A = $FF if low nibble half else $00
+    xor $F0
+    ld e, a  ; E = what to add for down; E & $11: what to add for up
+    
+    ld d, $FF
+    bit PADB_DOWN, b
+    jr nz, .add_d_to_nibble_e
+    ld d, $11
+    bit PADB_UP, b
+    jr z, .no_cursor_y_change  ; No Up/Down press? Try Left/Right
+    ; If Up and Down aren't pressed
+  .add_d_to_nibble_e:
+    ld a, d
+    and e
+    ld d, a  ; D: amount to add
+
+    ld a, [$FF00+c]
+    ld b, a
+    add d
+    xor b
+    and e
+    xor b
+    ld [$FF00+c], a
+    call draw_inst
+    call draw_input_regs
+
+  .not_a_held:
+
+  ; Handle A releases
+  ldh a, [a_pressed_by_self]
+  or a
+  jr z, .not_release_a_rerun
+    xor a
+    ldh [a_pressed_by_self], a
+    ldh a, [runtype]
+    cp RUNTYPE_PRESS_A
+    jr nz, .not_release_a_rerun
+      call run_inst
+      call draw_result_regs
+  .not_release_a_rerun:
+
+  ; Move cursor vertically
+  ldh a, [cursor_y]
+  bit PADB_UP, b
+  jr z, .not_move_up
+    dec a
+  .not_move_up:
+  bit PADB_DOWN, b
+  jr z, .not_move_down
+    inc a
+  .not_move_down:
+  cp 7
+  jr nc, .no_cursor_y_change
+    ldh [cursor_y], a
+  .no_cursor_y_change:
+
+  ; Calculate width of this row
+  ldh a, [cursor_y]
+  ld c, 12  ; width
+  cp 1
+  jr c, .move_x_in_row_width_c  ; row 0: inst
+  ld c, 4
+  jr nz, .move_x_in_row_width_c  ; row 2-6: 16-bit regs
+  .y_is_1:
+    ; On row 1.  Change runtype
+    ldh a, [runtype]
+    ld c, a  ; C: old runtype
+    bit PADB_LEFT, b
+    jr z, .not_prev_runtype
+      add NUM_RUNTYPES - 1
+    .not_prev_runtype:
+    bit PADB_RIGHT, b
+    jr z, .not_next_runtype
+      add 1
+    .not_next_runtype:
+    cp NUM_RUNTYPES
+    jr c, .no_runtype_wrap
+      sub NUM_RUNTYPES
+    .no_runtype_wrap:
+    ldh [runtype], a
+    cp c
+    call nz, draw_runtype
+    ret
+  
+  .move_x_in_row_width_c:
+
+  ; Move X in range [0, C-1)
+  ldh a, [cursor_x]
+  bit PADB_LEFT, b
+  jr z, .not_move_left
+    dec a
+  .not_move_left:
+  bit PADB_RIGHT, b
+  jr z, .not_move_right
+    inc a
+  .not_move_right:
+  cp $80
+  jr nc, .no_cursor_x_change
+  cp c
+  jr c, .no_cursor_x_clamp
+    ld a, c
+    dec a
+  .no_cursor_x_clamp:
+  ldh [cursor_x], a
+.no_cursor_x_change:
+  ret
+

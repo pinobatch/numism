@@ -44,6 +44,8 @@ section "hram_locals", HRAM[hLocals]
 STACK_SIZE EQU 64
 section "stack", WRAM0, ALIGN[2]
 stack_top: ds STACK_SIZE
+section "inststack", WRAM0[$D000-STACK_SIZE], ALIGN[2]
+inst_stack_top: ds STACK_SIZE
 
 section "bootregs_hram", HRAM
 hw_capability:: ds 1
@@ -51,6 +53,8 @@ hw_capability:: ds 1
 section "bootregs", WRAM0
 initial_a:: ds 1
 initial_b:: ds 1
+das_keys:: ds 1
+das_timer:: ds 1
 
 section "rom_init", ROM0
 reset_handler::
@@ -68,6 +72,8 @@ reset_handler::
   ldh [rSCY], a   ; clear scroll
   ldh [rSCX], a   ; clear scroll
   ldh [rNR52], a  ; disable (and reset) audio
+  ld [das_keys], a
+  ld [das_timer], a
 
   if bgbcompat
     ; BGB triggers spurious "reading uninitialized WRAM" exceptions

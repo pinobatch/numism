@@ -127,6 +127,33 @@ clear_scrn0_to_h::
 
 SECTION "rom_ppuclear", ROM0
 
+;;
+; Moves sprites in the display list from SOAM+[oam_used] through
+; SOAM+$9C offscreen by setting their Y coordinate to 0, which is
+; completely above the screen top (16).
+lcd_clear_oam::
+  ; Destination address in shadow OAM
+  ld hl, oam_used
+  ld a, [hl]
+  and $FC
+  ld l,a
+
+  ; iteration count
+  rrca
+  rrca
+  add 256 - 40
+  ld c,a
+
+  xor a
+.rowloop:
+  ld [hl+],a
+  inc l
+  inc l
+  inc l
+  inc c
+  jr nz, .rowloop
+  ret
+
 load_full_nam::
   ld bc,256*20+18
 ;;
@@ -155,3 +182,5 @@ load_nam::
   dec c
   jr nz,load_nam
   ret
+
+
