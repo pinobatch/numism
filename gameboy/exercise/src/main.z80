@@ -1,12 +1,14 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
+WITH_DEBUGHEX equ 1
+
 inst_length equ 6
 inst_epilog_length equ 5
 
 RUNTYPE_OFF equ 0
 RUNTYPE_PRESS_A equ 1
-RUNTYPE_ON equ 2
+RUNTYPE_AUTO equ 2
 NUM_RUNTYPES equ 3
 
 SECTION "instram", HRAM
@@ -62,7 +64,8 @@ main::
   call clear_scrn0_to_h
   call draw_labels
 
-  ; Clear input registers
+  ; Clear input registers as if this code was run
+  ; XOR A LD B, A LD C, A LD D, A LD E, A LD H, A LD L, A LD SP, $D000
   ld c, result_regs-inst+result_regs-input_regs
   ld hl, inst
   xor a
@@ -70,7 +73,7 @@ main::
   ld a, $D0
   ldh [input_sp+1], a
   ld a, $80
-  ldh [input_af+1], a
+  ldh [input_af+0], a
 
   ld a, %11100100
   ldh [rBGP], a
@@ -94,21 +97,24 @@ forever:
 
   rst wait_vblank_irq
   call run_dma
-  ldxy de, 0, 17
-  ld c, low(nmis)
-  call draw_2dig_c
-  ld c, low(cursor_x)
-  call draw_2dig_c
-  call draw_2dig_c
-  ld c, low(runtype)
-  call draw_2dig_c
-  jr forever
 
+  if WITH_DEBUGHEX
+    ldxy de, 0, 17
+    ld c, low(nmis)
+    call draw_2dig_c
+    ld c, low(cursor_x)
+    call draw_2dig_c
+    call draw_2dig_c
+    ld c, low(runtype)
+    call draw_2dig_c
+  endc
+  jr forever
 
 ; Instruction execution ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 run_inst:
   ; Write the instruction epilog
+  ld b, b
   ld hl, inst_epilog_src
   ld de, inst_epilog
   ld bc, inst_epilog_length
@@ -270,14 +276,23 @@ draw_runtype:
     jr nz, .loop
   ret
 
+draw_result_regs:
+  ; Draw flags ZNHC
+  ldh a, [result_af+0]
+  ldxy de, 15, 4
+  lb bc, "Z", "N"
+  call draw_2flags
+  lb bc, "H", "C"
+  call draw_2flags
+
+  ; Draw register values
+  ld c, low(result_regs)
+  ldxy de, 11, 4
+  jr draw_regvalues
+
 draw_input_regs:
   ld c, low(input_regs)
   ldxy de, 6, 4
-  jr draw_regvalues
-
-draw_result_regs:
-  ld c, low(result_regs)
-  ldxy de, 11, 4
   ; fall through
 ;;
 ; @param C values source
@@ -300,7 +315,7 @@ draw_regvalues:
     dec b
     jr nz, .regloop
   ret
-  
+
 ;;
 ; Waits for mode 1, draws 2 digits at [$FF00+C] to [DE]
 draw_2dig_c:
@@ -315,6 +330,20 @@ draw_2dig_c:
   call hblank_put_bc
   pop bc
   inc c
+  ret
+
+draw_2flags:
+  add a
+  jr c, .clear_b
+    ld b, " "
+  .clear_b:
+  add a
+  jr c, .clear_c
+    ld c, " "
+  .clear_c:
+  push af
+  call hblank_put_bc
+  pop af
   ret
 
 ;;
@@ -427,14 +456,15 @@ handle_input:
     sbc a  ; A = $FF if low nibble half else $00
     xor $F0
     ld e, a  ; E = what to add for down; E & $11: what to add for up
-    
+
+    ; Find add amount
     ld d, $FF
     bit PADB_DOWN, b
     jr nz, .add_d_to_nibble_e
     ld d, $11
     bit PADB_UP, b
     jr z, .no_cursor_y_change  ; No Up/Down press? Try Left/Right
-    ; If Up and Down aren't pressed
+    ; If Up or down is pressed, modify the nibble
   .add_d_to_nibble_e:
     ld a, d
     and e
@@ -450,6 +480,12 @@ handle_input:
     call draw_inst
     call draw_input_regs
 
+    ; In auto runtype, re-run after every digit change
+    ldh a, [runtype]
+    cp RUNTYPE_AUTO
+    jr nz, .not_a_held
+      call run_inst
+      call draw_result_regs
   .not_a_held:
 
   ; Handle A releases
@@ -488,12 +524,13 @@ handle_input:
   ld c, 4
   jr nz, .move_x_in_row_width_c  ; row 2-6: 16-bit regs
   .y_is_1:
-    ; On row 1.  Change runtype
+
+    ; Left and Right on row 1 change the runtype, with wrapping
     ldh a, [runtype]
     ld c, a  ; C: old runtype
     bit PADB_LEFT, b
     jr z, .not_prev_runtype
-      add NUM_RUNTYPES - 1
+      add NUM_RUNTYPES - 1  ; Intentionally wrap to cycle backward
     .not_prev_runtype:
     bit PADB_RIGHT, b
     jr z, .not_next_runtype
@@ -501,16 +538,16 @@ handle_input:
     .not_next_runtype:
     cp NUM_RUNTYPES
     jr c, .no_runtype_wrap
-      sub NUM_RUNTYPES
+      sub NUM_RUNTYPES  ; Wrap around
     .no_runtype_wrap:
     ldh [runtype], a
     cp c
-    call nz, draw_runtype
+    call nz, draw_runtype  ; Redraw if changed
     ret
-  
+
   .move_x_in_row_width_c:
 
-  ; Move X in range [0, C-1)
+  ; Left and Right on row 0 or row 2-6 move X in range [0, C)
   ldh a, [cursor_x]
   bit PADB_LEFT, b
   jr z, .not_move_left
@@ -522,8 +559,8 @@ handle_input:
   .not_move_right:
   cp $80
   jr nc, .no_cursor_x_change
-  cp c
-  jr c, .no_cursor_x_clamp
+  cp c  ; If not negative, clamp to maximum value even if unchanged
+  jr c, .no_cursor_x_clamp  ; in case up or down was pressed
     ld a, c
     dec a
   .no_cursor_x_clamp:
