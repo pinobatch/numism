@@ -1,7 +1,7 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-WITH_DEBUGHEX equ 1
+WITH_DEBUGHEX equ 0
 
 inst_length equ 6
 inst_epilog_length equ 5
@@ -114,7 +114,6 @@ forever:
 
 run_inst:
   ; Write the instruction epilog
-  ld b, b
   ld hl, inst_epilog_src
   ld de, inst_epilog
   ld bc, inst_epilog_length
