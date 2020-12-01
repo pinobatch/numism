@@ -193,7 +193,7 @@ inst_labels:
   dwxy 1, 15
   db "A DIR:CHANGE DIGIT",$FF
   dwxy 1, 16
-  db "SEL:INSTRUCTION", $FF
+  db "SEL:CPU", $FF
   db $00
 
 draw_inst:
@@ -322,17 +322,123 @@ draw_cursor:
 
 SECTION "handle_input", ROM0, ALIGN[3]
 
+;;
+; @param B buttons pressed this frame
+; @param C height
+move_up_down_limit_c::
+  ldh a, [cursor_y]
+  bit PADB_UP, b
+  jr z, .not_move_up
+    dec a
+  .not_move_up:
+  bit PADB_DOWN, b
+  jr z, .not_move_down
+    inc a
+  .not_move_down:
+  cp c
+  ret nc
+  ldh [cursor_y], a
+  ret
+
+;;
+; Clamps at right side even if nothing pressed
+; @param B buttons pressed this frame
+; @param C width
+; @return BCDEHL unchanged
+move_left_right_limit_c::
+  ; Left and Right on row 0 or row 2-6 move X in range [0, C)
+  ldh a, [cursor_x]
+  bit PADB_LEFT, b
+  jr z, .not_move_left
+    dec a
+  .not_move_left:
+  bit PADB_RIGHT, b
+  jr z, .not_move_right
+    inc a
+  .not_move_right:
+  cp $80  ; If negative, don't move
+  ret nc
+  cp c  ; If positive, clamp to maximum value even if unchanged
+  jr c, .no_cursor_x_clamp  ; in case up or down was pressed
+    ld a, c
+    dec a
+  .no_cursor_x_clamp:
+  ldh [cursor_x], a
+  ret
+
+;;
+; If A was pressed this frame, make a_pressed_by_self nonzero
+; @param B buttons pressed this frame
+set_a_if_pressed::
+  bit PADB_A, b
+  ret z
+  ld a, b
+  ldh [a_pressed_by_self], a
+  ret
+
+;;
+; If A was pressed, swallow the press
+; @return Z true if A wasn't pressed
+is_a_release::
+  ldh a, [a_pressed_by_self]
+  or a
+  ret z
+  ld a, 0  ; preserve Z flag
+  ldh [a_pressed_by_self], a
+  ret
+
+;;
+; Increases a nibble if Up is pressed or decreases it if Down is
+; pressed.
+; @param A offset in nibbles from start of array at C
+; @param B buttons pressed this frame
+; @param C offset of array from $FF00
+; @return BHL: unchanged; Z: set if neither Up nor Down was pressed;
+; C: pointer to changed byte; E: which nibble was to be changed
+change_nibble_a_of_c::
+  ; Find byte A/2 of this value
+  ld e, a  ; E bit 0 clear for high nibble, set for low
+  rra
+  add c
+  ld c, a  ; C points at byte to edit
+
+  ; Find add mask
+  rr e   ; C = 1 if low nibble else 0
+  sbc a  ; A = $FF if low nibble half else $00
+  xor $F0
+  ld e, a  ; E = what to add for down; E & $11: what to add for up
+
+  ; Find add amount
+  ld d, $FF
+  bit PADB_DOWN, b
+  jr nz, .add_d_to_nibble_e
+  ld d, $11
+  bit PADB_UP, b
+  ret z
+  ; If Up or down is pressed, modify the nibble
+  .add_d_to_nibble_e:
+    ld a, d
+    and e
+    ld d, a  ; D: amount to add
+
+    ld a, [$FF00+c]
+    ld b, a
+    add d
+    xor b
+    and e
+    xor b
+    ld [$FF00+c], a
+  scf
+  adc a
+  ret
+
 handle_input:
   ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
   call autorepeat
 
   ldh a, [new_keys]
   ld b, a
-  bit PADB_A, b
-  jr z, .not_add_a
-    ld a, 1
-    ldh [a_pressed_by_self], a
-  .not_add_a:
+  call set_a_if_pressed
 
   ; If A is currently down, change this digit
   ldh a, [cur_keys]
@@ -363,40 +469,9 @@ handle_input:
       ld c, low(inst)
       ld a, [cursor_x]
     .change_digit_a_of_c:
-
-    ; Find byte A/2 of this value
-    ld e, a  ; E bit 0 clear for high nibble, set for low
-    and $0E
-    rra
-    add c
-    ld c, a  ; C points at byte to edit
-
-    ; Find add mask
-    rr e   ; C = 1 if low nibble else 0
-    sbc a  ; A = $FF if low nibble half else $00
-    xor $F0
-    ld e, a  ; E = what to add for down; E & $11: what to add for up
-
-    ; Find add amount
-    ld d, $FF
-    bit PADB_DOWN, b
-    jr nz, .add_d_to_nibble_e
-    ld d, $11
-    bit PADB_UP, b
-    jr z, .no_cursor_y_change  ; No Up/Down press? Try Left/Right
-    ; If Up or down is pressed, modify the nibble
-  .add_d_to_nibble_e:
-    ld a, d
-    and e
-    ld d, a  ; D: amount to add
-
-    ld a, [$FF00+c]
-    ld b, a
-    add d
-    xor b
-    and e
-    xor b
-    ld [$FF00+c], a
+    
+    call change_nibble_a_of_c
+    jr z, .not_up_down  ; No Up/Down press? Try Left/Right
     call draw_inst
     call draw_input_regs
 
@@ -408,33 +483,19 @@ handle_input:
       call draw_result_regs
   .not_a_held:
 
-  ; Handle A releases
-  ldh a, [a_pressed_by_self]
-  or a
+  ; If A was released in the right runtype, run the code
+  call is_a_release
   jr z, .not_release_a_rerun
-    xor a
-    ldh [a_pressed_by_self], a
-    ldh a, [runtype]
-    cp RUNTYPE_PRESS_A
-    jr nz, .not_release_a_rerun
-      call run_inst
-      call draw_result_regs
+  ldh a, [runtype]
+  cp RUNTYPE_PRESS_A
+  jr nz, .not_release_a_rerun
+    call run_inst
+    call draw_result_regs
   .not_release_a_rerun:
 
-  ; Move cursor vertically
-  ldh a, [cursor_y]
-  bit PADB_UP, b
-  jr z, .not_move_up
-    dec a
-  .not_move_up:
-  bit PADB_DOWN, b
-  jr z, .not_move_down
-    inc a
-  .not_move_down:
-  cp 7
-  jr nc, .no_cursor_y_change
-    ldh [cursor_y], a
-  .no_cursor_y_change:
+  ld c, 7
+  call move_up_down_limit_c
+  .not_up_down:
 
   ; Calculate width of this row
   ldh a, [cursor_y]
@@ -466,27 +527,7 @@ handle_input:
     ret
 
   .move_x_in_row_width_c:
-
-  ; Left and Right on row 0 or row 2-6 move X in range [0, C)
-  ldh a, [cursor_x]
-  bit PADB_LEFT, b
-  jr z, .not_move_left
-    dec a
-  .not_move_left:
-  bit PADB_RIGHT, b
-  jr z, .not_move_right
-    inc a
-  .not_move_right:
-  cp $80
-  jr nc, .no_cursor_x_change
-  cp c  ; If not negative, clamp to maximum value even if unchanged
-  jr c, .no_cursor_x_clamp  ; in case up or down was pressed
-    ld a, c
-    dec a
-  .no_cursor_x_clamp:
-  ldh [cursor_x], a
-.no_cursor_x_change:
-  ret
+  jp move_left_right_limit_c
 
 ; Shared background drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

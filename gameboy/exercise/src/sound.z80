@@ -5,6 +5,7 @@ SIZEOF_CHANNEL equ 5
 NUM_CHANNELS equ 4
 SIZEOF_CTRL equ 3
 SIZEOF_SOUNDBLK equ SIZEOF_CHANNEL * NUM_CHANNELS + SIZEOF_CTRL
+SIZEOF_WAVERAM equ 16
 
 SECTION UNION "hTestState", HRAM
 soundtestin: ds SIZEOF_SOUNDBLK
@@ -23,7 +24,7 @@ sound_test::
   ldh [rNR52], a
   ld hl, triangle_wave
   ld de, _AUD3WAVERAM
-  ld bc, 16
+  ld bc, SIZEOF_WAVERAM
   call memcpy
 
   call lcd_off
@@ -35,6 +36,7 @@ sound_test::
 
 forever:
   call read_pad
+  call handle_input
 
   xor a
   ld [oam_used], a
@@ -49,13 +51,139 @@ forever:
   jr z, forever
   jp inst_test
 
+; Sound test input handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+handle_input:
+  ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
+  call autorepeat
+
+  ldh a, [new_keys]
+  ld b, a
+  call set_a_if_pressed
+
+
+  ; If A is currently down, change this digit
+  ldh a, [cur_keys]
+  bit PADB_A, a
+  jr z, .not_a_held
+    ld a, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT|PADF_B
+    and b
+    jr z, .not_up_down
+
+    xor a  ; A was not pressed by self
+    ldh [a_pressed_by_self], a
+
+    ; Begin calculating address of digit to change
+    ld a, [cursor_y]
+    ld c, a
+    add a  ; Multiply by SIZEOF_CHANNEL
+    add a
+    add c
+    add low(soundtestin)
+    ld c, a
+    ld a, [cursor_x]
+    
+    call change_nibble_a_of_c
+    jr z, .not_up_down  ; No Up/Down press? Try Left/Right
+    call draw_soundtestin
+  .not_a_held:
+
+  ld c, NUM_CHANNELS + 1
+  call move_up_down_limit_c
+
+  ; If A was released, run this row with a new note
+  call is_a_release
+  call nz, write_channel_new_note
+
+.not_up_down:
+  ld a, [new_keys]
+  ld b, a
+
+  ; If B was pressed, write only one byte
+  bit PADB_B, b
+  call nz, write_channel_byte
+
+  ld a, [cursor_y]
+  cp NUM_CHANNELS
+  sbc a  ; A=FF for channels or 0 for control
+  and (SIZEOF_CTRL^SIZEOF_CHANNEL)*2
+  xor SIZEOF_CTRL*2
+  ld c, a
+  jp move_left_right_limit_c
+
+; Sound test execution ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+write_channel_byte:
+  ; Find which byte the cursor is on
+  ldh a, [cursor_y]
+  ld c, a
+  add a
+  add a
+  add c  ; C points to destination register
+  add low(rNR10)
+  ld c, a
+  ldh a, [cursor_x]
+  rra
+  add c
+  ld c, a
+
+  ; Find the destination for that byte in audio RAM
+  lb hl, high(soundtestin), low(soundtestin - rNR10)
+  add l
+  ld l, a
+
+  ; Copy one byte
+  ld a, [hl]
+  ld [$FF00+c], a
+  ret
+
+write_channel_new_note:
+  ; Find the row start
+  ldh a, [cursor_y]
+  ld c, a
+  add a
+  add a
+  add c  ; C points to destination register
+  add low(rNR10)
+  ld c, a
+  ; Find the destination for that byte in audio RAM
+  lb hl, high(soundtestin), low(soundtestin - rNR10)
+  add l
+  ld l, a
+
+  ld a, [hl+]
+  ld [$FF00+c], a
+  inc c
+  ld a, [hl+]
+  ld [$FF00+c], a
+  inc c
+  ld a, [hl+]
+  ld [$FF00+c], a
+  inc c
+
+  ; write the last two bytes only to genuine channels
+  ld a, c
+  cp low(rNR52)
+  ret nc
+  ld a, [hl+]
+  ld [$FF00+c], a
+  inc c
+  ld a, [hl]
+  or $80
+  ld [$FF00+c], a
+  ret
+
+
+; Sound test drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 draw_soundtestin:
   ld c, low(soundtestin)
-  ldxy de, 8, 1
+  ldxy de, 8, 2
   jr draw_sound_blk
 draw_sound_regs:
   ld c, low(rNR10)
-  ldxy de, 8, 2
+  ldxy de, 8, 3
 draw_sound_blk:
   ld l, 4  ; channels left
   .rowloop:
@@ -69,20 +197,27 @@ draw_sound_blk:
     ld d, a
     dec l
     jr nz, .rowloop
+  ld a, 32
+  add e
+  ld e, a
   ld b, 3  ; system bytes
   jp hexdump_b_bytes_hram_c
-
 
 draw_cursor:
   ld hl, oam_used
   ld l, [hl]
 
   ldh a, [cursor_y]
-  swap a
-  add 24  ; 8 visible and 16 invisible margin
+  cp NUM_CHANNELS
+  ccf
+  adc a
+  add a
+  add a
+  add a
+  add 32  ; 16 visible and 16 invisible margin
   ld [hl+], a
   ldh a, [cursor_x]
-  add a
+  adc a
   add a
   add a
   add 64
@@ -97,16 +232,24 @@ draw_cursor:
   ret
 
 sound_labels:
-  dwxy 1, 1
+  dwxy 8, 1
+  db "SWLNVFPPLP",$FF
+  dwxy 1, 2
   db "PULSE1", $FF
-  dwxy 1, 3
+  dwxy 1, 4
   db "PULSE2", $FF
-  dwxy 1, 5
+  dwxy 1, 6
   db "WAVE", $FF
-  dwxy 1, 7
+  dwxy 1, 8
   db "NOISE", $FF
-  dwxy 1, 9
+  dwxy 8, 10
+  db "CCVVPS",$FF
+  dwxy 1, 11
   db "CTRL", $FF
+  dwxy 1, 14
+  db "A:NEW NOTE B:BYTE",$FF
+  dwxy 1, 15
+  db "A DIR:CHANGE DIGIT",$FF
   dwxy 1, 16
   db "SEL:SOUND", $FF
   db $00

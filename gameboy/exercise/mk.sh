@@ -22,6 +22,6 @@ for filename in $objlist; do
   rgbasm -o "obj/gb/$filename.o" "src/$filename.z80"
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist)
-rgblink -o "$title.gb" -p 0xFF $objlisto
+rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
 rgbfix -jvt "$inttitle" -p 0xFF "$title.gb"
 
