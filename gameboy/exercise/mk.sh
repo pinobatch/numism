@@ -1,14 +1,27 @@
 #!/bin/sh
+#
+# who needs gnu make for something this simple?
+#
+# Copyright 2020 Damian Yerrick
+# Copying and distribution of this file, with or without
+# modification, are permitted in any medium without royalty
+# provided the copyright notice and this notice are preserved.
+# This file is offered as-is, without any warranty.
+#
 set -e
 
-rgbgfx -d 1 -o obj/gb/Crash_dump_uncial.1b tilesets/Crash_dump_uncial.png
+title=exercise
+inttitle='EXERCISE'
+objlist='header init inst pads ppuclear sound'
+onebitlist='Crash_dump_uncial'
 
-rgbasm -o obj/gb/header.o src/header.z80
-rgbasm -o obj/gb/init.o src/init.z80
-rgbasm -o obj/gb/main.o src/main.z80
-rgbasm -o obj/gb/pads.o src/pads.z80
-rgbasm -o obj/gb/ppuclear.o src/ppuclear.z80
-
-rgblink -o exercise.gb -p 0xFF obj/gb/header.o obj/gb/init.o obj/gb/main.o obj/gb/pads.o obj/gb/ppuclear.o
-rgbfix -jvt 'EXERCISE' -p 0xFF exercise.gb
+for filename in $onebitlist; do
+  rgbgfx -d 1 -o "obj/gb/$filename.1b" "tilesets/$filename.png"
+done
+for filename in $objlist; do
+  rgbasm -o "obj/gb/$filename.o" "src/$filename.z80"
+done
+objlisto=$(printf "obj/gb/%s.o " $objlist)
+rgblink -o "$title.gb" -p 0xFF $objlisto
+rgbfix -jvt "$inttitle" -p 0xFF "$title.gb"
 

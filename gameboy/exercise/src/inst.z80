@@ -11,13 +11,15 @@ RUNTYPE_PRESS_A equ 1
 RUNTYPE_AUTO equ 2
 NUM_RUNTYPES equ 3
 
-SECTION "instram", HRAM
+SECTION "hCommonState", HRAM
+a_pressed_by_self:: ds 1
+cursor_x:: ds 1
+cursor_y:: ds 1
+
+SECTION UNION "hTestState", HRAM
 inst:        ds inst_length
 inst_epilog: ds inst_epilog_length
 runtype: ds 1
-a_pressed_by_self: ds 1
-cursor_x: ds 1
-cursor_y: ds 1
 input_regs:
 input_af: ds 2
 input_bc: ds 2
@@ -43,6 +45,8 @@ main::
   ldh [nmis],a
   ei
 
+; JMP endpoint
+inst_test::
   ; Load CHR
   call lcd_off
   call run_dma
@@ -59,16 +63,17 @@ main::
     inc b
     jr nz, .loop
 
-  ; Clear screen
-  ld h, 36
-  call clear_scrn0_to_h
-  call draw_labels
+  ld hl, inst_labels
+  call cls_draw_labels
 
   ; Clear input registers as if this code was run
   ; XOR A LD B, A LD C, A LD D, A LD E, A LD H, A LD L, A LD SP, $D000
   ld c, result_regs-inst+result_regs-input_regs
   ld hl, inst
   xor a
+  ldh [a_pressed_by_self], a
+  ldh [cursor_x], a
+  ldh [cursor_y], a
   rst memset_tiny
   ld a, $D0
   ldh [input_sp+1], a
@@ -108,7 +113,10 @@ forever:
     ld c, low(runtype)
     call draw_2dig_c
   endc
-  jr forever
+  ldh a, [new_keys]
+  bit PADB_SELECT, a
+  jr z, forever
+  jp sound_test
 
 ; Instruction execution ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -159,67 +167,15 @@ inst_epilog_src:
   nop
   jp inst_after
 
-; Drawing labels ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Instruction editor background drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-draw_labels:
-  ld hl, labels
-  .lineloop:
-    ld a, [hl+]
-    or a
-    ret z
-    ld e, a
-    ld a, [hl+]
-    ld d, a
-    .charloop:
-      ld a, [hl+]
-      cp $FF
-      jr z, .lineloop
-      ld [de], a
-      inc e
-      jr .charloop
+SECTION "draw_fields", ROM0, ALIGN[3]
+runtypenames:
+  db "OFF     "
+  db "PRESS A "
+  db "AUTO    "
 
-font_1b: incbin "obj/gb/Crash_dump_uncial.1b"
-
-charmap "0", 0
-charmap "1", 1
-charmap "2", 2
-charmap "3", 3
-charmap "4", 4
-charmap "5", 5
-charmap "6", 6
-charmap "7", 7
-charmap "8", 8
-charmap "9", 9
-charmap "A", 10
-charmap "B", 11
-charmap "C", 12
-charmap "D", 13
-charmap "E", 14
-charmap "F", 15
-charmap "G", 16
-charmap "H", 17
-charmap "I", 18
-charmap "J", 19
-charmap "K", 20
-charmap "L", 21
-charmap "M", 22
-charmap "N", 23
-charmap "O", 24
-charmap "P", 25
-charmap "Q", 26
-charmap "R", 27
-charmap "S", 28
-charmap "T", 29
-charmap "U", 30
-charmap "V", 31
-charmap "W", 32
-charmap "X", 33
-charmap "Y", 34
-charmap "Z", 35
-charmap " ", 36
-charmap ":", 37
-
-labels:
+inst_labels:
   dwxy 1, 1
   db "INST", $FF
   dwxy 1, 2
@@ -234,19 +190,16 @@ labels:
   db "HL", $FF
   dwxy 3, 8
   db "SP", $FF
+  dwxy 1, 15
+  db "A DIR:CHANGE DIGIT",$FF
+  dwxy 1, 16
+  db "SEL:INSTRUCTION", $FF
   db $00
-
-; Drawing editable fields ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-SECTION "draw_fields", ROM0, ALIGN[3]
-runtypenames:
-  db "OFF     "
-  db "PRESS A "
-  db "AUTO    "
 
 draw_inst:
   lb bc, inst_length, low(inst)
   ldxy de, 6, 1
+hexdump_b_bytes_hram_c::
   .loop:
     call draw_2dig_c
     dec b
@@ -315,22 +268,6 @@ draw_regvalues:
     jr nz, .regloop
   ret
 
-;;
-; Waits for mode 1, draws 2 digits at [$FF00+C] to [DE]
-draw_2dig_c:
-  push bc
-  ld a, [$FF00+c]
-  and $F0
-  swap a
-  ld b, a
-  ld a, [$FF00+c]
-  and $0F
-  ld c, a
-  call hblank_put_bc
-  pop bc
-  inc c
-  ret
-
 draw_2flags:
   add a
   jr c, .clear_b
@@ -345,22 +282,7 @@ draw_2flags:
   pop af
   ret
 
-;;
-; Waits for mode 0 or 1, then writes B and C in hex to [DE]
-hblank_put_bc:
-  ldh a, [rSTAT]
-  bit 1, a
-  jr nz, hblank_put_bc
-  ld a, b
-  ld [de], a
-  inc e
-  ld a, c
-  ld [de], a
-  inc e
-  ret
-
-
-; TODO: Drawing editor sprite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Drawing editor sprite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 draw_cursor:
   ld hl, oam_used
@@ -396,10 +318,9 @@ draw_cursor:
   ld [oam_used], a
   ret
 
-; TODO: Moving cursor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Moving cursor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 SECTION "handle_input", ROM0, ALIGN[3]
-
 
 handle_input:
   ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
@@ -566,4 +487,60 @@ handle_input:
   ldh [cursor_x], a
 .no_cursor_x_change:
   ret
+
+; Shared background drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SECTION "shared_bg", ROM0
+
+cls_draw_labels::
+  push hl
+  ld h, 36
+  call clear_scrn0_to_h
+  pop hl
+draw_labels::
+  ld a, [hl+]
+  or a
+  ret z
+  ld e, a
+  ld a, [hl+]
+  ld d, a
+  .charloop:
+    ld a, [hl+]
+    cp $FF
+    jr z, draw_labels
+    ld [de], a
+    inc e
+    jr .charloop
+
+;;
+; Waits for mode 1, draws 2 digits at [$FF00+C] to [DE]
+draw_2dig_c::
+  push bc
+  ld a, [$FF00+c]
+  and $F0
+  swap a
+  ld b, a
+  ld a, [$FF00+c]
+  and $0F
+  ld c, a
+  call hblank_put_bc
+  pop bc
+  inc c
+  ret
+
+;;
+; Waits for mode 0 or 1, then writes B and C in hex to [DE]
+hblank_put_bc::
+  ldh a, [rSTAT]
+  bit 1, a
+  jr nz, hblank_put_bc
+  ld a, b
+  ld [de], a
+  inc e
+  ld a, c
+  ld [de], a
+  inc e
+  ret
+
+font_1b: incbin "obj/gb/Crash_dump_uncial.1b"
 

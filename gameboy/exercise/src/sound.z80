@@ -1,0 +1,117 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+SIZEOF_CHANNEL equ 5
+NUM_CHANNELS equ 4
+SIZEOF_CTRL equ 3
+SIZEOF_SOUNDBLK equ SIZEOF_CHANNEL * NUM_CHANNELS + SIZEOF_CTRL
+
+SECTION UNION "hTestState", HRAM
+soundtestin: ds SIZEOF_SOUNDBLK
+
+SECTION "sound_test", ROM0
+sound_test::
+  xor a
+  ldh [a_pressed_by_self], a
+  ldh [cursor_x], a
+  ldh [cursor_y], a
+  ld hl, soundtestin
+  ld c, SIZEOF_SOUNDBLK
+  call memset_tiny
+  ldh [rNR52], a
+  ld a, $80  ; Reset audio regs at start of sound test
+  ldh [rNR52], a
+  ld hl, triangle_wave
+  ld de, _AUD3WAVERAM
+  ld bc, 16
+  call memcpy
+
+  call lcd_off
+  ld hl, sound_labels
+  call cls_draw_labels
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
+  ldh [rLCDC], a
+  call draw_soundtestin
+
+forever:
+  call read_pad
+
+  xor a
+  ld [oam_used], a
+  call draw_cursor
+  call lcd_clear_oam
+
+  rst wait_vblank_irq
+  call run_dma
+  call draw_sound_regs
+  ldh a, [new_keys]
+  bit PADB_SELECT, a
+  jr z, forever
+  jp inst_test
+
+draw_soundtestin:
+  ld c, low(soundtestin)
+  ldxy de, 8, 1
+  jr draw_sound_blk
+draw_sound_regs:
+  ld c, low(rNR10)
+  ldxy de, 8, 2
+draw_sound_blk:
+  ld l, 4  ; channels left
+  .rowloop:
+    ld b, 5  ; bytes in channel
+    call hexdump_b_bytes_hram_c
+    ld a, 64-10
+    add e
+    ld e, a
+    adc d
+    sub e
+    ld d, a
+    dec l
+    jr nz, .rowloop
+  ld b, 3  ; system bytes
+  jp hexdump_b_bytes_hram_c
+
+
+draw_cursor:
+  ld hl, oam_used
+  ld l, [hl]
+
+  ldh a, [cursor_y]
+  swap a
+  add 24  ; 8 visible and 16 invisible margin
+  ld [hl+], a
+  ldh a, [cursor_x]
+  add a
+  add a
+  add a
+  add 64
+  ld [hl+], a
+  ld a, 39
+  ld [hl+], a
+  xor a
+  ld [hl+], a
+
+  ld a, l
+  ld [oam_used], a
+  ret
+
+sound_labels:
+  dwxy 1, 1
+  db "PULSE1", $FF
+  dwxy 1, 3
+  db "PULSE2", $FF
+  dwxy 1, 5
+  db "WAVE", $FF
+  dwxy 1, 7
+  db "NOISE", $FF
+  dwxy 1, 9
+  db "CTRL", $FF
+  dwxy 1, 16
+  db "SEL:SOUND", $FF
+  db $00
+
+triangle_wave:
+  db $FE,$DC,$BA,$98,$76,$54,$32,$10
+  db $01,$23,$45,$67,$89,$AB,$CD,$EF
+

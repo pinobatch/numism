@@ -42,6 +42,47 @@ CHRRAM2  EQU $9000
 ; in activities that don't scroll vertically.
 SCRN_TMP EQU $9800+640
 
+; Character encoding for Crash_dump_uncial.png is not ASCII.
+charmap "0", 0
+charmap "1", 1
+charmap "2", 2
+charmap "3", 3
+charmap "4", 4
+charmap "5", 5
+charmap "6", 6
+charmap "7", 7
+charmap "8", 8
+charmap "9", 9
+charmap "A", 10
+charmap "B", 11
+charmap "C", 12
+charmap "D", 13
+charmap "E", 14
+charmap "F", 15
+charmap "G", 16
+charmap "H", 17
+charmap "I", 18
+charmap "J", 19
+charmap "K", 20
+charmap "L", 21
+charmap "M", 22
+charmap "N", 23
+charmap "O", 24
+charmap "P", 25
+charmap "Q", 26
+charmap "R", 27
+charmap "S", 28
+charmap "T", 29
+charmap "U", 30
+charmap "V", 31
+charmap "W", 32
+charmap "X", 33
+charmap "Y", 34
+charmap "Z", 35
+charmap " ", 36
+charmap ":", 37
+
+
 ; Old Z80 coder habits die hard
 djnz: macro
   dec b
