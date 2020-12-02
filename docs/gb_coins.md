@@ -3,13 +3,15 @@ Game Boy coin ideas
 
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
-the following results in NO$GMB in DMG mode:
+the following results in NO$GMB final, VisualBoyAdvance-M 2.1.4,
+and mGBA 0.9-6554-a2cd8f6cc in DMG mode:
 
-- CPU Instrs: 9 of 11 pass
-- DMG Sound 2: 0 of 12 pass
-- Instr Timing: Fail
-- Mem Timing 2: 0 of 3 pass
-- OAM Bug 2: LCD Sync fails, rendering others unmeasurable
+- CPU Instrs: NO$GMB 9 of 11, VBA-M and mGBA pass
+- DMG Sound 2: NO$GMB 0 of 12, VBA-M 7 of 12, mGBA 10 of 12
+- Instr Timing: NO$GMB fails, VBA-M and mGBA pass
+- Mem Timing 2: NO$GMB 0 of 3, VBA-M 2 of 3, mGBA passes
+- OAM Bug 2: NO$GMB LCD Sync fails, rendering others unmeasurable;
+  VBA-M and mGBA 3 of 8
 
 I plan to research the reason behind each failure in order to
 understand how the behavior of the NO$GMB fantasy console differs
@@ -77,6 +79,23 @@ which NO$GMB observes only the last byte:
 803F00FFBF FF3F00FFBF 7FFF9FFFBF FFFF0000BF 000070
 ```
 
+Game Boy, VBA-M, mGBA, and NO$GMB all make most sound registers
+readable, clear sound registers to 0 when the APU is turned off, and
+read NR52 unused bits 6-4 as 1.  Unlike the others, NO$GMB honors
+writes to other registers while the APU is off, and it doesn't hide
+lengths, periods, or other unused bits from being read back.
+In fact, NO$GMB allows reading out the pitch as sweep updates it.
+
+Game Boy, VBA-M, mGBA, and NO$GMB all reflect channel status in NR52
+bits 3-0, which turn off when its length counter (NRx1) expires or
+wave RAM is unlocked (NR30), and don't turn off when output volume
+fades to 0.  Unlike the others, NO$GMB leaves the status bit on
+when the sweep decreases pulse 1's frequency to minimum or when
+pulse or noise envelope starting value (NRx2) is less than 8.
+
+VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
+11 (04), and 12 (01).  mGBA passes all but 7 (05) and 10 (01).
+
 Halt bug
 --------
 Like 65816 and unlike Z80, SM83 has a `halt` instruction that works
@@ -85,7 +104,7 @@ while interrupts are disabled.  (My code refers to this as a
 following `halt` will be read twice: as two instructions or as an
 opcode and its operand.
 
-NO$GMB passes this.  Make it a stage 2 coin.
+NO$GMB and VBA-M behave the same way as Game Boy.
 
 Instruction timing
 ------------------
@@ -105,14 +124,15 @@ multiple coins.
 - LY ($FF44) increases every 114 cycles (228 in double speed mode)
   while the LCD is on ($FF40).
 
-This test is supposed to finish in half a second.  It begins with an
-11-cycle loop in `start_timer` ($C2D6) that tries to synchronize to
-the 4-cycle phase by writing 0 and reading it 3 cycles later, trying
-again if it incremented.  I guess (need to trace in bgb) that on the
-Game Boy, this succeeds within four tries.  On NO$GMB, it always
-increments and thus gets stuck, and the test has no timeout for this.
-There's also a suggestion that DIV goes _backwards_ on NO$GMB, which
-would interfere with games' random number generators.
+This test finishes in half a second on Game Boy, VBA-M, and mGBA.
+It begins with an 11-cycle loop in `start_timer` ($C2D6) that tries
+to synchronize to the 4-cycle phase by writing 0 and reading it 3
+cycles later, trying again if it incremented.  I guess (need to
+trace in bgb) that on the Game Boy, this succeeds within four tries.
+On NO$GMB, it always increments and thus gets stuck, and the test
+has no timeout for this.  There's also a suggestion that DIV goes
+_backwards_ on NO$GMB, which would interfere with games' random
+number generators.
 
 TODO:
 - See if TIMA in 64-cycle mode always has the same phase as DIV
@@ -131,6 +151,8 @@ Based on how TIMA reacts, it determines whether the access occurred
 before or after the increment.
 
 Because it relies on correct timers, which NO$GMB lacks, a different approach will be needed.
+
+VBA-M fails 3 (01).
 
 TODO: Ask gbdev #emudev which games actually depend on working memory timing
 
@@ -156,6 +178,23 @@ clocks after the instruction that turns on the LCD, not 114 as
 expected.  I also noticed that DIV changes greatly when LCD is turned
 back on.
 
+VBA-M and mGBA both fail 2 (02), 4 (03), 5 (02), 7 (01), 8 (02).
+
 Incidentally, bgb fails most of this too, but probably for different
 reasons.
+
+Coin list
+---------
+All this is preliminary.
+
+1. `add hl` flags
+2. `add sp` flags
+3. APU off clears regs and doesn't honor writes till turned on
+4. Filling APU with zeroes causes OR mask to be read back
+5. Upward sweep turns off NR52 status and downward sweep doesn't
+6. APU length counter expiry and envelope $00 turn off NR52 status
+7. 
+8. 
+9. 
+10. 
 
