@@ -50,8 +50,8 @@ values continuously read back from the APU.
     * `PP`: Period (middle, low, high)
     * `L`: 4 to use length counter; 0 to hold note
 * `CTRL`: Chip-wide control registers
-    * `CC`: Channels enabled on left and right outputs
     * `VV`: Overall volume of left and right outputs
+    * `CC`: Channels enabled on left and right outputs
     * `P`: APU power switch
     * `S`: Channel status (read-only)
 

@@ -71,8 +71,8 @@ INST E21FE2F01100, AF 0010, BC 0026
   ldh a, [$FF11]   ; Audio regs are FF10-FF25
 ```
 
-This was used to confirm the OR mask, of which NO$GMB observes
-only the last one:
+This was used to confirm the OR mask pattern in Blargg's test, of
+which NO$GMB observes only the last byte:
 ```
 803F00FFBF FF3F00FFBF 7FFF9FFFBF FFFF0000BF 000070
 ```

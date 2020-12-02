@@ -20,8 +20,17 @@ sound_test::
   ld c, SIZEOF_SOUNDBLK
   call memset_tiny
   ldh [rNR52], a
-  ld a, $80  ; Reset audio regs at start of sound test
+
+  ; Turn on the APU at the start
+  dec a
   ldh [rNR52], a
+  ldh [rNR52+soundtestin-rNR10], a
+  ldh [rNR51+soundtestin-rNR10], a
+  ld a, $77
+  ldh [rNR50+soundtestin-rNR10], a
+  ld a, NUM_CHANNELS
+  call write_channel_a_new_note
+
   ld hl, triangle_wave
   ld de, _AUD3WAVERAM
   ld bc, SIZEOF_WAVERAM
@@ -141,6 +150,7 @@ write_channel_byte:
 write_channel_new_note:
   ; Find the row start
   ldh a, [cursor_y]
+write_channel_a_new_note:
   ld c, a
   add a
   add a
@@ -243,7 +253,7 @@ sound_labels:
   dwxy 1, 8
   db "NOISE", $FF
   dwxy 8, 10
-  db "CCVVPS",$FF
+  db "VVCCPS",$FF
   dwxy 1, 11
   db "CTRL", $FF
   dwxy 1, 14
