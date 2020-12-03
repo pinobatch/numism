@@ -1,6 +1,32 @@
 Game Boy coin ideas
 ===================
 
+Many Game Boy emulators fail accuracy test ROMs due to behavior
+differences from authentic hardware.  I plan to research the precise
+behaviors underlying test failures and then produce "coins", or
+minimal test routines to demonstrate these differences.
+
+Coin criteria
+-------------
+What makes a good coin?
+
+- Each of 10 stages has 10 coins, each of which represents testing
+  one hardware behavior that at least one stable emulator fails.
+- Stage 1 can be cleared if up to 5 coins are missed.  Later stages
+  allow missing up to 10 coins from it and previous stages combined.
+- Tests in earlier stages should cover behaviors with a greater
+  impact on compatibility with released software or common homebrew
+  programming gotchas.  Later stages can nitpick harder.
+- Tests in one stage should not assume results from a later stage.
+- Stage 1 should be the ten most impactful things that NO$GMB fails
+  in "as in reality" mode and which do not vary between GB and GBC.
+  (I want the "no cash" gimmick to work even without a license file.)
+- Tests should quickly demonstrate a failure, preferably within
+  two frames (35000 M-cycles) and a handful of ROM bytes.
+  Exhaustive testing is not needed.
+
+Emulator test results
+---------------------
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
 the following results in NO$GMB final, VisualBoyAdvance-M 2.1.4,
@@ -10,17 +36,16 @@ and mGBA 0.9-6554-a2cd8f6cc in DMG mode:
 - DMG Sound 2: NO$GMB 0 of 12, VBA-M 7 of 12, mGBA 10 of 12
 - Instr Timing: NO$GMB fails, VBA-M and mGBA pass
 - Mem Timing 2: NO$GMB 0 of 3, VBA-M 2 of 3, mGBA passes
-- OAM Bug 2: NO$GMB LCD Sync fails, rendering others unmeasurable;
+- OAM Bug: NO$GMB LCD Sync fails, rendering others unmeasurable;
   VBA-M and mGBA 3 of 8
 
-I plan to research the reason behind each failure in order to
-understand how the behavior of the NO$GMB fantasy console differs
-from that of a Game Boy.  Then I'll turn the differences most likely
-to affect game behavior into coins.
+These emulators have not yet been tested:
 
-Each stage has 10 coins.  I want stage 1 to be the ten most impactful
-things that NO$GMB fails.  Stage 2 can have things that NO$GMB passes
-so long as they're impactful and another notable emulator fails them.
+- Lameboy and GameYob in DeSmuME or MelonDS
+- Gambatte
+- REW
+
+Some notes from research into behavior differences follow:
 
 [TASVideos GB Accuracy Tests]: http://tasvideos.org/EmulatorResources/GBAccuracyTests.html
 
@@ -104,7 +129,9 @@ while interrupts are disabled.  (My code refers to this as a
 following `halt` will be read twice: as two instructions or as an
 opcode and its operand.
 
-NO$GMB and VBA-M behave the same way as Game Boy.
+Because all emulators tested so far behave the same way as Game Boy,
+stage 1 does not test it.  Stage 2 may test it so that later tests
+relying on more precise timing can cover `di halt`.
 
 Instruction timing
 ------------------
@@ -166,7 +193,8 @@ Game Boy, the trigger is an increment or decrement operation on a
 the range $FF00 to $FFFF during OAM scan (the first 80 dots of lines
 0-143 while the LCD is on).  Affected instructions are `inc`, `dec`,
 `push`, `pop`, and autoincrementing `ld`.  It _doesn't_ happen for
-`ld hl, sp+`, `add sp`, or `add hl`, or at any time other than OAM scan.
+`ld hl, sp+`, `add sp`, or `add hl`, at any time other than OAM scan,
+or on Game Boy Color in either mode.
 
 My guess at the mechanism is that the incrementer puts the value on
 the internal address bus without RD or WR, and the OAM controller
@@ -178,10 +206,10 @@ clocks after the instruction that turns on the LCD, not 114 as
 expected.  I also noticed that DIV changes greatly when LCD is turned
 back on.
 
-VBA-M and mGBA both fail 2 (02), 4 (03), 5 (02), 7 (01), 8 (02).
+VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
+7 (01), and 8 (02): everything but the timing consistency test and
+the non-cause tests.
 
-Incidentally, bgb fails most of this too, but probably for different
-reasons.
 
 Coin list
 ---------
@@ -189,7 +217,7 @@ All this is preliminary.
 
 1. `add hl` flags
 2. `add sp` flags
-3. APU off clears regs and doesn't honor writes till turned on
+3. APU off clears registers and doesn't honor writes till turned on
 4. Filling APU with zeroes causes OR mask to be read back
 5. Upward sweep turns off NR52 status and downward sweep doesn't
 6. APU length counter expiry and envelope $00 turn off NR52 status
@@ -197,4 +225,15 @@ All this is preliminary.
 8. 
 9. 
 10. 
+11. `halt inc a` double-increments only when interrupt is pending
+12. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
+    be read back only on GBC
+13. 
+14. 
+15. 
+16. 
+17. 
+18. 
+19. 
+20. 
 
