@@ -22,8 +22,9 @@ What makes a good coin?
   in "as in reality" mode and which do not vary between GB and GBC.
   (I want the "no cash" gimmick to work even without a license file.)
 - Tests should quickly demonstrate a failure, preferably within
-  two frames (35000 M-cycles) and a handful of ROM bytes.
-  Exhaustive testing is not needed.
+  two frames (35000 M-cycles) and a handful of ROM bytes.  Better
+  characterization of the "fantasy console" implemented by each
+  emulator reduces the need for exhaustive testing.
 
 Emulator test results
 ---------------------
@@ -41,9 +42,15 @@ and mGBA 0.9-6554-a2cd8f6cc in DMG mode:
 
 These emulators have not yet been tested:
 
-- Lameboy and GameYob in DeSmuME or MelonDS
 - Gambatte
+- GameYob and Lameboy in DeSmuME or MelonDS
+- Goomba Color in mGBA
+- helloGB
+- KiGB
 - REW
+- TGB Dual
+- Virtual GameBoy by Marat
+- Last version of VisualBoyAdvance before -M fork
 
 Some notes from research into behavior differences follow:
 
@@ -53,15 +60,16 @@ CPU instructions
 ----------------
 Blargg's CPU instructions test shows that NO$GMB produces incorrect
 flags for two categories of instructions: `op sp, hl` (adding an
-8-bit signed value to SP) and `op rp` (adding a 16-bit register pair
-to HL).  Though this test is CRC-driven like ZEXALL, one can load the
-following instructions into the exerciser to make a quick spot check:
+8-bit signed value to SP) and `op rp` (adding a 16-bit register
+pair to HL).  This test is CRC-driven like ZEXALL, leading to
+the development of the exerciser.  One can load the following
+instructions into the exerciser to make a quick spot check:
 
 - 19: `add hl, de`
-    - GB: Z unchanged, N = 0, HC = carry from bits 11 and 15 of HL + HL
+    - GB: Z unchanged, N = 0, HC = carry from bits 11 and 15 of HL + DE
     - NO$GMB: N and H unchanged
 - 29: `add hl, hl`
-    - GB: Z unchanged, N = 0, HC = carry from bits 11 and 15 of HL + HL
+    - GB: Z unchanged, N = 0, HC = bits 11 and 15 of HL
     - NO$GMB: N and H unchanged
 - E8 rr: `add sp, rel`
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
@@ -71,8 +79,8 @@ following instructions into the exerciser to make a quick spot check:
     - NO$GMB: C = bit 7 of rr
 
 If it's any comfort, NO$GMB does a lot better than TGB Dual, and it
-passes Blargg's `daa` test for all values of AF.  I'm told VBA has
-had problems with `daa`; it may be worth a stage 2 coin.
+passes Blargg's `daa` test for all values of AF.  I'm told old VBA
+versions have problems with `daa`; it may be worth a stage 2 coin.
 
 - 27: `daa`
     1. `low_correction` is $06 if H true or (A & $0F) in A-F else $00
