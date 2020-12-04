@@ -36,12 +36,19 @@ KiGB saves key bindings and other settings in the current working
 directory, not the executable's directory (as if a portable app)
 or the user's local settings directory (as if installed).
 
-Now that SCons has transitioned to Python 3, the SConstruct file for
-[Gambatte] needs a change before it will build:
+Now that SCons has transitioned to Python 3, the `SConstruct`
+file for classic [Gambatte] needs a change before it will build:
 ```
 -               version_str_def = [ 'GAMBATTE_SDL_VERSION_STR', r'\"r' + git_revno + r'\"' ]
 +               version_str_def = [ 'GAMBATTE_SDL_VERSION_STR', r'\"r' + git_revno.decode("utf-8") + r'\"' ]
 ```
+
+The [BizHawk] version of [Gambatte-Speedrun] was used in order to use
+the replacement BIOS file from SameBoy.  Upstream Gambatte-Speedrun
+rejects BIOS files that are not bit-identical to Nintendo's
+copyrighted BIOS file, and unlike with the Game Boy Advance BIOS,
+there is no loophole through which to dump the Game Boy Color BIOS
+through the Game Pak slot.
 
 The [Goomba Color] ROM builder is written in Visual Basic 6 and needs
 the [Visual Basic 6 runtime].  Skip it.  Just use `cat` 😸️
@@ -51,6 +58,7 @@ C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
 ```
 
 [Gambatte]: https://github.com/sinamas/gambatte
+[Gambatte-Speedrun]: https://github.com/pokemon-speedrunning/gambatte-speedrun
 [Goomba Color]: https://www.dwedit.org/gba/goombacolor.php
 [Visual Basic 6 runtime]: https://www.microsoft.com/en-us/download/details.aspx?id=24417
 
@@ -59,24 +67,25 @@ Emulator test results
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
 the following results in NO$GMB final, VisualBoyAdvance-M 2.1.4,
-KiGB v2.05, BGB 1.5.8, Gambatte r696, mGBA 0.9-6554-a2cd8f6cc, and
-Goomba Color 2019-05-04:
+KiGB v2.05, BGB 1.5.8, Gambatte r696, BizHawk 2.5.2 Gambatte,
+mGBA 0.9-6554-a2cd8f6cc, and Goomba Color 2019-05-04:
 
 - CPU Instrs  
-  NO$GMB and KiGB 9 of 11; VBA-M, BGB, Gambatte, mGBA, and Goomba pass
+  NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ NO$GMB 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB and Gambatte pass
+  KiGB _crashes;_ NO$GMB 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB passes
 - Halt bug  
   All but KiGB and Goomba pass
 - Instr Timing  
-  NO$GMB and KiGB hang; Goomba fails #255; VBA-M, BGB, Gambatte, and mGBA pass
+  NO$GMB and KiGB hang; Goomba fails #255; VBA-M, BGB and mGBA pass
 - Mem Timing 2  
-  KiGB _crashes;_ NO$GMB and Goomba 0 of 3; VBA-M 2 of 3; BGB, Gambatte, and mGBA pass
+  KiGB _crashes;_ NO$GMB and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
 - OAM Bug  
   NO$GMB, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
-  VBA-M, BGB, Gambatte, and mGBA 3 of 8
+  VBA-M, BGB, and mGBA 3 of 8
 
-SameBoy v0.13.6 passes everything.
+SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
+BizHawk Gambatte are identical to BGB.
 
 These emulators have not yet been tested:
 
