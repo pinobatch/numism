@@ -24,6 +24,8 @@ include "src/global.inc"
 
 section "irqvars",HRAM
 nmis:: ds 1
+last_int:: ds 1
+last_if:: ds 1
 
 ; The display list at $CE00-$CE9F gets DMA'd to OAM after every frame
 ; in which sprites moved.  Also called "shadow OAM".
@@ -38,17 +40,6 @@ SECTION "vblank_handler", ROM0[$0040]
   ldh [nmis],a
   pop af
   reti
-
-SECTION "wait_vblank_irq_tail", ROM0[$0049]
-wait_vblank_irq_tail:
-  halt
-  cp [hl]
-  jr z, wait_vblank_irq_tail
-  ret
-
-; A lot of this file is broken into little tiny sections, one for
-; each routine, so that the linker can squeeze them into tiny holes
-; between aligned or fixed-address sections
 
 SECTION "lcd_off", ROM0
 ;;
@@ -73,15 +64,20 @@ lcd_off::
   res 7, [hl]
   ret
 
-SECTION "wait_vblank_irq", ROM0[wait_vblank_irq]
+SECTION "wait_vblank_irq", ROM0
 ;;
 ; Waits for the vblank ISR to increment the count of vertical blanks.
 ; Will lock up if DI, vblank IRQ off, or LCD off.
 ; Clobbers A, HL
-wait_vblank_irq_impl::
+wait_vblank_irq::
   ld hl,nmis
   ld a,[hl]
-  jr wait_vblank_irq_tail
+.wait:
+  halt
+  cp [hl]
+  jr z, .wait
+  ret
+
 
 SECTION "busy_wait_vblank", ROM0
 

@@ -52,7 +52,7 @@ forever:
   call draw_cursor
   call lcd_clear_oam
 
-  rst wait_vblank_irq
+  call wait_vblank_irq
   call run_dma
   call draw_sound_regs
   ldh a, [new_keys]

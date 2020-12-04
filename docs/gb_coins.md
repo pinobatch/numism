@@ -1,10 +1,10 @@
 Game Boy coin ideas
 ===================
 
-Many Game Boy emulators fail accuracy test ROMs due to behavior
-differences from authentic hardware.  I plan to research the precise
-behaviors underlying test failures and then produce "coins", or
-minimal test routines to demonstrate these differences.
+Many free or freeware Game Boy emulators fail accuracy test ROMs due
+to behavior differences from authentic hardware.  I plan to research
+the precise behaviors underlying test failures and then produce
+"coins", or minimal test routines to highlight these differences.
 
 Coin criteria
 -------------
@@ -28,6 +28,8 @@ What makes a good coin?
 
 Installing emulators
 --------------------
+I'm operating under the premise of "no cash."  This means no
+production Windows license and no paid versions of emulators.
 NO$GMB and BGB are available only for Windows, and the Linux build
 of KiGB is a few versions back.  I'm testing them in Wine 5.0.2 as
 provided by Ubuntu 20.04 LTS.
@@ -50,6 +52,10 @@ copyrighted BIOS file, and unlike with the Game Boy Advance BIOS,
 there is no loophole through which to dump the Game Boy Color BIOS
 through the Game Pak slot.
 
+[VisualBoyAdvance] 1.7.2 for Windows (from before the VBA-M fork)
+requires mfc42.dll.  This is part of the Microsoft Visual C++ 6
+redistributable package, sometimes called [vcredist].
+
 The [Goomba Color] ROM builder is written in Visual Basic 6 and needs
 the [Visual Basic 6 runtime].  Skip it.  Just use `cat` 😸️
 ```
@@ -59,6 +65,8 @@ C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
 
 [Gambatte]: https://github.com/sinamas/gambatte
 [Gambatte-Speedrun]: https://github.com/pokemon-speedrunning/gambatte-speedrun
+[VisualBoyAdvance]: https://sourceforge.net/projects/vba
+[vcredist]: https://jrsoftware.org/iskb.php?vc
 [Goomba Color]: https://www.dwedit.org/gba/goombacolor.php
 [Visual Basic 6 runtime]: https://www.microsoft.com/en-us/download/details.aspx?id=24417
 
@@ -66,35 +74,39 @@ Emulator test results
 ---------------------
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
-the following results in NO$GMB final, VisualBoyAdvance-M 2.1.4,
-KiGB v2.05, BGB 1.5.8, Gambatte r696, BizHawk 2.5.2 Gambatte,
-mGBA 0.9-6554-a2cd8f6cc, and Goomba Color 2019-05-04:
+the following results in NO$GMB final, VisualBoyAdvance 1.7.2,
+Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8,
+VisualBoyAdvance-M 2.1.4, Gambatte r696, BizHawk 2.5.2 Gambatte,
+and mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
-  NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
+  VBA 6 of 11; NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ NO$GMB 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB passes
-- Halt bug  
-  All but KiGB and Goomba pass
+  KiGB _crashes;_ NO$GMB and VBA 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB passes
+- Halt Bug  
+  VBA enters a reset loop; KiGB and Goomba fail; others pass
 - Instr Timing  
   NO$GMB and KiGB hang; Goomba fails #255; VBA-M, BGB and mGBA pass
 - Mem Timing 2  
-  KiGB _crashes;_ NO$GMB and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
+  KiGB _crashes;_ VBA, NO$GMB, and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
 - OAM Bug  
-  NO$GMB, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
+  VBA, NO$GMB, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
   VBA-M, BGB, and mGBA 3 of 8
 
 SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
 BizHawk Gambatte are identical to BGB.
 
+VBA is a train wreck.  The Hill zone test of 144p Test Suite freezes,
+and _Libbet and the Magic Floor_ doesn't even boot.
+
 These emulators have not yet been tested:
 
+- Mesen-S (pending fix of settings not saving in Mono version)
 - GameYob and Lameboy in DeSmuME or MelonDS
 - helloGB
 - REW
 - TGB Dual
 - Virtual GameBoy by Marat
-- Last version of VisualBoyAdvance before -M fork
 
 Some notes from research into behavior differences follow:
 
@@ -181,15 +193,31 @@ I was using KiGB v2.05 in Wine because Linux is stuck at v2.02.
 
 Halt bug
 --------
+**Not in stage 1 because NO$GMB passes.**
+
 Like 65816 and unlike Z80, SM83 has a `halt` instruction that works
 while interrupts are disabled.  (My code refers to this as a
 `di halt`.) If an interrupt is already pending, however, the byte
 following `halt` will be read twice: as two instructions or as an
 opcode and its operand.
+```
+INST F37604760CFB, BC 0000
+; Disassembles to
+di
+halt
+inc b  ; If no interrupt is pending, this should run once
+halt
+inc c  ; This should get run twice because interrupt is pending
+ei
+; After this point the ordinary handler should run
+```
 
 Because NO$GMB and most others behave like a Game Boy, stage 1 does
 not test it.  Because KiGB and Goomba differ, stage 2 will test it so
 that later tests relying on more precise timing can use `di halt`.
+
+VBA's handling of the halt bug is worst.  It breaks some of my
+other software.  I expect its behavior to be a tough nut to crack.
 
 Instruction timing
 ------------------
@@ -267,6 +295,8 @@ TODO: Ask gbdev #emudev which games actually depend on working memory timing
 
 OAM bug
 -------
+**Not in stage 1 because GBC is not affected.**
+
 The NES PPU's object attribute memory (OAM) controller is broken.
 So is that of the monochrome Game Boy.  It copies one 8-byte pair of
 entries over another pair if the program is not careful.  On the
@@ -317,7 +347,7 @@ All this is preliminary.
 10. 
 11. `halt inc a` double-increments only when interrupt is pending
 12. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
-    be read back during vblank only on GBC
+    be written and read back during vblank only on GBC
 13. 
 14. 
 15. 

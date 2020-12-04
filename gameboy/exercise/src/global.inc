@@ -27,10 +27,6 @@ GLOBAL_INC SET 1
 hLocals EQU $FF80
 locals_size EQU 16
 
-; RGBASM used to require that RST arguments be constexpr, not imported
-memset_tiny     EQU $0008
-wait_vblank_irq EQU $0010
-
 ; CHR RAM is where tile shapes go
 CHRRAM0  EQU $8000
 CHRRAM1  EQU $8800

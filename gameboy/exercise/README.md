@@ -22,12 +22,19 @@ Display
   left, and see results after execution at right.  After `AF` result
   word are flags `ZNHC`, with space written instead of each flag that
   is clear (0).
+* `LAST INT`: First byte is the address of the called IRQ handler.
+  Second is the value of `IF` (pending interrupts) at the end.
 
 Controls
 
 * Up, Down: Move cursor among rows (register pairs)
 * Left, Right: Change run type or move cursor in row
 * A+Up, A+Down: Change nibble value
+
+Execution environment
+
+* The code is run with interrupts disabled.
+* `rst xx` loads `(($C7 | x) << 8) | x` into HL.
 
 [SM83 opcode matrix]: https://gbdev.io/gb-opcodes/optables/
 

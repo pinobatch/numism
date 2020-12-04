@@ -11,6 +11,43 @@ RUNTYPE_PRESS_A equ 1
 RUNTYPE_AUTO equ 2
 NUM_RUNTYPES equ 3
 
+
+; Interrupts ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; $40 is vblank_handler in ppuclear.z80
+SECTION "rst48", ROM0[$0048]  ; STAT
+  push af
+  ld a, $48
+  ldh [last_int],a
+  pop af
+  reti
+
+SECTION "rst50", ROM0[$0050]  ; Timer
+  push af
+  ld a, $50
+  ldh [last_int],a
+  pop af
+  reti
+
+SECTION "rst58", ROM0[$0058]  ; Serial
+  push af
+  ld a, $58
+  ldh [last_int],a
+  pop af
+  reti
+
+SECTION "rst60", ROM0[$0060]  ; Joypad
+  push af
+  ld a, $60
+  ldh [last_int],a
+  pop af
+  reti
+
+
+
+
+; Instruction test ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 SECTION "hCommonState", HRAM
 a_pressed_by_self:: ds 1
 cursor_x:: ds 1
@@ -33,7 +70,6 @@ result_de: ds 2
 result_hl: ds 2
 result_sp: ds 2
 sp_save: ds 2
-
 
 SECTION "main", ROM0
 
@@ -74,7 +110,10 @@ inst_test::
   ldh [a_pressed_by_self], a
   ldh [cursor_x], a
   ldh [cursor_y], a
-  rst memset_tiny
+  ldh [last_if], a
+  call memset_tiny
+  dec a
+  ldh [last_int], a
   ld a, $D0
   ldh [input_sp+1], a
   ld a, $80
@@ -100,7 +139,7 @@ forever:
   call draw_cursor
   call lcd_clear_oam
 
-  rst wait_vblank_irq
+  call wait_vblank_irq
   call run_dma
 
   if WITH_DEBUGHEX
@@ -126,6 +165,8 @@ run_inst:
   ld de, inst_epilog
   ld bc, inst_epilog_length
   call memcpy
+  ld a, $ff
+  ldh [last_int], a
 
   ; Save stack for return
   di
@@ -154,6 +195,8 @@ inst_after:
   push de
   push bc
   push af
+  ldh a, [rIF]
+  ldh [last_if], a
 
   ; Restore stack and return
   ld sp, sp_save
@@ -190,6 +233,8 @@ inst_labels:
   db "HL", $FF
   dwxy 3, 8
   db "SP", $FF
+  dwxy 2, 10
+  db "LAST INT", $FF
   dwxy 1, 15
   db "A DIR:CHANGE DIGIT",$FF
   dwxy 1, 16
@@ -236,6 +281,12 @@ draw_result_regs:
   call draw_2flags
   lb bc, "H", "C"
   call draw_2flags
+  
+  ld c, low(last_int)
+  ldxy de, 11, 10
+  call draw_2dig_c  ; Draw last_int
+  inc e
+  call draw_2dig_c  ; Draw last_if
 
   ; Draw register values
   ld c, low(result_regs)
@@ -555,6 +606,7 @@ draw_labels::
 
 ;;
 ; Waits for mode 1, draws 2 digits at [$FF00+C] to [DE]
+; @return C increased by 1; DE increased by 2
 draw_2dig_c::
   push bc
   ld a, [$FF00+c]

@@ -27,28 +27,32 @@
 ; addresses ($C7, $CF, ..., $FF for CALL $0000, CALL $0008, ...,
 ; CALL $0038) and five for interrupt service routines (ISR).
 ; Fill them with JPs to the actual handlers.
+; 2020-12-04: Don't use RSTs in exerciser until VisualBoyAdvance's
+; defective HALT handling is characterized.
 SECTION "rst00", ROM0[$0000]
+  ld hl, $C700
   ret
-; $08 is memset_tiny in init.z80; $10 is wait_vblank_irq in ppuclear.z80
+SECTION "rst08", ROM0[$0008]
+  ld hl, $CF08
+  ret
+SECTION "rst10", ROM0[$0010]
+  ld hl, $D710
+  ret
 SECTION "rst18", ROM0[$0018]
+  ld hl, $DF18
   ret
 SECTION "rst20", ROM0[$0020]
+  ld hl, $E720
   ret
 SECTION "rst28", ROM0[$0028]
+  ld hl, $EF28
   ret
 SECTION "rst30", ROM0[$0030]
+  ld hl, $F730
   ret
 SECTION "rst38", ROM0[$0038]
+  ld hl, $FF38
   ret
-; $40 is vblank_handler in ppuclear.z80
-SECTION "rst48", ROM0[$0048]
-  reti  ; jp stat_handler
-SECTION "rst50", ROM0[$0050]
-  reti  ; jp timer_handler
-SECTION "rst58", ROM0[$0058]
-  reti  ; jp serial_handler
-SECTION "rst60", ROM0[$0060]
-  reti  ; jp joypad_handler
 
 SECTION "header", ROM0[$0100]
   nop
