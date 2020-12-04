@@ -18,12 +18,12 @@ Display
 * `RUN`: Change when the code is run.  Set to `OFF` (don't run),
   `PRESS A` (run when A is pressed and released), or `AUTO` (run
   after each digit change)
-* `AF`, `BC`, `DE`, `HL`, `SP`: Set registers before execution at
-  left, and see results after execution at right.  After `AF` result
-  word are flags `ZNHC`, with space written instead of each flag that
-  is clear (0).
-* `LAST INT`: First byte is the address of the called IRQ handler.
-  Second is the value of `IF` (pending interrupts) at the end.
+* `AF`, `BC`, `DE`, `HL`, `SP`, `IEIF`: Set registers before
+  execution at left, and see results after execution at right.
+  After `AF` result word are flags `ZNHC`, with space written
+  instead of each flag that is clear (0).
+* `LAST INT`: The address of the called IRQ handler, or FF if none
+  was called.
 
 Controls
 

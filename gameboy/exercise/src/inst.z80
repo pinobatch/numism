@@ -11,6 +11,8 @@ RUNTYPE_PRESS_A equ 1
 RUNTYPE_AUTO equ 2
 NUM_RUNTYPES equ 3
 
+NUM_ABOVE_REGPAIRS equ 2
+NUM_REGPAIRS equ 6
 
 ; Interrupts ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -63,12 +65,16 @@ input_bc: ds 2
 input_de: ds 2
 input_hl: ds 2
 input_sp: ds 2
+input_if: ds 1
+input_ie: ds 1
 result_regs:
 result_af: ds 2
 result_bc: ds 2
 result_de: ds 2
 result_hl: ds 2
 result_sp: ds 2
+result_if: ds 1
+result_ie: ds 1
 sp_save: ds 2
 
 SECTION "main", ROM0
@@ -110,7 +116,6 @@ inst_test::
   ldh [a_pressed_by_self], a
   ldh [cursor_x], a
   ldh [cursor_y], a
-  ldh [last_if], a
   call memset_tiny
   dec a
   ldh [last_int], a
@@ -173,6 +178,10 @@ run_inst:
   ld [sp_save], sp
 
   ; Load input register values
+  ldh a, [input_if]
+  ldh [rIF], a
+  ldh a, [input_ie]
+  ldh [rIE], a
   ld sp, input_regs
   pop af
   pop bc
@@ -196,7 +205,13 @@ inst_after:
   push bc
   push af
   ldh a, [rIF]
-  ldh [last_if], a
+  ldh [result_if], a
+  ldh a, [rIE]
+  ldh [result_ie], a
+  xor a
+  ldh [rIF], a
+  inc a  ; vblank only!
+  ldh [rIE], a
 
   ; Restore stack and return
   ld sp, sp_save
@@ -233,6 +248,8 @@ inst_labels:
   db "HL", $FF
   dwxy 3, 8
   db "SP", $FF
+  dwxy 1, 9
+  db "IEIF", $FF
   dwxy 2, 10
   db "LAST INT", $FF
   dwxy 1, 15
@@ -285,8 +302,6 @@ draw_result_regs:
   ld c, low(last_int)
   ldxy de, 11, 10
   call draw_2dig_c  ; Draw last_int
-  inc e
-  call draw_2dig_c  ; Draw last_if
 
   ; Draw register values
   ld c, low(result_regs)
@@ -342,7 +357,7 @@ draw_cursor:
   ldh a, [cursor_y]
   cp 2
   ccf    ; CF=1 if >= 2 else 0
-  adc 3  ; 3, 4, 6, 7, 8, 9, 10
+  adc 3  ; 3, 4, 6, 7, 8, 9, 10, 11
   add a  ; taking into account 8 visible and 16 invisible margin
   add a
   add a
@@ -544,7 +559,7 @@ handle_input:
     call draw_result_regs
   .not_release_a_rerun:
 
-  ld c, 7
+  ld c, NUM_ABOVE_REGPAIRS + NUM_REGPAIRS
   call move_up_down_limit_c
   .not_up_down:
 

@@ -25,7 +25,6 @@ include "src/global.inc"
 section "irqvars",HRAM
 nmis:: ds 1
 last_int:: ds 1
-last_if:: ds 1
 
 ; The display list at $CE00-$CE9F gets DMA'd to OAM after every frame
 ; in which sprites moved.  Also called "shadow OAM".
