@@ -398,7 +398,7 @@ is_a_release::
 change_nibble_a_of_c::
   ; Find byte A/2 of this value
   ld e, a  ; E bit 0 clear for high nibble, set for low
-  rra
+  srl a
   add c
   ld c, a  ; C points at byte to edit
 

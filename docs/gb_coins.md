@@ -31,13 +31,13 @@ Emulator test results
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
 the following results in NO$GMB final, VisualBoyAdvance-M 2.1.4,
-and mGBA 0.9-6554-a2cd8f6cc in DMG mode:
+KiGB v2.05, and mGBA 0.9-6554-a2cd8f6cc in DMG mode:
 
-- CPU Instrs: NO$GMB 9 of 11, VBA-M and mGBA pass
-- DMG Sound 2: NO$GMB 0 of 12, VBA-M 7 of 12, mGBA 10 of 12
-- Instr Timing: NO$GMB fails, VBA-M and mGBA pass
-- Mem Timing 2: NO$GMB 0 of 3, VBA-M 2 of 3, mGBA passes
-- OAM Bug: NO$GMB LCD Sync fails, rendering others unmeasurable;
+- CPU Instrs: NO$GMB and KiGB 9 of 11, VBA-M and mGBA pass
+- DMG Sound: KiGB _crashes,_ NO$GMB 0 of 12, VBA-M 7 of 12, mGBA 10 of 12
+- Instr Timing: NO$GMB and KiGB hang, VBA-M and mGBA pass
+- Mem Timing 2: KiGB _crashes,_ NO$GMB 0 of 3, VBA-M 2 of 3, mGBA passes
+- OAM Bug: NO$GMB and KiGB fail LCD Sync, rendering others unmeasurable;
   VBA-M and mGBA 3 of 8
 
 These emulators have not yet been tested:
@@ -58,12 +58,13 @@ Some notes from research into behavior differences follow:
 
 CPU instructions
 ----------------
-Blargg's CPU instructions test shows that NO$GMB produces incorrect
-flags for two categories of instructions: `op sp, hl` (adding an
-8-bit signed value to SP) and `op rp` (adding a 16-bit register
-pair to HL).  This test is CRC-driven like ZEXALL, leading to
-the development of the exerciser.  One can load the following
-instructions into the exerciser to make a quick spot check:
+Blargg's CPU instructions test shows that both NO$GMB and KiGB
+produce incorrect flags for two categories of instructions:
+`op sp, hl` (adding an 8-bit signed value to SP) and `op rp` (adding
+a 16-bit register pair to HL).  Rather than giving details of what
+went wrong, this test just does a CRC over the results like ZEXALL.
+This led to the development of the exerciser.  One can load the
+following instructions into the exerciser to make a quick spot check:
 
 - 19: `add hl, de`
     - GB: Z unchanged, N = 0, HC = carry from bits 11 and 15 of HL + DE
@@ -78,8 +79,8 @@ instructions into the exerciser to make a quick spot check:
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
     - NO$GMB: C = bit 7 of rr
 
-If it's any comfort, NO$GMB does a lot better than TGB Dual, and it
-passes Blargg's `daa` test for all values of AF.  I'm told old VBA
+If it's any comfort, NO$GMB and KiGB do a lot better than TGB Dual.
+They pass Blargg's `daa` test for all values of AF.  I'm told old VBA
 versions have problems with `daa`; it may be worth a stage 2 coin.
 
 - 27: `daa`
@@ -128,6 +129,8 @@ pulse or noise envelope starting value (NRx2) is less than 8.
 
 VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
 11 (04), and 12 (01).  mGBA passes all but 7 (05) and 10 (01).
+This is the first time I saw a ROM crash an emulator, though I admit
+I was using KiGB v2.05 in Wine because Linux is stuck at v2.02.
 
 Halt bug
 --------
@@ -137,9 +140,9 @@ while interrupts are disabled.  (My code refers to this as a
 following `halt` will be read twice: as two instructions or as an
 opcode and its operand.
 
-Because all emulators tested so far behave the same way as Game Boy,
-stage 1 does not test it.  Stage 2 may test it so that later tests
-relying on more precise timing can cover `di halt`.
+Because NO$GMB, VBA-M, and mGBA behave the same way as Game Boy,
+stage 1 does not test it.  KiGB fails.  Thus Stage 2 will test it so
+that later tests relying on more precise timing can use `di halt`.
 
 Instruction timing
 ------------------
@@ -208,16 +211,16 @@ My guess at the mechanism is that the incrementer puts the value on
 the internal address bus without RD or WR, and the OAM controller
 isn't equipped to ignore being decoded without RD or WR.
 
-NO$GMB is incompatible with the method that Blargg's test uses to
-synchronize to the start of frame at $C0BF.  LY advanced 109 debug
-clocks after the instruction that turns on the LCD, not 114 as
+NO$GMB and KiGB fail the LCD sync test for timing consistency, making
+the other tests invalid.  Running the test in NO$GMB's debugger shows
+the emulator is incompatible with the method that Blargg's test uses
+to synchronize to the start of frame at $C0BF.  LY advanced 109
+debug clocks after the instruction that turns on the LCD, not 114 as
 expected.  I also noticed that DIV changes greatly when LCD is turned
-back on.
+back on.  KiGB also fails, and it has no debugger to explain why.
 
 VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
-7 (01), and 8 (02): everything but the timing consistency test and
-the non-cause tests.
-
+7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
 
 Coin list
 ---------
