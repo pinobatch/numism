@@ -201,16 +201,16 @@ while interrupts are disabled.  (My code refers to this as a
 following `halt` will be read twice: as two instructions or as an
 opcode and its operand.
 ```
-INST F37604760CFB, BC 0000
+INST E27614761C00, AF 0700, BC 0007, IEIF 0100
 ; Disassembles to
-di
+ld [$FF00+c], a  ; Set timer mode to 7 for use with IE 04
 halt
-inc b  ; If no interrupt is pending, this should run once
+inc d  ; If no interrupt is pending, this should run once
 halt
-inc c  ; This should get run twice because interrupt is pending
-ei
-; After this point the ordinary handler should run
+inc e  ; This should get run twice because interrupt is pending
+; ei   ; Change last byte to FB to see queued interrupts get handled
 ```
+Look at the behavior
 
 Because NO$GMB and most others behave like a Game Boy, stage 1 does
 not test it.  Because KiGB and Goomba differ, stage 2 will test it so

@@ -37,8 +37,16 @@ SECTION "vblank_handler", ROM0[$0040]
   ldh a,[nmis]
   inc a
   ldh [nmis],a
+  jr vblank_handler_tail
+
+SECTION "vblank_handler_tail", ROM0[$0068]
+vblank_handler_tail:
+  ld a, $40
+  ldh [last_int],a
   pop af
   reti
+
+
 
 SECTION "lcd_off", ROM0
 ;;

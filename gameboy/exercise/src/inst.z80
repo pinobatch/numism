@@ -46,8 +46,6 @@ SECTION "rst60", ROM0[$0060]  ; Joypad
   reti
 
 
-
-
 ; Instruction test ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 SECTION "hCommonState", HRAM

@@ -22,8 +22,8 @@ Display
   execution at left, and see results after execution at right.
   After `AF` result word are flags `ZNHC`, with space written
   instead of each flag that is clear (0).
-* `LAST INT`: The address of the called IRQ handler, or FF if none
-  was called.
+* `LAST INT`: The address of the called IRQ handler (40-60), or
+  FF if none was called.
 
 Controls
 
