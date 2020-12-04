@@ -31,14 +31,18 @@ Emulator test results
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
 the following results in NO$GMB final, VisualBoyAdvance-M 2.1.4,
-KiGB v2.05, and mGBA 0.9-6554-a2cd8f6cc in DMG mode:
+KiGB v2.05, BGB 1.5.8, Gambatte r696, and mGBA 0.9-6554-a2cd8f6cc in
+DMG mode:
 
-- CPU Instrs: NO$GMB and KiGB 9 of 11, VBA-M and mGBA pass
-- DMG Sound: KiGB _crashes,_ NO$GMB 0 of 12, VBA-M 7 of 12, mGBA 10 of 12
-- Instr Timing: NO$GMB and KiGB hang, VBA-M and mGBA pass
-- Mem Timing 2: KiGB _crashes,_ NO$GMB 0 of 3, VBA-M 2 of 3, mGBA passes
+- CPU Instrs: NO$GMB and KiGB 9 of 11; VBA-M, BGB, Gambatte, and mGBA pass
+- DMG Sound: KiGB _crashes;_ NO$GMB 0 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB and Gambatte pass
+- Halt bug: All but KiGB pass
+- Instr Timing: NO$GMB and KiGB hang; VBA-M, BGB, Gambatte, and mGBA pass
+- Mem Timing 2: KiGB _crashes;_ NO$GMB 0 of 3; VBA-M 2 of 3; BGB, Gambatte, and mGBA pass
 - OAM Bug: NO$GMB and KiGB fail LCD Sync, rendering others unmeasurable;
-  VBA-M and mGBA 3 of 8
+  VBA-M, BGB, Gambatte, and mGBA 3 of 8
+
+SameBoy v0.13.6 passes everything.
 
 These emulators have not yet been tested:
 
@@ -46,7 +50,6 @@ These emulators have not yet been tested:
 - GameYob and Lameboy in DeSmuME or MelonDS
 - Goomba Color in mGBA
 - helloGB
-- KiGB
 - REW
 - TGB Dual
 - Virtual GameBoy by Marat
