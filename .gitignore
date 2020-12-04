@@ -10,6 +10,8 @@
 *.2b
 *.1b
 *.iur
+*.sav
+kigb.cfg
 nes/numism.nes
 nes/map.txt
 *.cdl

@@ -68,16 +68,19 @@ following instructions into the exerciser to make a quick spot check:
 
 - 19: `add hl, de`
     - GB: Z unchanged, N = 0, HC = carry from bits 11 and 15 of HL + DE
-    - NO$GMB: N and H unchanged
+    - NO$GMB and KiGB: N and H unchanged
 - 29: `add hl, hl`
     - GB: Z unchanged, N = 0, HC = bits 11 and 15 of HL
-    - NO$GMB: N and H unchanged
+    - NO$GMB and KiGB: N and H unchanged
 - E8 rr: `add sp, rel`
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
-    - NO$GMB: C = bit 7 of rr
+    - NO$GMB and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
 - F8 rr: `ld hl, sp+rel`
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
-    - NO$GMB: C = bit 7 of rr
+    - NO$GMB and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
+
+If SP is not pointing into HRAM, the carry from E8 and F8 in NO$GMB
+and KiGB will always equal bit 7 of the relative value.
 
 If it's any comfort, NO$GMB and KiGB do a lot better than TGB Dual.
 They pass Blargg's `daa` test for all values of AF.  I'm told old VBA
@@ -172,9 +175,32 @@ has no timeout for this.  There's also a suggestion that DIV goes
 _backwards_ on NO$GMB, which would interfere with games' random
 number generators.
 
-TODO:
-- See if TIMA in 64-cycle mode always has the same phase as DIV
-- Ask gbdev #emudev which games depend on working timers
+This exerciser locks TIMA in 64-cycle mode to the same phase as DIV.
+Run this first:
+```
+INST E2AF22222200, AF 0700, BC 0007, HL FF04
+# disassembles to
+ld [$FF00+c], a
+xor a
+ld [hl+], a  ; reset DIV
+ld [hl+], a  ; set TIMA value to 0
+ld [hl+], a  ; set TIMA overflow reload to 0
+```
+Then run this repeatedly:
+```
+INST 0520FD2A1B46, BC 0100, HL FF04
+# disassembles to
+label:
+dec b        ; wait 4*B cycles
+jr nz, label
+ld a, [hl+]  ; read DIV
+inc de       ; burn a couple cycles
+ld b, [hl]   ; read TIMA 4 cycles after DIV
+```
+A (DIV) and B (TIMA) should be the same on most presses, with B one
+higher on a small fraction.  Everything but NO$GMB gets this right.
+
+TODO: Ask gbdev #emudev which games depend on working timers
 
 Memory timing
 -------------
@@ -188,7 +214,8 @@ TIMA as the address to determine on which cycle the access occurs.
 Based on how TIMA reacts, it determines whether the access occurred
 before or after the increment.
 
-Because it relies on correct timers, which NO$GMB lacks, a different approach will be needed.
+Because it relies on correct timers, which NO$GMB lacks, a different
+approach will be needed.
 
 VBA-M fails 3 (01).
 
@@ -222,6 +249,14 @@ back on.  KiGB also fails, and it has no debugger to explain why.
 VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
 7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
 
+Other tests
+-----------
+Things I can think off the top of my head to make exercisers for:
+
+- DIV and TIMA sync
+- Readback of BGP, OBP0, OBP1
+- In which modes OAM and VRAM can be read and written
+
 Coin list
 ---------
 All this is preliminary.
@@ -238,7 +273,7 @@ All this is preliminary.
 10. 
 11. `halt inc a` double-increments only when interrupt is pending
 12. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
-    be read back only on GBC
+    be read back during vblank only on GBC
 13. 
 14. 
 15. 
