@@ -70,3 +70,10 @@ Controls
 * A: Write all bytes of channel, starting a new note
 * B: Overwrite only one byte in the channel
 
+DAA exhaustive tester
+---------------------
+Once complete, this will test the `daa` (decimal adjust accumulator)
+instruction on all 4,096 distinct AF (accumulator and flags) values,
+compare them to the result of a software implementation of `daa`,
+and draw where they do not match.
+

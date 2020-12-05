@@ -58,7 +58,7 @@ forever:
   ldh a, [new_keys]
   bit PADB_SELECT, a
   jr z, forever
-  jp inst_test
+  jp daa_test
 
 ; Sound test input handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

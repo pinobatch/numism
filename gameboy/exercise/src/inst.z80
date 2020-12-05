@@ -253,7 +253,7 @@ inst_labels:
   dwxy 1, 15
   db "A DIR:CHANGE DIGIT",$FF
   dwxy 1, 16
-  db "SEL:CPU", $FF
+  db "SEL:CPU INST", $FF
   db $00
 
 draw_inst:

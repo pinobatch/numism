@@ -101,6 +101,7 @@ and _Libbet and the Magic Floor_ doesn't even boot.
 
 These emulators have not yet been tested:
 
+- VisualBoyAdvance individual CPU Instrs
 - Mesen-S (pending fix of settings not saving in Mono version)
 - GameYob and Lameboy in DeSmuME or MelonDS
 - helloGB
@@ -138,23 +139,26 @@ following instructions into the exerciser to make a quick spot check:
 If SP is not pointing into HRAM, the carry from E8 and F8 in NO$GMB
 and KiGB will always equal bit 7 of the relative value.
 
-If it's any comfort, NO$GMB and KiGB do a lot better than TGB Dual.
-They pass Blargg's `daa` test for all values of AF.  I'm told old VBA
-versions have problems with `daa`; it may be worth a stage 2 coin.
+If it's any comfort, NO$GMB and KiGB do better than VBA and TGB Dual.
+They pass Blargg's `daa` test for all values of AF.
 
 - 27: `daa`
-    1. `low_correction` is $06 if H true or (A & $0F) in A-F else $00
-    2. `high_correction` is $60 if C true or A in $9A-$FF else $00
-    3. Add or subtract `low_correction | high_correction` based on N
-    4. Z = A == 0, N unchanged, H = 0, C set if correction add/sub
+    1. `low_adjust` is $06 if H true or (A & $0F) in A-F else $00
+    2. `high_adjust` is $60 if C true or A in $9A-$FF else $00
+    3. Add or subtract `low_adjust | high_adjust` based on N
+    4. Z = A == 0, N unchanged, H = 0, C set if adjust add/sub
        overflowed or if already set (`daa` never clears C)
+
+VBA `daa` runs AF through a big lookup table.  Adding $95 and $05 on
+a Game Boy produces AF=$9A00, which `daa` adjusts to $0090 (Z and
+C flags set).  VBA adjusts $9A instead to $00B0 (Z, H, and C set).
+An exhaustive `daa` tester to find error patterns may be useful.
 
 DMG sound
 ---------
-None of these pass because NO$GMB provides incorrect values when
-reading back values from audio registers.  Reverse engineering
-what it actually does and what misbehaviors would be most
-game-visible will be fun.
+NO$GMB fails all tests because it doesn't mask write-only bits when
+reading back values from audio registers and honors writes while the
+APU is off.  Still curious what are the most impactful differences.
 
 In the exerciser, use these instructions to explore APU reset:
 ```
@@ -200,24 +204,22 @@ while interrupts are disabled.  (My code refers to this as a
 `di halt`.) If an interrupt is already pending, however, the byte
 following `halt` will be read twice: as two instructions or as an
 opcode and its operand.
+
+Most emulators' behavior can be characterized with this exerciser:
 ```
 INST E27614761C00, AF 0700, BC 0007, IEIF 0100
 ; Disassembles to
 ld [$FF00+c], a  ; Set timer mode to 7 for use with IE 04
 halt
-inc d  ; If no interrupt is pending, this should run once
+inc d  ; If no interrupt is pending, this runs once
 halt
-inc e  ; This should get run twice because interrupt is pending
+inc e  ; This runs twice because an interrupt is still pending
 ; ei   ; Change last byte to FB to see queued interrupts get handled
 ```
-Look at the behavior
-
 Because NO$GMB and most others behave like a Game Boy, stage 1 does
-not test it.  Because KiGB and Goomba differ, stage 2 will test it so
+not test `halt`.  Because KiGB and Goomba differ, stage 2 tests it so
 that later tests relying on more precise timing can use `di halt`.
-
-VBA's handling of the halt bug is worst.  It breaks some of my
-other software.  I expect its behavior to be a tough nut to crack.
+VBA is a clown show: with IME off, it can _call the handler anyway._
 
 Instruction timing
 ------------------
@@ -328,6 +330,7 @@ Other tests
 Things I can think off the top of my head to make exercisers for:
 
 - DIV and TIMA sync
+- DAA error visualizer
 - Readback of BGP, OBP0, OBP1
 - In which modes OAM and VRAM can be read and written
 
@@ -345,11 +348,11 @@ All this is preliminary.
 8. 
 9. 
 10. 
-11. `halt inc a` double-increments only when interrupt is pending
-12. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
+11. `di halt inc d halt inc e` double-increments only E (halt bug)
+12. `di halt inc d halt inc e` calls no handler (VBA halt bug)
+13. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
     be written and read back during vblank only on GBC
-13. 
-14. 
+14. `daa` with $9A00 and a few other key values of AF
 15. 
 16. 
 17. 

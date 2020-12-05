@@ -1,0 +1,105 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+section "daa_test", ROM0
+
+daa_test::
+  ; Load CHR
+  call lcd_off
+  ld hl, daa_labels
+  call cls_draw_labels
+
+  ld a, %11100100
+  ldh [rBGP], a
+  ldh [rOBP0], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
+  ldh [rLCDC], a
+
+  ; This is the way we'd test it in the coin
+  ld a, $95
+  add $05
+  daa
+  ld a, $95
+  add $05
+  call emulate_daa
+
+forever:
+  call read_pad
+
+  xor a
+  ld [oam_used], a
+;  call draw_cursor
+  call lcd_clear_oam
+  call wait_vblank_irq
+  call run_dma
+  ldh a, [new_keys]
+  bit PADB_SELECT, a
+  jr z, forever
+  jp inst_test
+
+emulate_daa:
+  push bc
+  push af
+  pop bc
+  ld b, 0
+  ; B: adjust value; C: flags (ZNHC0000)
+
+  ; If carry or over high adjust threshold, set high adjust
+  bit 4, c
+  jr nz, .yes_high_adjust
+  cp $9A
+  jr c, .no_high_adjust
+  .yes_high_adjust:
+    set 5, b
+    set 6, b
+  .no_high_adjust:
+
+  ; If half carry or low digit over threshold, set low adjust
+  swap a
+  bit 5, c
+  jr nz, .yes_low_adjust
+  cp $A0
+  jr c, .no_low_adjust
+  .yes_low_adjust:
+    res 5, c  ; DAA output has half carry 0
+    set 1, b
+    set 2, b
+  .no_low_adjust:
+  swap a
+
+  ; Do the adjustment
+  bit 6, c
+  jr nz, .is_subtraction
+    add b
+    jr .have_adjust_result
+  .is_subtraction:
+    sub b
+  .have_adjust_result:
+  ld b, a  ; Adjusted value is in B
+
+  ; DAA can set or clear Z. It can set but not clear C.
+  jr nc, .no_carry
+    set 4, c
+  .no_carry:
+  res 7, c
+  jr nz, .no_zero
+    set 7, c
+  .no_zero:
+
+  ; DAA emulation
+  push bc
+  pop af
+  pop bc
+  ret
+
+daa_labels:
+
+sound_labels:
+  dwxy 3, 1
+  db "EXHAUSTIVE DAA", $FF
+  dwxy 2, 2
+  db "TEST COMING SOON", $FF
+  dwxy 1, 16
+  db "SEL:DAA", $FF
+  db $00
+
