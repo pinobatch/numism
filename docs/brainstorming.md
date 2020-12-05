@@ -60,6 +60,8 @@ a behavior of a console visible to a running program, and each fake
 coin represents an emulator's failure to accurately reproduce that
 behavior.
 
+See [What makes a good coin?] for what I'm aiming at.
+
 I intend to choose behaviors to test through a survey of how current
 emulators and important historic emulators respond to well-known
 test ROMs.  In some versions, the ten coins reachable without an
@@ -132,9 +134,4 @@ not be practical unless the test is worked as a game and its sequel.
 
 
 ### Existing test ROMs
-
-- NES: ["Emulator tests" on NESdev Wiki](https://wiki.nesdev.com/w/index.php/Emulator_tests)
-- SMS: _To be decided_
-- GB: ["Testing" on awesome-gbdev](https://gbdev.io/list.html#testing)
-- GBA: [mGBA Suite](https://github.com/mgba-emu/suite) and [jsmolka/gba-suite](https://github.com/jsmolka/gba-suite)
 

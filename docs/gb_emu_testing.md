@@ -1,38 +1,23 @@
 Game Boy coin ideas
 ===================
 
-Many free or freeware Game Boy emulators fail accuracy test ROMs due
-to behavior differences from authentic hardware.  I plan to research
-the precise behaviors underlying test failures and then produce
-"coins", or minimal test routines to highlight these differences.
+I'm testing several current and historic emulators of the Game Boy
+compact video game system to compare and contrast their behavior with
+that of an authentic Game Boy.  My main goal is to produce "coins,"
+my term for short test programs to highlight a behavior difference.
+(See [What makes a good coin?] and [Game Boy coin list].)  Along the
+way, I'm likely to produce exercisers, or in-depth test ROMs used to
+research differences, as well as documentation of differences.
 
-Coin criteria
--------------
-What makes a good coin?
-
-- Each of 10 stages has 10 coins, each of which represents testing
-  one hardware behavior that at least one stable emulator fails.
-- Stage 1 can be cleared if up to 5 coins are missed.  Later stages
-  allow missing up to 10 coins from it and previous stages combined.
-- Tests in earlier stages should cover behaviors with a greater
-  impact on compatibility with released software or common homebrew
-  programming gotchas.  Later stages can nitpick harder.
-- Tests in one stage should not assume results from a later stage.
-- Stage 1 should be the ten most impactful things that NO$GMB fails
-  in "as in reality" mode and which do not vary between GB and GBC.
-  (I want the "no cash" gimmick to work even without a license file.)
-- Tests should quickly demonstrate a failure, preferably within
-  two frames (35000 M-cycles) and a handful of ROM bytes.  Better
-  characterization of the "fantasy console" implemented by each
-  emulator reduces the need for exhaustive testing.
+[What makes a good coin?]: ./good_coin.md
+[Game Boy coin list]: ./gb_coins.md
 
 Installing emulators
 --------------------
-I'm operating under the premise of "no cash."  This means no
-production Windows license and no paid versions of emulators.
-NO$GMB and BGB are available only for Windows, and the Linux build
-of KiGB is a few versions back.  I'm testing them in Wine 5.0.2 as
-provided by Ubuntu 20.04 LTS.
+I'm operating under the principle of "no cash."  This means no paid
+operating systems nor paid emulators.  Thus I'm running tests on
+Ubuntu, a GNU/Linux distribution.  I test emulators made for Windows,
+such as NO$GMB, BGB, and the Linux build of KiGB, in Wine 5.0.2.
 
 KiGB saves key bindings and other settings in the current working
 directory, not the executable's directory (as if a portable app)
@@ -45,7 +30,7 @@ file for classic [Gambatte] needs a change before it will build:
 +               version_str_def = [ 'GAMBATTE_SDL_VERSION_STR', r'\"r' + git_revno.decode("utf-8") + r'\"' ]
 ```
 
-The [BizHawk] version of [Gambatte-Speedrun] was used in order to use
+I use the [BizHawk] version of [Gambatte-Speedrun] in order to use
 the replacement BIOS file from SameBoy.  Upstream Gambatte-Speedrun
 rejects BIOS files that are not bit-identical to Nintendo's
 copyrighted BIOS file, and unlike with the Game Boy Advance BIOS,
@@ -53,7 +38,7 @@ there is no loophole through which to dump the Game Boy Color BIOS
 through the Game Pak slot.
 
 [VisualBoyAdvance] 1.7.2 for Windows (from before the VBA-M fork)
-requires mfc42.dll.  This is part of the Microsoft Visual C++ 6
+requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
 redistributable package, sometimes called [vcredist].
 
 The [Goomba Color] ROM builder is written in Visual Basic 6 and needs
@@ -333,30 +318,4 @@ Things I can think off the top of my head to make exercisers for:
 - DAA error visualizer
 - Readback of BGP, OBP0, OBP1
 - In which modes OAM and VRAM can be read and written
-
-Coin list
----------
-All this is preliminary.
-
-1. `add hl` flags
-2. `add sp` flags
-3. APU off clears registers and doesn't honor writes till turned on
-4. Filling APU with zeroes causes OR mask to be read back
-5. Upward sweep turns off NR52 status and downward sweep doesn't
-6. APU length counter expiry and envelope $00 turn off NR52 status
-7. 
-8. 
-9. 
-10. 
-11. `di halt inc d halt inc e` double-increments only E (halt bug)
-12. `di halt inc d halt inc e` calls no handler (VBA halt bug)
-13. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
-    be written and read back during vblank only on GBC
-14. `daa` with $9A00 and a few other key values of AF
-15. 
-16. 
-17. 
-18. 
-19. 
-20. 
 
