@@ -1,5 +1,5 @@
-Game Boy coin ideas
-===================
+Game Boy emulator testing
+=========================
 
 I'm testing several current and historic emulators of the Game Boy
 compact video game system to compare and contrast their behavior with
@@ -17,8 +17,9 @@ Installing emulators
 I'm operating under the principle of "no cash."  This means no paid
 operating systems nor paid emulators.  Thus I'm running tests on
 Ubuntu, a GNU/Linux distribution.  I test emulators made for Windows,
-such as NO$GMB, BGB, and the Linux build of KiGB, in Wine 5.0.2.
+such as NO$GMB, BGB, and the last version of KiGB, in Wine 5.0.2.
 
+I use KiGB for Windows because KiGB for Linux is three versions back.
 KiGB saves key bindings and other settings in the current working
 directory, not the executable's directory (as if a portable app)
 or the user's local settings directory (as if installed).
@@ -49,6 +50,7 @@ C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
 ```
 
 [Gambatte]: https://github.com/sinamas/gambatte
+[BizHawk]: https://github.com/TASVideos/BizHawk
 [Gambatte-Speedrun]: https://github.com/pokemon-speedrunning/gambatte-speedrun
 [VisualBoyAdvance]: https://sourceforge.net/projects/vba
 [vcredist]: https://jrsoftware.org/iskb.php?vc
@@ -71,7 +73,7 @@ and mGBA 0.9-6554-a2cd8f6cc:
 - Halt Bug  
   VBA enters a reset loop; KiGB and Goomba fail; others pass
 - Instr Timing  
-  NO$GMB and KiGB hang; Goomba fails #255; VBA-M, BGB and mGBA pass
+  NO$GMB and KiGB hang; Goomba fails #255; VBA-M, BGB, and mGBA pass
 - Mem Timing 2  
   KiGB _crashes;_ VBA, NO$GMB, and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
 - OAM Bug  
@@ -171,14 +173,14 @@ In fact, NO$GMB allows reading out the pitch as sweep updates it.
 Game Boy, VBA-M, mGBA, and NO$GMB all reflect channel status in NR52
 bits 3-0, which turn off when its length counter (NRx1) expires or
 wave RAM is unlocked (NR30), and don't turn off when output volume
-fades to 0.  Unlike the others, NO$GMB leaves the status bit on
-when the sweep decreases pulse 1's frequency to minimum or when
-pulse or noise envelope starting value (NRx2) is less than 8.
+fades to 0.  Unlike the others, NO$GMB leaves the status bit on when
+the sweep decreases pulse 1's period to its ultrasonic minimum or
+when pulse or noise envelope starting value (NRx2) is less than 8.
 
 VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
 11 (04), and 12 (01).  mGBA passes all but 7 (05) and 10 (01).
-This is the first time I saw a ROM crash an emulator, though I admit
-I was using KiGB v2.05 in Wine because Linux is stuck at v2.02.
+KiGB is the first time I saw a ROM crash an emulator, and I'm not
+sure how much is a KiGB bug and how much a Wine bug.
 
 Halt bug
 --------
@@ -204,7 +206,13 @@ inc e  ; This runs twice because an interrupt is still pending
 Because NO$GMB and most others behave like a Game Boy, stage 1 does
 not test `halt`.  Because KiGB and Goomba differ, stage 2 tests it so
 that later tests relying on more precise timing can use `di halt`.
-VBA is a clown show: with IME off, it can _call the handler anyway._
+
+VBA is a clown show: with IME off, it can _call the handler anyway,_
+and this causes it to enter a reset loop as the interrupt handler
+lands on a `nop` slide into the test's loader.  Thus if `di halt` is
+used, the handler must be initialized and prepared to run in case
+VBA is in use.  I got _Libbet_ to boot in VBA by adding `reti` at
+the STAT handler.
 
 Instruction timing
 ------------------
