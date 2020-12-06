@@ -84,6 +84,8 @@ compatibility with released software or common homebrew programming
 gotchas.  Tests in one stage should not assume results from a later
 stage, so as not to end up passing for the wrong reasons.
 
+### Stage 1
+
 Stage 1 should showcase one historic emulator's behavior differences.
 This can be one of the Nocash emulators or another emulator iconic
 in the console's early scene.  Choose ten behaviors where modern
@@ -100,11 +102,22 @@ full monochrome use and puts Game Boy Color functionality behind
 the paywall, stage 1 should test only behaviors identical between
 monochrome and color systems.
 
+### Stage 2
+
 Good coins for stage 2 fall in two major classes.  Some cover
 misbehaviors of other notable early emulators, so that they score
 less than 10 between the first two stages.  Other cover behaviors
 on which several later stage coins rely as a benchmark against
 which to test other behaviors.
+
+### Emulator choice
+
+Preliminary suggestions:
+
+- GB: Stage 1 covers NO$GMB; stage 2 covers VisualBoyAdvance and rew. with a side of KiGB and Goomba Color
+- NES: Stage 1 covers NO$NES; stage 2 covers NESticle X.XX
+- SMS: Stage 1 covers Massage; stage 2 covers MEKA
+- GBA: Stage 1 covers NO$GBA, which might be tricky because it's still actively maintained; stage 2 covers VBA
 
 Other resources
 ---------------
@@ -113,7 +126,7 @@ good coins.  ZEXALL, with its runtime of several minutes per test
 and CRC-driven pass/fail grading, is something to avoid.  Others may
 assume too many behaviors that differ from those of the emulators
 under test.  Nevertheless, others' tests are good for researching
-the existence of a behavior difference.
+the existence and nature of behavior differences.
 
 - NES: ["Emulator tests" on NESdev Wiki](https://wiki.nesdev.com/w/index.php/Emulator_tests)
 - SMS: _To be decided_

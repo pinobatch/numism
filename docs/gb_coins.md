@@ -6,9 +6,11 @@ to behavior differences from authentic hardware.  I plan to research
 the precise behaviors underlying test failures and then produce
 "coins", or minimal test routines to highlight these differences.
 
-See [What makes a good coin?] for what I'm aiming at.
+See [What makes a good coin?] for what I'm aiming at and
+[Game Boy emulator testing] for my thought processes.
 
 [What makes a good coin?]: ./good_coin.md
+[Game Boy emulator testing]: ./gb_emu_testing.md
 
 Coin list
 ---------
@@ -16,7 +18,7 @@ All this is preliminary:
 
 1. `add hl` flags
 2. `add sp` flags
-3. APU off clears registers and doesn't honor writes till turned on
+3. APU writes while off not honored, before or after turning back on
 4. Filling APU with zeroes causes OR mask to be read back
 5. Upward sweep turns off NR52 status and downward sweep doesn't
 6. APU length counter expiry and envelope $00 turn off NR52 status
@@ -24,15 +26,16 @@ All this is preliminary:
 8. 
 9. 
 10. 
-11. `di halt inc d halt inc e` double-increments only E (halt bug)
-12. `di halt inc d halt inc e` calls no handler (VBA halt bug)
-13. `inc hl` in mode 2 corrupts OAM only on DMG, and GBC palette can
-    be written and read back during vblank only on GBC
-14. `daa` with $9A00 and a few other key values of AF
-15. 
+11. `ei push bc pop bc ldh [rIF], a halt` with IE=A=$04 puts
+    return address in stack red zone
+12. `di halt` with TAC=IE=$04 and TIMA=IF=$00 sets IF bit 2
+13. `di halt inc d halt inc e` double-increments only E (halt bug)
+14. `di halt inc d halt inc e` calls no handler (VBA halt bug)
+15. `daa` with $9A00 and a few other key values of AF
 16. 
-17. 
-18. 
-19. 
-20. 
+17. APU off clears readable registers
+18. NR52 bits 6-0 are read-only
+19. `push bc pop af push af pop de` sets DE=BC&$FFF0
+20. `inc hl` in mode 2 corrupts OAM only on DMG
+21. GBC palette can be written and read back during vblank only on GBC
 

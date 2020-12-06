@@ -16,8 +16,9 @@ Installing emulators
 --------------------
 I'm operating under the principle of "no cash."  This means no paid
 operating systems nor paid emulators.  Thus I'm running tests on
-Ubuntu, a GNU/Linux distribution.  I test emulators made for Windows,
-such as NO$GMB, BGB, and the last version of KiGB, in Wine 5.0.2.
+Ubuntu, a GNU/Linux distribution.  I test emulators made for
+Windows, such as NO$GMB, BGB, rew., and the last version of KiGB,
+in Wine 5.0.2.
 
 I use KiGB for Windows because KiGB for Linux is three versions back.
 KiGB saves key bindings and other settings in the current working
@@ -62,37 +63,36 @@ Emulator test results
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Blargg that measure CPU-visible behaviors.  The tests show
 the following results in NO$GMB final, VisualBoyAdvance 1.7.2,
-Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8,
+Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
 VisualBoyAdvance-M 2.1.4, Gambatte r696, BizHawk 2.5.2 Gambatte,
 and mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
-  VBA 6 of 11; NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
+  VBA 6 of 11; rew. 7 of 11; NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ NO$GMB and VBA 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB passes
+  KiGB _crashes;_ rew. hangs with 0 of 11; NO$GMB and VBA 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB passes
 - Halt Bug  
-  VBA enters a reset loop; KiGB and Goomba fail; others pass
+  VBA and rew. enter a reset loop; KiGB and Goomba fail; others pass
 - Instr Timing  
-  NO$GMB and KiGB hang; Goomba fails #255; VBA-M, BGB, and mGBA pass
+  NO$GMB and KiGB hang; rew. and Goomba fail #255; VBA-M, BGB, and mGBA pass
 - Mem Timing 2  
-  KiGB _crashes;_ VBA, NO$GMB, and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
+  KiGB _crashes;_ VBA, NO$GMB, rew., and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
 - OAM Bug  
   VBA, NO$GMB, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
-  VBA-M, BGB, and mGBA 3 of 8
+  rew., VBA-M, BGB, and mGBA 3 of 8
 
 SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
 BizHawk Gambatte are identical to BGB.
 
 VBA is a train wreck.  The Hill zone test of 144p Test Suite freezes,
-and _Libbet and the Magic Floor_ doesn't even boot.
+and _Libbet and the Magic Floor_ didn't even boot until a workaround
+was added.
 
 These emulators have not yet been tested:
 
-- VisualBoyAdvance individual CPU Instrs
 - Mesen-S (pending fix of settings not saving in Mono version)
 - GameYob and Lameboy in DeSmuME or MelonDS
 - helloGB
-- REW
 - TGB Dual
 - Virtual GameBoy by Marat
 
@@ -127,8 +127,23 @@ If SP is not pointing into HRAM, the carry from E8 and F8 in NO$GMB
 and KiGB will always equal bit 7 of the relative value.
 
 If it's any comfort, NO$GMB and KiGB do better than VBA and TGB Dual.
-They pass Blargg's `daa` test for all values of AF.
+They at least pass Blargg's `daa` test for all values of AF.
+VBA, by contrast, fails the same two as NO$GMB and KiGB plus these:
 
+- 01-special `pop af` Failed #5
+- 02-interrupts `halt` Failed #5
+- 08-misc instrs F1 Failed
+- 11-op a,(hl) 27 Failed
+
+VBA fails two instructions in "01-special": `push af` and `daa`.
+The broken `push af` also breaks `pop af` in "08-misc instrs".
+
+- F1: `pop af`
+    1. Read \[SP] into flags and increment SP
+    2. Read \[SP] into A and increment SP
+- F5: `push af`
+    1. Decrement SP and then write A at \[SP]
+    2. Decrement SP and then write flags & $F0 at \[SP]
 - 27: `daa`
     1. `low_adjust` is $06 if H true or (A & $0F) in A-F else $00
     2. `high_adjust` is $60 if C true or A in $9A-$FF else $00
@@ -136,18 +151,66 @@ They pass Blargg's `daa` test for all values of AF.
     4. Z = A == 0, N unchanged, H = 0, C set if adjust add/sub
        overflowed or if already set (`daa` never clears C)
 
-VBA `daa` runs AF through a big lookup table.  Adding $95 and $05 on
+VBA `push af` does not discard nonexistent bits 3-0 of flags.
+```
+INST C5F1F5D10000, BC 1301, SP D000
+; disassembles to
+push bc
+pop af
+push af
+pop de
+```
+
+VBA `daa` causes a failure in "11-op a,(hl)".  If `push af` weren't
+also broken, it'd also cause a failure in "01-special".  It works
+by running AF through a big lookup table.  Adding $95 and $05 on
 a Game Boy produces AF=$9A00, which `daa` adjusts to $0090 (Z and
 C flags set).  VBA adjusts $9A instead to $00B0 (Z, H, and C set).
 An exhaustive `daa` tester to find error patterns may be useful.
 
+VBA fails "02-interrupts" at `halt`.  As described in "Halt bug",
+this instruction in VBA behaves all kinds of wrong.  The test sets
+IE=$04 (timer), TAC=$05, TIMA=IF=0, does `halt nop`, and looks for
+IF & $04 nonzero.  To demonstrate:
+```
+INST 327600000000, AF 0400, HL FF07, IEIF 0400
+; disassembles to
+ld [hl-], a  ; set TAC to 4
+halt
+```
+
+Like VBA, rew. fails "01-special" and "11-op a,(hl)" because of `daa`
+problems.  Like NO$GBA, rew. fails `add sp` and `ld hl, sp+`.
+More worrying is the failure on basic interrupt functionality.
+It fails the first test in "02-interrupts", which triggers an
+interrupt through a write to IF.  It operates similarly to the
+following exerciser:
+```
+INST FBC5C1E22A46, AF 0400, BC 010F, HL CFFE, SP D000, IEIF 0400
+; disassembles to
+ei
+push bc          ; initialize the red zone to 010F
+pop bc
+ld [$ff00+C], a  ; write $04 to IF, causing an interrupt
+; Return address should point here, in HRAM
+ld a, [hl+]
+ld b, [hl]
+```
+The code reads the return address from the [stack red zone] into BA.
+Game Boy loads the correct return address (AF=9400 BC=FF0F), whereas
+rew. loads BC that was pushed (AF=0F00 BC=010F).  I doubt rew. is
+honoring writes to IF at all.
+
+[stack red zone]: https://en.wikipedia.org/wiki/Red_zone_(computing)
+
 DMG sound
 ---------
-NO$GMB fails all tests because it doesn't mask write-only bits when
-reading back values from audio registers and honors writes while the
-APU is off.  Still curious what are the most impactful differences.
+NO$GMB and VBA fail all tests because they dsn't mask write-only bits
+when reading back values from audio registers and honor writes while
+the APU is off.  Still curious what differences are most impactful.
 
-In the exerciser, use these instructions to explore APU reset:
+Before I added a designated sound exerciser, I used these
+instructions to explore APU reset:
 ```
 INST E21FE2F01100, AF 0010, BC 0026
   ; Disassembly of above
@@ -156,26 +219,29 @@ INST E21FE2F01100, AF 0010, BC 0026
   ld [$FF00+C], a  ; Turn on APU
   ldh a, [$FF11]   ; Audio regs are FF10-FF25
 ```
-
-This was used to confirm the OR mask pattern in Blargg's test, of
-which NO$GMB observes only the last byte:
+The resulting OR mask pattern matched that in Blargg's test,
+of which NO$GMB observes only the last byte:
 ```
 803F00FFBF FF3F00FFBF 7FFF9FFFBF FFFF0000BF 000070
 ```
 
 Game Boy, VBA-M, mGBA, and NO$GMB all make most sound registers
 readable, clear sound registers to 0 when the APU is turned off, and
-read NR52 unused bits 6-4 as 1.  Unlike the others, NO$GMB honors
-writes to other registers while the APU is off, and it doesn't hide
-lengths, periods, or other unused bits from being read back.
-In fact, NO$GMB allows reading out the pitch as sweep updates it.
+read NR52 unused bits 6-4 as 1.  Unlike the others, NO$GMB and VBA
+honor writes to other registers while the APU is off and don't hide
+lengths, periods, or other unused bits from being read back.  In
+fact, NO$GMB and VBA allow reading out the pitch as sweep updates it.
+VBA doesn't mask NR52 unused bits; the last written value persists
+until a note-on sets it or the length counter or sweep clears it.
+Nor does VBA clear registers when the APU is turned off.
 
 Game Boy, VBA-M, mGBA, and NO$GMB all reflect channel status in NR52
 bits 3-0, which turn off when its length counter (NRx1) expires or
 wave RAM is unlocked (NR30), and don't turn off when output volume
-fades to 0.  Unlike the others, NO$GMB leaves the status bit on when
-the sweep decreases pulse 1's period to its ultrasonic minimum or
-when pulse or noise envelope starting value (NRx2) is less than 8.
+fades to 0.  Unlike the others, NO$GMB and VBA leave the status bit
+on when pulse or noise envelope starting value (NRx2) is less than 8.
+NO$GMB doesn't even clear status when the sweep decreases pulse 1's
+period to its ultrasonic minimum.
 
 VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
 11 (04), and 12 (01).  mGBA passes all but 7 (05) and 10 (01).
@@ -196,7 +262,7 @@ Most emulators' behavior can be characterized with this exerciser:
 ```
 INST E27614761C00, AF 0700, BC 0007, IEIF 0100
 ; Disassembles to
-ld [$FF00+c], a  ; Set timer mode to 7 for use with IE 04
+ld [$FF00+c], a  ; Set timer mode to 7 for use with IEIF 0400
 halt
 inc d  ; If no interrupt is pending, this runs once
 halt
@@ -213,6 +279,9 @@ lands on a `nop` slide into the test's loader.  Thus if `di halt` is
 used, the handler must be initialized and prepared to run in case
 VBA is in use.  I got _Libbet_ to boot in VBA by adding `reti` at
 the STAT handler.
+
+Beyond that, I don't fully understand `halt` in VBA.  I don't _want_
+to fully understand `halt` in VBA.  I just want tests not to crash.
 
 Instruction timing
 ------------------
@@ -318,12 +387,29 @@ back on.  KiGB also fails, and it has no debugger to explain why.
 VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
 7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
 
+Palettes
+--------
+BGP, OBP0, and OBP1 ($FF47 through $FF49) map pixel values to shades
+in DMG mode.  All 8 bits of all three registers are readable and
+writable in all PPU modes, even though the PPU never uses bits 1-0
+of OBP0 and OBP1.  (This differs from the APU.)
+```
+INST 707E71000000, BC: 00E4, HL: FF47
+; Disassembles to
+ld [hl], b  ; write value
+ld a, [hl]  ; read it back
+ld [hl], c  ; restore value
+```
+This is not usable as a test because no emulator fails it.
+
 Other tests
 -----------
 Things I can think off the top of my head to make exercisers for:
 
 - DIV and TIMA sync
 - DAA error visualizer
-- Readback of BGP, OBP0, OBP1
 - In which modes OAM and VRAM can be read and written
+- Values read and written to GBC palette ports in DMG and DMG-on-GBC,
+  and DMG palette ports in GBC mode
+- What is DMG Sound _trying_ to test, and what is NO$GMB failing?
 

@@ -121,6 +121,10 @@ inst_test::
   ldh [input_sp+1], a
   ld a, $80
   ldh [input_af+0], a
+  rlca  ; ld a, 1
+  ldh [input_ie], a
+
+  call temp_exerciser
 
   ld a, %11100100
   ldh [rBGP], a
@@ -222,6 +226,9 @@ inst_epilog_src:
   nop
   nop
   jp inst_after
+
+temp_exerciser:
+  ret
 
 ; Instruction editor background drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
