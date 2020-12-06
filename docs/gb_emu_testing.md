@@ -145,11 +145,12 @@ The broken `push af` also breaks `pop af` in "08-misc instrs".
     1. Decrement SP and then write A at \[SP]
     2. Decrement SP and then write flags & $F0 at \[SP]
 - 27: `daa`
-    1. `low_adjust` is $06 if H true or (A & $0F) in A-F else $00
-    2. `high_adjust` is $60 if C true or A in $9A-$FF else $00
-    3. Add or subtract `low_adjust | high_adjust` based on N
-    4. Z = A == 0, N unchanged, H = 0, C set if adjust add/sub
-       overflowed or if already set (`daa` never clears C)
+    1. If N == 0 and A >= $9A, set C
+    2. If N == 0 and (A & $0F) >= $0A, set H
+    3. `adjustment` is ($06 if H else $00) | ($60 if C else $00)
+    4. Add or subtract `adjustment` based on N
+    5. If N == 0 and addition overflowed, set C (`daa` never clears C)
+    6. Z = A == 0, N unchanged, H = 0
 
 VBA `push af` does not discard nonexistent bits 3-0 of flags.
 ```
@@ -166,7 +167,6 @@ also broken, it'd also cause a failure in "01-special".  It works
 by running AF through a big lookup table.  Adding $95 and $05 on
 a Game Boy produces AF=$9A00, which `daa` adjusts to $0090 (Z and
 C flags set).  VBA adjusts $9A instead to $00B0 (Z, H, and C set).
-An exhaustive `daa` tester to find error patterns may be useful.
 
 VBA fails "02-interrupts" at `halt`.  As described in "Halt bug",
 this instruction in VBA behaves all kinds of wrong.  The test sets
@@ -180,11 +180,12 @@ halt
 ```
 
 Like VBA, rew. fails "01-special" and "11-op a,(hl)" because of `daa`
-problems.  Like NO$GBA, rew. fails `add sp` and `ld hl, sp+`.
-More worrying is the failure on basic interrupt functionality.
-It fails the first test in "02-interrupts", which triggers an
-interrupt through a write to IF.  It operates similarly to the
-following exerciser:
+problems.  At least rew. gets flags right more often, particularly N.
+
+Like NO$GBA, rew. fails `add sp` and `ld hl, sp+`.  More worrying
+is the failure on basic interrupt functionality.  It fails the
+first test in "02-interrupts", which triggers an interrupt through
+a write to IF.  It operates similarly to the following exerciser:
 ```
 INST FBC5C1E22A46, AF 0400, BC 010F, HL CFFE, SP D000, IEIF 0400
 ; disassembles to
@@ -407,7 +408,8 @@ Other tests
 Things I can think off the top of my head to make exercisers for:
 
 - DIV and TIMA sync
-- DAA error visualizer
+- Find sums and differences of _valid_ BCD bytes that fail `daa` in
+  VBA and rew. other than the H flag
 - In which modes OAM and VRAM can be read and written
 - Values read and written to GBC palette ports in DMG and DMG-on-GBC,
   and DMG palette ports in GBC mode

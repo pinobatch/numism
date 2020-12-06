@@ -31,7 +31,7 @@ All this is preliminary:
 12. `di halt` with TAC=IE=$04 and TIMA=IF=$00 sets IF bit 2
 13. `di halt inc d halt inc e` double-increments only E (halt bug)
 14. `di halt inc d halt inc e` calls no handler (VBA halt bug)
-15. `daa` with $9A00 and a few other key values of AF
+15. `ld a, 5 add a daa` should not produce half carry
 16. 
 17. APU off clears readable registers
 18. NR52 bits 6-0 are read-only

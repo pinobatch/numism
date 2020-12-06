@@ -1,6 +1,10 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
+DAA_CANVAS_START equ $8600
+ERRORS_DIGITS equ 4
+errors_count_ones equ $98D1
+
 section "daa_test", ROM0
 
 daa_test::
@@ -9,19 +13,74 @@ daa_test::
   ld hl, daa_labels
   call cls_draw_labels
 
+  ; Clear tiles $60-$7F which hold result
+  xor a
+  ld b, a
+  ld hl, DAA_CANVAS_START
+  call memset_tiny
+  call memset_tiny
+
+  ; Initialize the decimal error count on the tilemap
+  ld [errors_count_ones], a
+
+  ; Set the tilemap
+  ld a, $60
+  ld c, $10
+  ldxy hl, 2, 4
+  call memset_inc
+  ld c, $10
+  ldxy hl, 2, 5
+  call memset_inc
+
+  ld bc, $0000
+  .bc_loop:
+    ; Calculate using hardware
+    push bc
+    pop af
+    daa
+    push af
+    pop de
+
+    ; Calculate in software
+    push bc
+    pop af
+    call emulate_daa
+    push af
+    pop hl
+
+    ; A = H = software A
+    ; L = software ZNHC
+    ; D = hardware A
+    ; E = hardware ZNHC
+    ; If they don't match, plot a pixel
+    xor d
+    jr nz, .is_mismatch
+    ld a, l
+    xor e
+;    and $80  ; ignore what flags?
+    jr z, .is_match
+    .is_mismatch:
+      call daa_seek_bc
+      or [hl]
+      ld [hl+], a
+      ld [hl], a
+      call inc_errors
+    .is_match:
+
+    ; Move to next iteration
+    inc b
+    jr nz, .bc_loop
+    ld a, $10
+    add c
+    ld c, a
+    jr nc, .bc_loop
+
+  ; Turn the screen on
   ld a, %11100100
   ldh [rBGP], a
   ldh [rOBP0], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
   ldh [rLCDC], a
-
-  ; This is the way we'd test it in the coin
-  ld a, $95
-  add $05
-  daa
-  ld a, $95
-  add $05
-  call emulate_daa
 
 forever:
   call read_pad
@@ -37,69 +96,144 @@ forever:
   jr z, forever
   jp inst_test
 
+;;
+; This behavior matches DAA on bgb in all cases:
+; If N false and A >= $9A: Set C
+; If N false and (A & $0F) >= $0A: Set H
+; Set adjustment to $00
+; If H true: Clear H and set adjustment to $06
+; If C true: Add $60 to adjustment
+; Add adjustment to A
+; If result is 0, set Z; otherwise clear Z
+; If N false and C true: Set C
 emulate_daa:
   push bc
   push af
   pop bc
-  ld b, 0
-  ; B: adjust value; C: flags (ZNHC0000)
+  ; A: value; B: adjust value; C: flags (ZNHC0000)
 
-  ; If carry or over high adjust threshold, set high adjust
+  bit 6, c
+  jr nz, .no_9a_comparison
+    ; If addition, check nibbles of A against thresholds
+    cp $9A
+    jr c, .no_set_carry
+      set 4, c
+    .no_set_carry:
+    swap a
+    cp $A0
+    jr c, .no_set_half
+      set 5, c
+    .no_set_half:
+    swap a
+  .no_9a_comparison:
+
+  ; Form adjustment value
+  ld b, 0
+  bit 5, c
+  jr z, .no_add_6
+    ld b, 6
+    res 5, c
+  .no_add_6:
   bit 4, c
-  jr nz, .yes_high_adjust
-  cp $9A
-  jr c, .no_high_adjust
-  .yes_high_adjust:
+  jr z, .no_add_60
     set 5, b
     set 6, b
-  .no_high_adjust:
+  .no_add_60:
 
-  ; If half carry or low digit over threshold, set low adjust
-  swap a
-  bit 5, c
-  jr nz, .yes_low_adjust
-  cp $A0
-  jr c, .no_low_adjust
-  .yes_low_adjust:
-    res 5, c  ; DAA output has half carry 0
-    set 1, b
-    set 2, b
-  .no_low_adjust:
-  swap a
-
-  ; Do the adjustment
+  ; Do the adjustment, adding in C only for addition
   bit 6, c
-  jr nz, .is_subtraction
-    add b
-    jr .have_adjust_result
-  .is_subtraction:
+  jr z, .is_addition
     sub b
-  .have_adjust_result:
-  ld b, a  ; Adjusted value is in B
-
-  ; DAA can set or clear Z. It can set but not clear C.
-  jr nc, .no_carry
+    jr .have_adjust_result
+  .is_addition:
+    add b
+    jr nc, .have_adjust_result
     set 4, c
-  .no_carry:
-  res 7, c
-  jr nz, .no_zero
-    set 7, c
-  .no_zero:
+  .have_adjust_result:
 
-  ; DAA emulation
+  ; fortunately SET/RES doesn't destroy the Z flag
+  res 7, c
+  jr nz, .is_zero
+    set 7, c
+  .is_zero:
+  
+  ; Now put C into flags, we need to first copy A into B
+  ld b, a
   push bc
   pop af
   pop bc
   ret
 
-daa_labels:
+;;
+; Calculate byte and bit address on the HL plot
+daa_seek_bc:
+  ; Output with different flags are 2 tiles (32 bytes) apart
+  ld a, c
+  ; Output with different bit 3 are 1 tile (16 bytes) apart
+  xor b
+  and %11110111
+  xor b  ; ZNHC3xxx
+  ; Output with different bits 6-4 are 1 line (2 bytes) apart
+  swap a  ; 3xxxZNHC
+  xor b
+  and %10001111
+  xor b   ; 3654ZNHC
+  swap a  ; ZNHC3654
+  add a   ; NHC3654_
+  ld l, a
+  ; Output with different bits 7 are 16 tiles (256 bytes) apart
+  ld a, b
+  add a
+  ld a, DAA_CANVAS_START >> 9
+  adc a
+  ld h, a
 
-sound_labels:
+  ; Now we have the byte address. Find the pixel to plot as
+  ; $80 >> (b bits 2-0)
+  ld a, b
+  and $07
+  ld e, a
+  ld a, $80
+  ret z
+  .shiftloop:
+    rra
+    dec e
+    jr nz, .shiftloop
+  .noshift:
+  ret
+
+inc_errors:
+  ld hl, errors_count_ones
+  ld a, [hl]
+.digit_loaded:
+  inc a
+  ld [hl], a
+  cp 10
+  ret c
+  ; Wrapped around from A to 0
+  xor a
+  ld [hl-], a
+  ld a, [hl]
+  cp 10
+  jr c, .digit_loaded
+  xor a
+  jr .digit_loaded
+  
+
+daa_labels:
   dwxy 3, 1
   db "EXHAUSTIVE DAA", $FF
   dwxy 2, 2
-  db "TEST COMING SOON", $FF
+  db "0   H   N   NH", $FF
+  dwxy 4, 3
+  db "C   HC  NC  NHC", $FF
+  dwxy 1, 4
+  db "0", $FF
+  dwxy 1, 5
+  db "8", $FF
   dwxy 1, 16
   db "SEL:DAA", $FF
+  dw errors_count_ones - 11
+  db "ERRORS:", $FF
   db $00
 

@@ -72,8 +72,35 @@ Controls
 
 DAA exhaustive tester
 ---------------------
-Once complete, this will test the `daa` (decimal adjust accumulator)
-instruction on all 4,096 distinct AF (accumulator and flags) values,
-compare them to the result of a software implementation of `daa`,
-and draw where they do not match.
+Almost all electronic digital computers count in base two, whereas
+most human cultures count in base ten.  The Game Boy CPU includes an
+instruction `daa` (decimal adjust accumulator) to support calculation
+in [binary-coded decimal] (BCD), where each nibble (4-bit hexadecimal
+digit) in a number represents one digit 0 through 9.  In essence, the
+instruction pretends that the nibbles in the operands of the last
+`add`, `adc`, `sub`, or `sbc` were decimal digits and calculates
+what the result in base 10 should have been.
+
+The following steps model what the CPU does:
+
+1. If N == 0 (addition) and A >= $9F: Set C (carry)
+2. If N == 0 and (A & $0F) >= $0A: Set H (half carry)
+3. `adjustment` is ($06 if H else $00) | ($60 if C else $00)
+4. Add or subtract `adjustment` based on N
+5. If N == 0 and addition overflowed, set C (`daa` never clears C)
+6. Z (zero) = A == 0, N unchanged, H = 0
+
+This tests the `daa` (decimal adjust accumulator) instruction on
+all 4,096 distinct AF (accumulator and flags) values, compares them
+to the result of a software implementation of the above steps, and
+draws a plot of where they do not match.  The black pixels in each
+16x16-pixel square represents the errors from calculating `daa` with
+one set of flags: bits 3-0 as X and bits 7-4 as Y.  The different
+squares represent results with different sets of NHC flags.
+
+Below the plot is the total number of errors.  It may be twice as
+many as black pixels because while the plot disregards input Z flag,
+the error count includes both Z clear and Z set.
+
+[binary-coded decimal]: https://en.wikipedia.org/wiki/Binary-coded_decimal
 
