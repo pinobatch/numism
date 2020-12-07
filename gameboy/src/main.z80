@@ -13,6 +13,7 @@ main::
 
   ; Load title screen
   call lcd_off
+  call clear_scrn0_to_0
   ld de, logo_iur
   ld hl, CHRRAM0
   call unpack_iu_file

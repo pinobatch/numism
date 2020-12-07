@@ -1,23 +1,31 @@
 #!/bin/sh
+#
+# who needs gnu make for something this simple?
+#
+# Copyright 2020 Damian Yerrick
+# Copying and distribution of this file, with or without
+# modification, are permitted in any medium without royalty
+# provided the copyright notice and this notice are preserved.
+# This file is offered as-is, without any warranty.
+#
 set -e
+
+title=numism
+inttitle='NUMISM'
+objlist='header init ppuclear pads main unpb16 uniur coins'
+iurlist='logo'
 
 mkdir -p obj/gb
 echo 'Force folder creation' > obj/gb/index.txt
 
-rgbgfx -o obj/gb/logo.2b tilesets/logo.png
-python3 tools/incruniq.py obj/gb/logo.2b obj/gb/logo.iur
+for filename in $iurlist; do
+  rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
+  python3 tools/incruniq.py "obj/gb/$filename.2b" "obj/gb/$filename.iur"
+done
+for filename in $objlist; do
+  rgbasm -o "obj/gb/$filename.o" "src/$filename.z80"
+done
+objlisto=$(printf "obj/gb/%s.o " $objlist)
+rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
+rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 "$title.gb"
 
-rgbasm -o obj/gb/header.o src/header.z80
-rgbasm -o obj/gb/init.o src/init.z80
-rgbasm -o obj/gb/ppuclear.o src/ppuclear.z80
-rgbasm -o obj/gb/pads.o src/pads.z80
-rgbasm -o obj/gb/main.o src/main.z80
-rgbasm -o obj/gb/unpb16.o src/unpb16.z80
-rgbasm -o obj/gb/uniur.o src/uniur.z80
-
-rgblink -m numism.map -n numism.sym -o numism.gb -dtp 0xFF \
-  obj/gb/header.o obj/gb/init.o obj/gb/ppuclear.o obj/gb/pads.o \
-  obj/gb/main.o obj/gb/unpb16.o obj/gb/uniur.o
-
-# Not yet SGB or GBC aware
-rgbfix -jv -kP8 -l0x33 -m0 -n0 -p0xFF -r0 -t"NUMISM" numism.gb
