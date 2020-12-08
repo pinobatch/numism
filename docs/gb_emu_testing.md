@@ -182,7 +182,7 @@ halt
 Like VBA, rew. fails "01-special" and "11-op a,(hl)" because of `daa`
 problems.  At least rew. gets flags right more often, particularly N.
 
-Like NO$GBA, rew. fails `add sp` and `ld hl, sp+`.  More worrying
+Like NO$GMB, rew. fails `add sp` and `ld hl, sp+`.  More worrying
 is the failure on basic interrupt functionality.  It fails the
 first test in "02-interrupts", which triggers an interrupt through
 a write to IF.  It operates similarly to the following exerciser:
@@ -302,15 +302,27 @@ multiple coins.
 - LY ($FF44) increases every 114 cycles (228 in double speed mode)
   while the LCD is on ($FF40).
 
-This test finishes in half a second on Game Boy, VBA-M, and mGBA.
+Blargg's test finishes in half a second on Game Boy, VBA-M, and mGBA.
 It begins with an 11-cycle loop in `start_timer` ($C2D6) that tries
 to synchronize to the 4-cycle phase by writing 0 and reading it 3
 cycles later, trying again if it incremented.  I guess (need to
 trace in bgb) that on the Game Boy, this succeeds within four tries.
 On NO$GMB, it always increments and thus gets stuck, and the test
-has no timeout for this.  There's also a suggestion that DIV goes
-_backwards_ on NO$GMB, which would interfere with games' random
-number generators.
+has no timeout for this.
+
+DIV in NO$GMB counts _backwards,_ which would interfere with games'
+random number generators.  This gives FF on NO$GMB and 01 elsewhere:
+```
+INST 7E4F7E9128FC, HL=FF04
+; disassembles to
+ld a, [hl]  ; read DIV
+ld c, a
+.loop:
+  ld a, [hl]
+  sub c   ; If DIV has changed
+  jr z, .loop
+; C: original value; A: value difference
+```
 
 This exerciser locks TIMA in 64-cycle mode to the same phase as DIV.
 Run this first:
@@ -407,7 +419,7 @@ Other tests
 -----------
 Things I can think off the top of my head to make exercisers for:
 
-- DIV and TIMA sync
+- DIV and TIMA sync at all TAC rates
 - Find sums and differences of _valid_ BCD bytes that fail `daa` in
   VBA and rew. other than the H flag
 - In which modes OAM and VRAM can be read and written
