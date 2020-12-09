@@ -9,8 +9,14 @@ the precise behaviors underlying test failures and then produce
 See [What makes a good coin?] for what I'm aiming at and
 [Game Boy emulator testing] for my thought processes.
 
+I estimate that the uncompressed descriptions of each stage's
+coins total 800 bytes.  All ten stages could add up to a quarter
+of a 32K ROM.  I may have to use the DTE codec that I used for
+[144p Test Suite].
+
 [What makes a good coin?]: ./good_coin.md
 [Game Boy emulator testing]: ./gb_emu_testing.md
+[144p Test Suite]: https://github.com/pinobatch/240p-test-mini/gameboy
 
 Coin list
 ---------
@@ -22,7 +28,7 @@ All this is preliminary:
 4. Filling APU with zeroes causes OR mask to be read back
 5. Upward sweep turns off NR52 status and downward sweep doesn't
 6. APU length counter expiry and envelope $00 turn off NR52 status
-7. 
+7. DIV increases by 1 unit per period
 8. 
 9. 
 10. 

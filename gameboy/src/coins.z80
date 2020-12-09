@@ -4,33 +4,40 @@ section "COINS", ROM0
 coin_list::
   ; Level 1
   dw coin_add_hl_flags, coin_add_sp_flags, coin_apu_off_ignore_writes, coin_apu_or_mask, coin_apu_sweep_status
-  dw coin_apu_len_env00_status, coin_no7, coin_no8, coin_no9, coin_no10
+  dw coin_apu_len_env00_status, coin_div_increases, coin_no8, coin_no9, coin_no10
   ; Level 2
   dw coin_ei_if_write, coin_di_halt_sets_if, coin_di_halt_2inc, coin_di_halt_no_handler, coin_daa_no_h
   dw coin_no16, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
 
 
-; Each coin is a subroutine then a description
+section "STAGE12COINS", ROM0
+
+; Each coin is a subroutine then a description.
+; The subroutine returns carry clear for pass or set for fail
+
+test_failed:
+  scf
+  ret
 
 coin_add_hl_flags:
   jr .start
-  db "add hl flags",10
+  db "NYA add hl flags",10
   db "add hl,de; add hl,sp",10
   db "Z same, N=0, HC=carry",10
   db "from bits 11 and 15",0
 .start:
-  scf
+  or a
   ret
 
 coin_add_sp_flags:
   jr .start
-  db "add sp flags",10
+  db "NYA add sp flags",10
   db "add sp,rel; ld hl,sp+rel",10
   db "Z=N=0, HC=carry from",10
   db "bits 3 and 7 of unsigned",10
   db "add to SP low byte",0
 .start:
-  scf
+  or a
   ret
 
 coin_apu_off_ignore_writes:
@@ -40,8 +47,70 @@ coin_apu_off_ignore_writes:
   db "honored while APU off, nor",10
   db "revealed when turned on",0
 .start:
-  scf
+  call zerofill_apu
+  xor a
+  ldh [rNR52], a  ; APU is off
+
+  ; Write test pattern
+  ld a, $02
+  ldh [rNR12], a
+  add a
+  ldh [rNR22], a
+  add a
+  ldh [rNR42], a
+  add a
+  ldh [rNR43], a
+  add a
+  ldh [rNR51], a
+  add a
+  ldh [rNR50], a
+
+  call .read_test_pattern
+  jp nz, test_failed
+  ld a, $80
+  ldh [rNR52], a
+  call .read_test_pattern
+  jp nz, test_failed
+  ldh [rNR52], a
   ret
+
+.read_test_pattern:
+  ld hl, rNR12
+  ld a, [hl]
+  ld hl, low(rNR22)
+  or [hl]
+  ld hl, low(rNR42)
+  or [hl]
+  ld hl, low(rNR43)
+  or [hl]
+  ld hl, low(rNR51)
+  or [hl]
+  ld hl, low(rNR50)
+  or [hl]
+  ret
+
+
+apu_or_mask_values:
+  db $80,$3F,$00,$FF,$BF
+  db $FF,$3F,$00,$FF,$BF
+  db $7F,$FF,$9F,$FF,$BF
+  db $FF,$FF,$00,$00,$BF
+  db $00,$00 ;,$70
+apu_or_mask_values_end:
+
+; Force zero-fill APU registers other than on/off
+zerofill_apu:
+  ; Power cycle the APU for good measure
+  ld hl, rNR52
+  xor a
+  ld [hl], a
+  ld [hl], $80
+
+  ; Zero fill APU registers other than power
+  ld c, apu_or_mask_values_end-apu_or_mask_values
+  ld hl, rNR10
+  jp memset_tiny
+
 
 coin_apu_or_mask:
   jr .start
@@ -49,35 +118,65 @@ coin_apu_or_mask:
   db "When APU filled with 0 bytes,",10
   db "unused bits read back 1",0
 .start:
-  scf
+  call zerofill_apu
+
+pass_if_apu_equals_or_mask:
+  ; Values in APU must equal OR mask
+  ld c, low(NR10)
+  lb bc, apu_or_mask_values_end-apu_or_mask_values, low(NR10)
+  ld hl, apu_or_mask_values
+  .compareloop:
+    ld a, [$FF00+c]
+    cp [hl]  ; last thing that touches the carry.  Z after CP means NC.
+    jp nz, test_failed
+    inc hl
+    inc c
+    dec b
+    jr nz, .compareloop
   ret
 
 coin_apu_sweep_status:
   jr .start
-  db "APU sweep status",10
+  db "NYA APU sweep status",10
   db "Upward sweep on pulse 1",10
   db "clears channel status;",10
   db "downward sweep doesn't",0
 .start:
-  scf
+  or a
   ret
 
 coin_apu_len_env00_status:
   jr .start
-  db "APU length & env 00",10
+  db "NYA APU length & env 00",10
   db "Length counter expiry or",10
   db "envelope set to 0 clears",10
   db "channel status",0
 .start:
-  scf
+  or a
   ret
 
-coin_no7:
+coin_div_increases:
   jr .start
-  db "Coin #7",10
-  db "Always pass",0
+  db "DIV increases",10
+  db "FF04 timer increases",10
+  db "by 1 unit per period",0
 .start:
-  scf
+  ld d, 10  ; number of trials
+  ld hl, DIV
+  .trialloop:
+    ld e, 10  ; timeout loop for this trial
+    ld c, [hl]
+    .timeoutloop:
+      ld a, [hl]
+      sub c
+      jr nz, .trialdone
+      dec e
+      jr nz, .timeoutloop
+    .trialdone:
+    cp 1
+    jp nz, test_failed
+    dec d
+    jr nz, .trialloop
   ret
 
 coin_no8:
@@ -85,7 +184,7 @@ coin_no8:
   db "Coin #8",10
   db "Always pass",0
 .start:
-  scf
+  or a
   ret
 
 coin_no9:
@@ -93,7 +192,7 @@ coin_no9:
   db "Coin #9",10
   db "Always pass",0
 .start:
-  scf
+  or a
   ret
 
 coin_no10:
@@ -101,7 +200,7 @@ coin_no10:
   db "Coin #10",10
   db "Always pass",0
 .start:
-  scf
+  or a
   ret
 
 coin_ei_if_write:
@@ -111,7 +210,22 @@ coin_ei_if_write:
   db "to pending interrupts register",10
   db "calls handler",0
 .start:
-  scf
+  di
+  xor a
+  ldh [rTAC], a    ; Disable timer so that only fake interrupt happens
+  ld bc, rIF
+  ld [bc], a       ; Acknowledge all interrupts
+  ld a, IEF_TIMER
+  ldh [rIE], a     ; Allow only timer interrupts
+  ld hl, sp-1      ; Get a pointer to the stack red zone
+  ei
+  push bc
+  pop bc           ; Place IF address in the red zone
+  ldh [$FF00+c], a ; Trigger an interrupt, overwriting the red zone
+.return_addy:      ; with this return address
+  ld a, [hl-]      ; the return address should match 
+  cp high(.return_addy)
+  jp nz, test_failed
   ret
 
 coin_di_halt_sets_if:
@@ -121,7 +235,18 @@ coin_di_halt_sets_if:
   db "sets a bit in the pending",10
   db "interrupts register",0
 .start:
-  scf
+  di
+  xor a
+  ldh [rIF], a
+  ld a, IEF_TIMER
+  ldh [rIE], a     ; Listen only to timer interrupts
+  ld a, 7
+  ldh [rTAC], a    ; Enable timer
+  halt
+  nop
+  ldh a, [rIF]
+  and IEF_TIMER    ; Make sure a timer interrupt arrived
+  jr z, test_failed
   ret
 
 coin_di_halt_2inc:
@@ -131,7 +256,19 @@ coin_di_halt_2inc:
   db "and a pending interrupt",10
   db "runs the next byte twice",0
 .start:
-  scf
+  di
+  call schedule_timer_interrupt
+  ld de, 0
+  halt
+  inc d  ; Increment D once
+  halt
+  inc e  ; Increment E, twice
+  ld a, d
+  dec a
+  jp nz, test_failed
+  ld a, 3
+  cp 2
+  jp nz, test_failed
   ret
 
 coin_di_halt_no_handler:
@@ -141,25 +278,59 @@ coin_di_halt_no_handler:
   db "does not call the interrupt",10
   db "handler",0
 .start:
-  scf
+  di
+  call schedule_timer_interrupt
+  ld bc, rIF
+  push bc          ; Clear the stack red zone
+  pop bc
+  halt
+  nop
+  ld hl, sp-1      ; Get a pointer to the stack red zone
+  ld a, [hl-]      ; The value of B should still be there
+  cp b
+  jp nz, test_failed
+  ret
+
+schedule_timer_interrupt:
+  ld a, 5
+  ldh [rTAC], a    ; Enable timer
+  xor a
+  ldh [rTIMA], a   ; Schedule timer
+  ldh [rTMA], a
+  ldh [rIF], a     ; Acknowledge all interrupts
+  ld a, IEF_TIMER
+  ldh [rIE], a     ; Now listen for interrupts
   ret
 
 coin_daa_no_h:
   jr .start
   db "daa clears half carry",10
-  db "ld a,5 add a daa",10
-  db "ld a,9 add a daa",10
+  db "ld a,5 add a daa = $10",10
+  db "ld a,9 add a daa = $18",10
   db "H is clear after each",0
 .start:
-  scf
+  ld a, $05
+  ld b, $10
+  call add_a_daa_eq_b_no_h
+  ld a, $09
+  ld b, $18
+add_a_daa_eq_b_no_h:
+  add a
+  daa
+  push af
+  pop de
+  cp b
+  jr nz, test_failed
+  bit 5, e
+  jr nz, test_failed
   ret
 
 coin_no16:
   jr .start
   db "Coin #16",10
-  db "describe",0
+  db "Always pass for now",0
 .start:
-  scf
+  or a
   ret
 
 coin_apu_off_clear:
@@ -169,7 +340,42 @@ coin_apu_off_clear:
   db "readable sound registers",10
   db "and not wave RAM",0
 .start:
-  scf
+  ; Turn on the APU, fill with $FF
+  ld a, $FF
+  ldh [rNR52], a
+  ld c, apu_or_mask_values_end-apu_or_mask_values
+  ld hl, NR10
+  call memset_tiny
+  call set_wave_ram_signature
+
+  ; Turn off the PPU and OR mask must be read back
+  xor a
+  ldh [rNR52], a
+  call pass_if_apu_equals_or_mask
+  ret c
+  call compare_wave_ram_signature
+  ret c
+
+  ; Turn the APU on and see if it still reads 0
+  ld a, $80
+  ldh [rNR52], a
+  call pass_if_apu_equals_or_mask
+  ; Fall through to pass if wave RAM holds correct data
+
+compare_wave_ram_signature:
+  ldh a, [_AUD3WAVERAM+14]
+  cp $0C
+  jp nz, test_failed
+  ldh a, [_AUD3WAVERAM+15]
+  cp $A5
+  jp nz, test_failed
+  ret
+
+set_wave_ram_signature:
+  ld a, $0C
+  ldh [_AUD3WAVERAM+14], a
+  ld a, $A5
+  ldh [_AUD3WAVERAM+15], a
   ret
 
 coin_apu_status_ro:
@@ -178,7 +384,13 @@ coin_apu_status_ro:
   db "Writes to bits 6-0 of FF26",10
   db "are not read back",0
 .start:
-  scf
+  ld hl, rNR52
+  ld [hl], 0
+  ld a, $70
+  ld [hl], $FF  ; should read $70
+
+  ld a, $FF
+  ldh [rNR52], a
   ret
 
 coin_push_af_low_4:
@@ -187,15 +399,27 @@ coin_push_af_low_4:
   db "push bc pop af push af pop de",10
   db "Pushes flags bit 3-0 as 0",0
 .start:
-  scf
+  ld bc, $0CA5
+  push bc
+  pop af
+  push af
+  pop de
+
+  ld a, b
+  cp d
+  jp nz, test_failed
+  ld a, c
+  and $F0
+  cp e
+  jp nz, test_failed
   ret
 
 coin_oam_bug:
   jr .start
-  db "16-bit inc corrupts OAM",10
-  db "With H=FE, inc hl in mode 2",
+  db "NYA 16-bit inc corrupts OAM",10
+  db "With H=FE, inc hl in mode 2",10
   db "corrupts OAM on B&W system",0
 .start:
-  scf
+  or a
   ret
 
