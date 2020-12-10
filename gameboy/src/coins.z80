@@ -1,5 +1,7 @@
+include "src/hardware.inc"
+include "src/global.inc"
 
-section "COINS", ROM0
+section "COINS", ROM0, ALIGN[2]
 
 coin_list::
   ; Level 1
@@ -122,8 +124,7 @@ coin_apu_or_mask:
 
 pass_if_apu_equals_or_mask:
   ; Values in APU must equal OR mask
-  ld c, low(NR10)
-  lb bc, apu_or_mask_values_end-apu_or_mask_values, low(NR10)
+  lb bc, apu_or_mask_values_end-apu_or_mask_values, low(rNR10)
   ld hl, apu_or_mask_values
   .compareloop:
     ld a, [$FF00+c]
@@ -162,7 +163,7 @@ coin_div_increases:
   db "by 1 unit per period",0
 .start:
   ld d, 10  ; number of trials
-  ld hl, DIV
+  ld hl, rDIV
   .trialloop:
     ld e, 10  ; timeout loop for this trial
     ld c, [hl]
@@ -246,7 +247,7 @@ coin_di_halt_sets_if:
   nop
   ldh a, [rIF]
   and IEF_TIMER    ; Make sure a timer interrupt arrived
-  jr z, test_failed
+  jp z, test_failed
   ret
 
 coin_di_halt_2inc:
@@ -320,9 +321,10 @@ add_a_daa_eq_b_no_h:
   push af
   pop de
   cp b
-  jr nz, test_failed
+  jr nz, .local_test_failed
   bit 5, e
-  jr nz, test_failed
+.local_test_failed:
+  jp nz, test_failed
   ret
 
 coin_no16:
@@ -344,7 +346,7 @@ coin_apu_off_clear:
   ld a, $FF
   ldh [rNR52], a
   ld c, apu_or_mask_values_end-apu_or_mask_values
-  ld hl, NR10
+  ld hl, rNR10
   call memset_tiny
   call set_wave_ram_signature
 

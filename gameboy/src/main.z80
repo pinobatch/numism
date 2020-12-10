@@ -3,6 +3,7 @@ include "src/global.inc"
 
 SECTION "main", ROM0
 
+COINCELS_TILE = $23
 main::
   ld a,IEF_VBLANK
   ldh [rIE],a  ; enable IRQs
@@ -15,20 +16,40 @@ main::
   call lcd_off
   call clear_scrn0_to_0
   ld de, logo_iur
-  ld hl, CHRRAM0
+  ld hl, CHRRAM2
   call unpack_iu_file
   ld hl, SCRN_TMP
   ldxy de, 0, 2
   lb bc, 20, 3
   call load_nam
 
+  ld hl, coincels_2b
+  ld de, CHRRAM2+COINCELS_TILE*$10
+  ld bc, 5*$10
+  call memcpy  
+
   ld a, %11100100
   ld [rBGP], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
   ldh [rLCDC], a
 
 .waitloop:
   rst wait_vblank_irq
+
+  ; 0, 1, 2, 3, 4, 3, 2, 1... 
+  ldh a, [nmis]
+  rra
+  rra
+  rra
+  and $07
+  cp 5
+  jr c, .norev
+    cpl  ; ff, fe, fd, fc, fb, fa, f9, f8
+    sub $FA-3
+  .norev:
+  add COINCELS_TILE
+  ld [$982B], a
+
   call read_pad
   ldh a, [new_keys]
   and PADF_A|PADF_START
@@ -46,3 +67,4 @@ forever:
 
 
 logo_iur: incbin "obj/gb/logo.iur"
+coincels_2b: incbin "obj/gb/coincels.2b"

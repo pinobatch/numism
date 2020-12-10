@@ -1,0 +1,81 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+; Continue is a conventional test framework to run all tests one by
+; one.  It's called "Continue" because in the game's gimmick, it
+; represents having collected all coins in stages with 10 of 10
+; passes.
+
+COINS_PER_STAGE equ 10
+NUM_STAGES equ 10
+
+section "passbits", WRAM0, ALIGN[2]
+passbits:: ds NUM_STAGES*2
+
+section "continue_run_tests", ROM0
+
+run_tests_in_stage_a::
+  ld b, a
+
+  ; DE: pointer into passbits
+  add a
+  add low(passbits+1)
+  ld e, a
+  adc high(passbits+1)
+  sub e
+  ld d, a
+
+  ; Ring counter for completed tests
+  ; When this doubles COINS_PER_STAGE times, carry becomes set
+  ; and this stage is complete.
+  xor a
+  ld [de], a
+  dec de
+  ld a, $10000 >> COINS_PER_STAGE
+  ld [de], a
+
+  ; HL: pointer into coin_list
+  ld a, b
+  add a
+  add a
+  add b
+  add a
+  add a  ; 20 bytes of coin pointers per stage
+  add low(coin_list)
+  ld l, a
+  adc high(coin_list)
+  sub l
+  ld h, a
+
+  .coinloop:
+    ; Save state
+    push de
+    push hl
+
+    ; TODO: Standardize a test environment
+
+    ; Run a test
+    pop hl
+    push hl
+    ld a, [hl+]
+    ld h, [hl]
+    ld l, a
+    call jp_hl
+
+    ; Restore
+    pop hl
+    pop de
+
+    ; Record test result (0: pass; 1: fail)
+    ld a, [de]
+    adc a
+    ld [de], a
+    inc de
+    ld a, [de]
+    adc 0
+    ld [de], a
+    dec de
+  ret
+
+jp_hl:
+  jp hl

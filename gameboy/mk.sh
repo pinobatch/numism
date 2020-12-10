@@ -12,12 +12,16 @@ set -e
 
 title=numism
 inttitle='NUMISM'
-objlist='header init ppuclear pads main unpb16 uniur coins'
+objlist='header init ppuclear pads main unpb16 uniur coins continue'
+twobitlist='coincels'
 iurlist='logo'
 
 mkdir -p obj/gb
 echo 'Force folder creation' > obj/gb/index.txt
 
+for filename in $twobitlist; do
+  rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
+done
 for filename in $iurlist; do
   rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
   python3 tools/incruniq.py "obj/gb/$filename.2b" "obj/gb/$filename.iur"
