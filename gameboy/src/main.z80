@@ -5,12 +5,16 @@ SECTION "main", ROM0
 
 COINCELS_TILE = $23
 main::
-  ld a,IEF_VBLANK
-  ldh [rIE],a  ; enable IRQs
   xor a
   ldh [rIF],a
   ldh [nmis],a
-  ei
+
+  ; During the copyright screen (once I get it in), we'll have
+  ; up to 4 seconds to run tests.
+  xor a
+  call run_tests_in_stage_a
+  ld a, 1
+  call run_tests_in_stage_a
 
   ; Load title screen
   call lcd_off
@@ -26,13 +30,15 @@ main::
   ld hl, coincels_2b
   ld de, CHRRAM2+COINCELS_TILE*$10
   ld bc, 5*$10
-  call memcpy  
+  call memcpy
 
+  ld a,IEF_VBLANK
+  ldh [rIE],a  ; enable IRQs
   ld a, %11100100
   ld [rBGP], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
   ldh [rLCDC], a
-
+  ei
 .waitloop:
   rst wait_vblank_irq
 

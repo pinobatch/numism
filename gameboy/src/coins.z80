@@ -68,10 +68,11 @@ coin_apu_off_ignore_writes:
   ldh [rNR50], a
 
   call .read_test_pattern
-  jp nz, test_failed
+  jr nz, .local_test_failed
   ld a, $80
   ldh [rNR52], a
   call .read_test_pattern
+.local_test_failed:
   jp nz, test_failed
   ldh [rNR52], a
   ret
@@ -79,15 +80,15 @@ coin_apu_off_ignore_writes:
 .read_test_pattern:
   ld hl, rNR12
   ld a, [hl]
-  ld hl, low(rNR22)
+  ld l, low(rNR22)
   or [hl]
-  ld hl, low(rNR42)
+  ld l, low(rNR42)
   or [hl]
-  ld hl, low(rNR43)
+  ld l, low(rNR43)
   or [hl]
-  ld hl, low(rNR51)
+  ld l, low(rNR51)
   or [hl]
-  ld hl, low(rNR50)
+  ld l, low(rNR50)
   or [hl]
   ret
 
@@ -100,7 +101,9 @@ apu_or_mask_values:
   db $00,$00 ;,$70
 apu_or_mask_values_end:
 
-; Force zero-fill APU registers other than on/off
+;;
+; Turns on the APU and writes $00 to all registers.
+; @return A=C=0, HL=NR52
 zerofill_apu:
   ; Power cycle the APU for good measure
   ld hl, rNR52
@@ -267,7 +270,7 @@ coin_di_halt_2inc:
   ld a, d
   dec a
   jp nz, test_failed
-  ld a, 3
+  ld a, e
   cp 2
   jp nz, test_failed
   ret
@@ -355,7 +358,7 @@ coin_apu_off_clear:
   ldh [rNR52], a
   call pass_if_apu_equals_or_mask
   ret c
-  call compare_wave_ram_signature
+  call compare_wave_ram_signature  ; bgb fails here
   ret c
 
   ; Turn the APU on and see if it still reads 0
@@ -367,14 +370,16 @@ coin_apu_off_clear:
 compare_wave_ram_signature:
   ldh a, [_AUD3WAVERAM+14]
   cp $0C
-  jp nz, test_failed
+  jr nz, .local_test_failed
   ldh a, [_AUD3WAVERAM+15]
   cp $A5
+.local_test_failed:
   jp nz, test_failed
   ret
 
 set_wave_ram_signature:
   ld a, $0C
+  ldh [rNR30], a  ; ensure wave is stopped
   ldh [_AUD3WAVERAM+14], a
   ld a, $A5
   ldh [_AUD3WAVERAM+15], a
@@ -389,10 +394,13 @@ coin_apu_status_ro:
   ld hl, rNR52
   ld [hl], 0
   ld a, $70
+  cp [hl]
+  jr nz, .local_test_failed
+  ld a, $F0
   ld [hl], $FF  ; should read $70
-
-  ld a, $FF
-  ldh [rNR52], a
+  cp [hl]
+.local_test_failed:
+  jp nz, test_failed
   ret
 
 coin_push_af_low_4:

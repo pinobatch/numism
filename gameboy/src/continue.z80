@@ -48,22 +48,13 @@ run_tests_in_stage_a::
   ld h, a
 
   .coinloop:
-    ; Save state
+    ; Save state, run a test, and restore state
     push de
     push hl
-
-    ; TODO: Standardize a test environment
-
-    ; Run a test
+    call run_test_hl
     pop hl
-    push hl
-    ld a, [hl+]
-    ld h, [hl]
-    ld l, a
-    call jp_hl
-
-    ; Restore
-    pop hl
+    inc hl
+    inc hl
     pop de
 
     ; Record test result (0: pass; 1: fail)
@@ -72,10 +63,22 @@ run_tests_in_stage_a::
     ld [de], a
     inc de
     ld a, [de]
-    adc 0
+    adc a
     ld [de], a
     dec de
+    jr nc, .coinloop
   ret
 
-jp_hl:
-  jp hl
+;;
+; Set up the test environment, then run the test whose function
+; pointer is at [hl].
+run_test_hl:
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a
+  push hl
+  ; Now HL is free to set up the test environment, and ret will
+  ; start the test
+
+
+  ret  ; The test begins

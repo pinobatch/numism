@@ -27,7 +27,8 @@ for filename in $iurlist; do
   python3 tools/incruniq.py "obj/gb/$filename.2b" "obj/gb/$filename.iur"
 done
 for filename in $objlist; do
-  rgbasm -o "obj/gb/$filename.o" "src/$filename.z80"
+  # need -h to make double-inc halts
+  rgbasm -o "obj/gb/$filename.o" -h "src/$filename.z80"
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist)
 rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
