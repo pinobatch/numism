@@ -15,5 +15,6 @@ kigb.cfg
 nes/numism.nes
 nes/map.txt
 *.cdl
+world/.cache
 __pycache__
 
