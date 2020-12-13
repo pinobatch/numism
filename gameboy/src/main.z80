@@ -32,9 +32,14 @@ main::
   ld bc, 5*$10
   call memcpy
 
+  ld hl, titlelabels
+  ld de, $880
+  call vwfDrawLabels
+
+
   ld a,IEF_VBLANK
   ldh [rIE],a  ; enable IRQs
-  ld a, %11100100
+  ld a, %01101100
   ld [rBGP], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
   ldh [rLCDC], a
@@ -69,8 +74,11 @@ forever:
 
 
 
-
-
-
 logo_iur: incbin "obj/gb/logo.iur"
 coincels_2b: incbin "obj/gb/coincels.2b"
+titlelabels:
+  db 8, 56, "I'm at the platform game", 10
+  db 8, 64, "I'm at the emu test", 10
+  db 8, 72, "I'm at the combination", 10
+  db 8, 80, "platform game and emu test", 10
+  db 8, 128, $7F, " 2020 Damian Yerrick", 0
