@@ -44,7 +44,7 @@ PC before meeting bellhop
 - Climb ladder (1 cel turn to face, 3 cels climb)
 - Jump (4 cels: rise, peak, drop, drop below start; land may reuse
   crouch cels)
-- Lift onto one-way  from front (6 cels)
+- Lift onto overlapping platform from front (6 cels)
 - Give coins to NPC (3 cels)
 
 PC after meeting bellhop

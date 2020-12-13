@@ -17,6 +17,12 @@ exhaustive, though exhaustive tests outside the main suite can help
 characterize each emulator's corner-case behavior as if it were a
 "fantasy console."
 
+Coins should not be opaque, obscure, cryptic, or inscrutable.  They
+should state what they test and test what they state.  This way, the
+maintainer of an emulator can quickly find differences and fix them,
+and users of historic or specialized emulators can become aware of
+the extent of their behavior differences.
+
 Coin choice
 -----------
 I'd like to rank each tested behavior by a combination of three
@@ -79,9 +85,11 @@ upgrade with which to clear a barrier that blocks the next stage.
 Stage 1 can be cleared if up to 5 coins are missed.  Later stages
 allow missing up to 10 coins from it and previous stages combined.
 
-Early stage coins should test behaviors with more impact on
-compatibility with released software or common homebrew programming
-gotchas.  Tests in one stage should not assume results from a later
+Early stage coins should focus on behaviors that affect compatibility
+with released software and overly permissive behaviors that cause
+common homebrew programming gotchas.
+
+Tests in one stage should not assume results from a later
 stage, so as not to end up passing for the wrong reasons.
 
 ### Stage 1
@@ -106,7 +114,7 @@ monochrome and color systems.
 
 Good coins for stage 2 fall in two major classes.  Some cover
 misbehaviors of other notable early emulators, so that they score
-less than 10 between the first two stages.  Other cover behaviors
+less than 10 between the first two stages.  Others cover behaviors
 on which several later stage coins rely as a benchmark against
 which to test other behaviors.
 
