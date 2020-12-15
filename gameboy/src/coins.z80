@@ -340,7 +340,7 @@ coin_no16:
 
 coin_apu_off_clear:
   jr .start
-  db "APU off clear",10
+  db "What APU off clears",10
   db "Turning APU off clears",10
   db "readable sound registers",10
   db "and not wave RAM",0

@@ -9,13 +9,13 @@ Continue
 "Continue" is a conventional test framework.  It runs the 10 tests
 that make up a stage and displays their results.
 
-1. Draw headings and test numbers
-2. Draw all test names to $8400-$8DFF
-3. Draw all test results (pass or fail)
-4. Move cursor to test
-5. Window slides in and out
-6. Draw description of passed/failed test to window
-7. Change between implemented stages (and redraw everything)
+1. A and B: Window slides in and out
+2. Up and down: Move cursor to test
+3. Draw description of passed/failed test to window
+4. 
+5. Define test pattern for add hl flags
+6. Define test pattern for add sp flags
+7. Define test pattern for APU timer
 8. 
 9. 
 10. Make instruction timer

@@ -11,7 +11,14 @@ NUM_STAGES equ 2
 
 section "passbits", WRAM0, ALIGN[2]
 passbits:: ds NUM_STAGES*2
+
+section "continue_state", WRAM0
 cur_stage: ds 1
+cur_y: ds 1
+wnd_progress: ds 1
+wnd_y: ds 1
+cur_coin_desc: ds 1
+wanted_coin_desc: ds 1
 
 ; Running several tests one after another ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -314,7 +321,7 @@ draw_coin_names_stage_a:
     ld l, a  ; HL points to a coin's test routine
     inc hl
     inc hl   ; HL points to a coin's name
-    ld b, 0
+    ld b, 2
     call vwfPuts
 
     ; Push the line buffer to CHR RAM.
@@ -348,8 +355,7 @@ draw_checkmarks_ca:
   ld b, COINS_PER_STAGE
   ldxy hl, 3, 7
   .loop:
-    srl c
-    rra
+    bit 1, c
     push af
     .vwait:
       ld a, [rSTAT]
@@ -357,9 +363,13 @@ draw_checkmarks_ca:
       jr nz, .vwait
     ld [hl], TEST_OK_TILE
     pop af
-    jr nc, .not_passed
+    jr z, .test_passed  ; 0 means "nothing" wrong with the behavior
       ld [hl], BLANK_TILE
-    .not_passed:
+    .test_passed:
+
+    ; Move to the next test
+    add a, a
+    rl c
     add hl, de
     dec b
     jr nz, .loop
@@ -368,5 +378,78 @@ draw_checkmarks_ca:
 continue_labels:
   db 8, 48
   db "Stage",$00
+
+; Showing the description of a test ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+
+
+move_deck_window:
+  ; the cursor
+  ld hl,wnd_progress
+  ld a,[hl]
+
+  ; Is a transition in progress?
+  cp wnd_y_sequence_peak-wnd_y_sequence
+  jr nz,.not_peak_transition
+    ; This transition is at its "peak", and its retraction to the
+    ; locked position can be shortcut if a transition is needed
+    ld a,[wanted_coin_desc]
+    ld b,a
+    ld a,[cur_coin_desc]
+    xor b
+    jr z,.not_peak_transition
+    ld [hl],256-(wnd_y_sequence_peak-wnd_y_sequence)
+  .not_peak_transition:
+
+  ld a,[hl]
+  cp 128
+  jr nc,.is_leaving
+  cp wnd_y_sequence_last-wnd_y_sequence + 1
+  jr c,.is_entering
+
+  ld a, WYBASE
+  jr .have_wnd_y
+
+  .is_leaving:
+    cpl
+  .is_entering:
+  cp wnd_y_sequence_last-wnd_y_sequence
+  jr c,.notfin
+    ld a,wnd_y_sequence_last-wnd_y_sequence
+  .notfin:
+
+  ; Clock the sequence forward one step
+  inc [hl]
+
+  ; Look up wnd_y_sequence[a]
+  add low(wnd_y_sequence)
+  ld l, a
+  adc high(wnd_y_sequence)
+  sub l
+  ld h, a
+  ld a,[hl]
+.have_wnd_y:
+  ld [wnd_y],a
+  ret
+
+
+WYBASE equ 96
+wnd_y_sequence:
+  db 144
+  db WYBASE+40
+  db WYBASE+28
+  db WYBASE+18
+  db WYBASE+10
+  db WYBASE+4
+  db WYBASE+0
+  db WYBASE-2
+  db WYBASE-3
+  db WYBASE-4
+wnd_y_sequence_peak:
+  db WYBASE-4
+  db WYBASE-3
+  db WYBASE-1
+wnd_y_sequence_last:
+  db WYBASE+0
 
 checkmark_chr: incbin "obj/gb/checkmark.2b"
