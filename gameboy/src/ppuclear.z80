@@ -24,6 +24,8 @@ include "src/global.inc"
 
 section "irqvars",HRAM
 nmis:: ds 1
+vblank_lcdc_value:: ds 1
+stat_lcdc_value:: ds 1
 
 ; The display list at $CE00-$CE9F gets DMA'd to OAM after every frame
 ; in which sprites moved.  Also called "shadow OAM".
@@ -36,15 +38,28 @@ SECTION "vblank_handler", ROM0[$0040]
   ldh a,[nmis]
   inc a
   ldh [nmis],a
+  jr vblank_handler_tail
+
+SECTION "stat_handler", ROM0[$0048]
+  push af
+  ldh a,[stat_lcdc_value]
+  ldh [rLCDC],a
   pop af
   reti
 
-SECTION "wait_vblank_irq_tail", ROM0[$0049]
+SECTION "interrupt_tails", ROM0[$0068]
 wait_vblank_irq_tail:
   halt
   cp [hl]
   jr z, wait_vblank_irq_tail
   ret
+
+vblank_handler_tail:
+  ldh a, [vblank_lcdc_value]
+  ldh [rLCDC], a
+  pop af
+  reti
+
 
 ; A lot of this file is broken into little tiny sections, one for
 ; each routine, so that the linker can squeeze them into tiny holes

@@ -4,6 +4,8 @@ include "src/global.inc"
 SECTION "main", ROM0
 
 COINCELS_TILE = $23
+LOGO_IDOT_XY = $982B
+
 main::
   xor a
   ldh [rIF],a
@@ -16,17 +18,15 @@ main::
   ld a, 1
   call run_tests_in_stage_a
 
+  jp show_stages
+
   ; Load title screen
   call lcd_off
   call clear_scrn0_to_0
-  ld de, logo_iur
   ld hl, CHRRAM2
-  call unpack_iu_file
-  ld hl, SCRN_TMP
-  ldxy de, 0, 2
-  lb bc, 20, 3
-  call load_nam
+  call load_logo
 
+  ; Load the spinning coin
   ld hl, coincels_2b
   ld de, CHRRAM2+COINCELS_TILE*$10
   ld bc, 5*$10
@@ -35,7 +35,6 @@ main::
   ld hl, titlelabels
   ld de, $880
   call vwfDrawLabels
-
 
   ld a,IEF_VBLANK
   ldh [rIE],a  ; enable IRQs
@@ -47,6 +46,28 @@ main::
 .waitloop:
   rst wait_vblank_irq
 
+  ld b, COINCELS_TILE
+  ld hl, LOGO_IDOT_XY
+  call logo_cycle_spinning_coin
+
+  call read_pad
+  ldh a, [new_keys]
+  and PADF_A|PADF_START
+  jr z, .waitloop
+
+  jp show_stages
+
+;;
+; @param HL place to put logo tiles: $8000 or $9000
+load_logo::
+  ld de, logo_iur
+  call unpack_iu_file
+  ld hl, SCRN_TMP
+  ldxy de, 0, 2
+  lb bc, 20, 3
+  jp load_nam
+
+logo_cycle_spinning_coin:
   ; 0, 1, 2, 3, 4, 3, 2, 1... 
   ldh a, [nmis]
   rra
@@ -58,18 +79,9 @@ main::
     cpl  ; ff, fe, fd, fc, fb, fa, f9, f8
     sub $FA-3
   .norev:
-  add COINCELS_TILE
-  ld [$982B], a
-
-  call read_pad
-  ldh a, [new_keys]
-  and PADF_A|PADF_START
-  jr z, .waitloop
-
-  call lcd_off
-forever:
-  halt
-  jr forever
+  add b
+  ld [hl], a
+  ret
 
 
 

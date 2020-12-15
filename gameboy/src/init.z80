@@ -78,6 +78,10 @@ reset_handler::
     rst memset_tiny
   endc
 
+  ld a, $80
+  ldh [vblank_lcdc_value], a
+  ldh [stat_lcdc_value], a
+
   ; Copy the sprite DMA routine to HRAM
   ld hl,hramcode_start
   ld de,run_dma

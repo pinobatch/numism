@@ -14,7 +14,7 @@ title=numism
 inttitle='NUMISM'
 objlist='header init ppuclear pads main unpb16 uniur coins continue vwflabels vwfdraw'
 genobjlist='vwf7_cp144p'
-twobitlist='coincels'
+twobitlist='coincels checkmark'
 iurlist='logo'
 
 mkdir -p obj/gb

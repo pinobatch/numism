@@ -7,10 +7,13 @@ include "src/global.inc"
 ; passes.
 
 COINS_PER_STAGE equ 10
-NUM_STAGES equ 10
+NUM_STAGES equ 2
 
 section "passbits", WRAM0, ALIGN[2]
 passbits:: ds NUM_STAGES*2
+cur_stage: ds 1
+
+; Running several tests one after another ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 section "continue_run_tests", ROM0
 
@@ -36,16 +39,7 @@ run_tests_in_stage_a::
 
   ; HL: pointer into coin_list
   ld a, b
-  add a
-  add a
-  add b
-  add a
-  add a  ; 20 bytes of coin pointers per stage
-  add low(coin_list)
-  ld l, a
-  adc high(coin_list)
-  sub l
-  ld h, a
+  call get_coin_list_stage_a
 
   .coinloop:
     ; Save state, run a test, and restore state
@@ -78,7 +72,301 @@ run_test_hl:
   ld l, a
   push hl
   ; Now HL is free to set up the test environment, and ret will
-  ; start the test
-
+  ; start the test.  Test environment shall be specified later.
 
   ret  ; The test begins
+
+;;
+; @param A stage (0-9)
+; @return HL pointer to the coin routine
+get_coin_list_stage_a:
+  ld l, a
+  add a
+  add a
+  add l
+  add a
+  add a  ; 20 bytes of coin pointers per stage
+  add low(coin_list)
+  ld l, a
+  adc high(coin_list)
+  sub l
+  ld h, a
+  ret
+
+; Displaying test results ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; VRAM map
+; Bank 0
+; 00-2F Logo
+; Bank 1
+; 80-BF Description of current coin Unknown
+; C0-CB 0-9 left aligned, current stage, current stage + 1
+; CC-CF Coin, blank, left, right
+; E0-FF Titles of coins 1-2
+; Bank 2
+; 00-7F Titles of coins 3-10
+;
+; Below coin 2, a STAT IRQ switches the background from banks
+; 0 and 1 to banks 2 and 1.
+
+show_stages::
+  ld h, BLANK_TILE
+  call clear_scrn0_to_h
+  ld b, 2  ; clear the window too
+  call memset
+  ld hl, $8000
+  call load_logo
+
+  ; Clear pixels in VWF canvas
+  ld de, $8800
+  ld h, e
+  ld bc, $1000
+  call memset
+
+  ; Draw labels at left
+  ld hl, continue_labels
+  ld de, $8D0
+  call vwfDrawLabels
+
+  ; Set up header bar indicators
+  ldxy hl, 5, 6
+  ld a, LEFT_ARROW_TILE
+  ld [hl+], a
+  ld a, STAGE_PLUS_1_TILE
+  ld [hl+], a
+  ld a, RIGHT_ARROW_TILE
+  ld [hl+], a
+
+  ; Load checkmark and related tiles
+  ; TODO: Compress this
+  ld hl, checkmark_chr
+  ld de, CHRRAM0 + TEST_OK_TILE * $10
+  ld bc, 64
+  call memcpy
+
+  ; Draw digits in their place
+  lb bc, 9, DIGITS_BAR_TILE+1
+  ldxy hl, 1, COINNAMES_Y
+  ld de, 31
+  .digitsloop:
+    ld a, STAGE_PLUS_0_TILE
+    ld [hl+], a
+    ld [hl], c
+    inc c
+    add hl, de
+    dec b
+    jr nz, .digitsloop
+  ld a, STAGE_PLUS_1_TILE
+  ld [hl+], a
+  ld [hl], DIGITS_BAR_TILE
+
+  ; Draw area for coin names
+  ldxy hl, 4, 7
+  ld a, $E0
+  ld b, $10
+  call vwfcanvas128
+
+  ; Draw area for coin description
+  ldxy hl, 2, 0, _SCRN1
+
+  ; Now everything that doesn't depend on the stage number is in,
+  ; so turn on display
+  ld a,IEF_VBLANK|IEF_LCDC
+  ldh [rIE],a  ; enable IRQs
+  ld a, STATF_LYC
+  ldh [rSTAT], a
+  ld a, %01101100
+  ld [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ldh [stat_lcdc_value], a
+  ld a, 8*COINNAMES_Y
+  ldh [rLYC], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  ldh [vblank_lcdc_value], a
+  ldh [rLCDC], a
+  ei
+
+  xor a
+.set_stage_to_a:
+  ld [cur_stage], a
+  ld a, $FF
+  ld c, a
+  call draw_checkmarks_ca
+  ld a, [cur_stage]
+  push af
+  call load_digits_bar_stage_a
+  pop af
+  push af
+  call draw_coin_names_stage_a
+  pop af
+  call draw_checkmarks_stage_a
+
+.waitloop:
+  rst wait_vblank_irq
+  call read_pad
+  ldh a, [new_keys]
+  ld b, a
+
+  ld a, [cur_stage]
+  ld c, a
+  bit PADB_LEFT, b
+  jr z, .not_left
+    dec a
+  .not_left:
+  bit PADB_RIGHT, b
+  jr z, .not_right
+    inc a
+  .not_right:
+  cp NUM_STAGES
+  jr nc, .stage_unchanged
+    cp c
+    jr nz, .set_stage_to_a
+  .stage_unchanged:
+
+  ld a, b
+  and PADF_A|PADF_START
+  jr z, .waitloop
+
+  call lcd_off
+forever:
+  halt
+  jr forever
+
+vwfcanvas128:
+  ld c, $10
+  call memset_inc
+  ld de, $10
+  add hl, de
+  dec b
+  jr nz, vwfcanvas128
+  ret
+
+DIGITS_BAR_TILE = $C0
+STAGE_PLUS_0_TILE = $CA
+STAGE_PLUS_1_TILE = $CB
+TEST_OK_TILE = $CC
+BLANK_TILE = $CD
+LEFT_ARROW_TILE = $CE
+RIGHT_ARROW_TILE = $CF
+COINNAMES_Y = 7
+
+load_digits_bar_stage_a:
+  push af
+  call vwfClearBuf
+  lb bc, 10, 0
+  .digitloop:
+    push bc
+    ld a, c
+    add a
+    add a
+    scf  ; X=8*B+1
+    adc a
+    ld b, a
+    ld a, $30
+    add c
+    call vwfPutTile
+    pop bc
+    inc c
+    dec b
+    jr nz, .digitloop
+  pop af  ; A = stage number (0 based)
+
+  ; Draw zero-based stage number
+  or a
+  jr z, .no_leading_zero
+    push af
+    add $30
+    ld b, 8*10+4
+    call vwfPutTile
+    pop af
+  .no_leading_zero:
+
+  ; Draw one-based stage number
+  cp 9
+  jr c, .less_than_ten
+    ld a, "1"
+    ld b, 8*11-1
+    call vwfPutTile
+    ld a, $FF
+  .less_than_ten:
+  add $31
+  ld b, 8*11+4
+  call vwfPutTile
+
+  ld c, 12
+  ld hl, CHRRAM0 + DIGITS_BAR_TILE * 16
+  jp vwfPutBufHBlank
+
+draw_coin_names_stage_a:
+  call get_coin_list_stage_a
+  ld de, $8E00
+  .loop:
+
+    ; Clear the line buffer and fetch the coin's name, and draw it
+    push hl
+    call vwfClearBuf  ; DE preserved
+    pop hl  ; HL is an iterator into coin pointers
+    push hl
+    push de
+    ; Stack map: Destination VRAM address, coin pointer iterator
+    ld a, [hl+]  ; Grab a coin pointer
+    ld h, [hl]
+    ld l, a  ; HL points to a coin's test routine
+    inc hl
+    inc hl   ; HL points to a coin's name
+    ld b, 0
+    call vwfPuts
+
+    ; Push the line buffer to CHR RAM.
+    pop hl
+    push hl
+    ld c, 16
+    call vwfPutBufHBlank
+
+    pop de
+    pop hl
+    inc hl  ; Advance the iterator
+    inc hl
+    inc d
+    ld a, d
+    cp $8E+10
+    jr c, .loop
+  ret
+
+draw_checkmarks_stage_a:
+  add a
+  add low(passbits)
+  ld l, a
+  add high(passbits)
+  sub l
+  ld h, a
+  ld a, [hl+]  ; A: low bits
+  ld c, [hl]  ; C: high bits
+  ; fall through
+draw_checkmarks_ca:
+  ld de, 32    ; line pitch
+  ld b, COINS_PER_STAGE
+  ldxy hl, 3, 7
+  .loop:
+    srl c
+    rra
+    push af
+    .vwait:
+      ld a, [rSTAT]
+      and STATF_BUSY
+      jr nz, .vwait
+    ld [hl], TEST_OK_TILE
+    pop af
+    jr nc, .not_passed
+      ld [hl], BLANK_TILE
+    .not_passed:
+    add hl, de
+    dec b
+    jr nz, .loop
+  ret
+
+continue_labels:
+  db 8, 48
+  db "Stage",$00
+
+checkmark_chr: incbin "obj/gb/checkmark.2b"
