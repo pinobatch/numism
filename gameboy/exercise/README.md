@@ -102,5 +102,10 @@ Below the plot is the total number of errors.  It may be twice as
 many as black pixels because while the plot disregards input Z flag,
 the error count includes both Z clear and Z set.
 
+After the plot appears, the `VALID ADDS` test adds all 10,000 pairs
+of valid BCD bytes (those without A-F nibbles) and displays the
+first pair where the `daa` instruction does not match the software
+implementation.
+
 [binary-coded decimal]: https://en.wikipedia.org/wiki/Binary-coded_decimal
 

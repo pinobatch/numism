@@ -10,7 +10,7 @@ Continue
 that make up a stage and displays their results.
 
 1. Draw description of passed/failed test to window
-2. Make `daa` _valid_ results exerciser
+2. 
 3. 
 4. 
 5. Define test pattern for `add hl` flags

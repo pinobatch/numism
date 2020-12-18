@@ -70,31 +70,107 @@ daa_test::
     ; Move to next iteration
     inc b
     jr nz, .bc_loop
+
+    ; Every 256, look for select button
+    push bc
+    call read_pad
+    pop bc
+    ldh a, [new_keys]
+    bit PADB_SELECT, a
+    jp nz, next_test
+
     ld a, $10
     add c
     ld c, a
     jr nc, .bc_loop
 
-  ; Turn the screen on
+  ; Turn the screen on once the first phase completes
   ld a, %11100100
   ldh [rBGP], a
   ldh [rOBP0], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
   ldh [rLCDC], a
 
-forever:
-  call read_pad
+valid_pair_test:
+  ; This optional phase tests DAA with valid combinations
+  ld bc, 0
+  .bloop:
+    call daa_present
+    jr nz, next_test
 
-  xor a
-  ld [oam_used], a
-;  call draw_cursor
-  call lcd_clear_oam
-  call wait_vblank_irq
-  call run_dma
-  ldh a, [new_keys]
-  bit PADB_SELECT, a
-  jr z, forever
+    ld c, 0
+    .cloop:
+      ld a, b
+      add c
+      daa
+      push af
+      pop de
+      ld a, b
+      add c
+      call emulate_daa
+      push af
+      pop hl
+
+      xor d
+      jr nz, .is_mismatch
+      ld a, l
+      xor e
+;      and %11011111  ; ignore H flag for debug purposes
+      jr nz, .is_mismatch
+
+      inc c
+      ld a, c
+      and $0F
+      cp $0A
+      jr c, .cloop
+      ld a, c
+      add 6
+      ld c, a
+      cp $A0
+      jr c, .cloop
+    inc b
+    ld a, b
+    and $0F
+    cp $0A
+    jr c, .bloop
+    ld a, b
+    add 6
+    ld b, a
+    cp $A0
+    jr c, .bloop
+  ldxy de, 12, 8
+  lb bc, "O", "K"
+  call hblank_put_bc
+  jr .valids_ok
+
+.is_mismatch:
+  ldxy de, 12, 8
+  push bc
+  ld a, b
+  call hblank_put_a
+  pop bc
+  ld a, c
+  call hblank_put_a
+.valids_ok:
+
+.forever:
+  call daa_present
+  jr z, .forever
+next_test:
   jp inst_test
+
+daa_present:
+  push bc
+  push de
+  push hl
+  call read_pad
+  call wait_vblank_irq
+  ldh a, [new_keys]
+  pop hl
+  pop de
+  pop bc
+  bit PADB_SELECT, a
+  ret
 
 ;;
 ; This behavior matches DAA on bgb in all cases:
@@ -233,7 +309,9 @@ daa_labels:
   db "8", $FF
   dwxy 1, 16
   db "SEL:DAA", $FF
-  dw errors_count_ones - 11
+  dw errors_count_ones - 10
   db "ERRORS:", $FF
+  dwxy 1, 8
+  db "VALID ADDS", $FF
   db $00
 

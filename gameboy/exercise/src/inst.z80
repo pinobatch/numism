@@ -642,7 +642,20 @@ draw_2dig_c::
   ret
 
 ;;
-; Waits for mode 0 or 1, then writes B and C in hex to [DE]
+; Waits for mode 0 or 1, then writes nibbles of A to [DE]
+; @return DE incremented by 1, B high nibble, C low nibble
+hblank_put_a::
+  ld c, a
+  swap a
+  and $0F
+  ld b, a
+  ld a, c
+  and $0F
+  ld c, a
+  ; fallthrough
+
+;;
+; Waits for mode 0 or 1, then writes characters B and C to [DE]
 hblank_put_bc::
   ldh a, [rSTAT]
   bit 1, a
