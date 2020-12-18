@@ -10,18 +10,18 @@ Continue
 that make up a stage and displays their results.
 
 1. Draw description of passed/failed test to window
-2. 
-3. 
-4. 
-5. Define test pattern for `add hl` flags
-6. Define test pattern for `add sp` flags
-7. Define test pattern for APU timer
+2. Define test pattern for APU timer
+3. Make instruction timer
+4. Make mode 3 length measurer
+5. Make OAM bug exerciser: fill OAM, wait for a mode, do inc/dec,
+   read OAM.  Repeat for modes 0, 1, 2, and 3.
+6. 
+7. 
 8. 
 9. 
-10. Make instruction timer
-11. Make mode 3 length measurer
-12. Make OAM bug exerciser: fill OAM, wait for a mode, do inc/dec,
-    read OAM.  Repeat for modes 0, 1, 2, and 3.
+10. 
+11. 
+12. 
 
 Cels
 ----
