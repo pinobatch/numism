@@ -75,6 +75,9 @@ reset_handler::
     ld hl,SOAM
     ld c,160
     rst memset_tiny
+    ld hl,lineImgBuf
+    ld c,136
+    rst memset_tiny
   endc
 
   ld a, $80

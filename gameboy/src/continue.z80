@@ -146,11 +146,10 @@ show_stages::
   ld [hl+], a
 
   ; Load checkmark and related tiles
-  ; TODO: Compress this
-  ld hl, checkmark_chr
-  ld de, CHRRAM0 + TEST_OK_TILE * $10
-  ld bc, 10*16
-  call memcpy
+  ld de, checkmark_chr
+  ld hl, CHRRAM0 + TEST_OK_TILE * $10
+  ld b, 10
+  call pb16_unpack_block
 
   ; Draw digits in their place
   lb bc, 9, DIGITS_BAR_TILE+1
@@ -170,8 +169,8 @@ show_stages::
 
   ; Draw area for coin names
   ldxy hl, 4, 7
-  ld a, $E0
-  ld b, $10
+  ld a, COINNAMES_TILE
+  ld b, COINS_PER_STAGE
   call vwfcanvas128
 
   ; Draw frame of coin description
@@ -195,7 +194,7 @@ show_stages::
   ld [hl+], a
   ; And fill the description area with VWF canvas
   ldxy hl, 2, 1, _SCRN1
-  ld a, $80
+  ld a, DESCRIPTION_TILE
   ld b, 4
   call vwfcanvas128
 
@@ -225,12 +224,13 @@ show_stages::
   ld [want_coin_out], a
 .set_stage_to_a:
   ld [cur_stage], a
+  push af
   xor a
+  cpl
   ld [cur_coin_desc], a
-  cpl  ; After drawing descriptions, move this above the store to cur_coin_desc
-  ld c, a
+  ld c, a  ; Draw all as failed during screen transitions
   call draw_checkmarks_ca
-  ld a, [cur_stage]
+  pop af
   push af
   call load_digits_bar_stage_a
   pop af
@@ -315,7 +315,8 @@ show_stages::
   inc hl  ; ld hl, cursor_y
   add [hl]
   ld [wanted_coin_desc], a
-  call move_coindesc_window
+  call move_coin_desc_window
+  call draw_coin_desc_if_needed
 
   rst wait_vblank_irq
   call run_dma
@@ -323,7 +324,7 @@ show_stages::
   ldh [rWY], a
   ldh a, [new_keys]
   and PADF_START
-  jr z, .waitloop
+  jp z, .waitloop
 
   call lcd_off
 forever:
@@ -352,6 +353,7 @@ wr17a15:
   add hl, de
   ret
 
+DESCRIPTION_TILE = $80
 DIGITS_BAR_TILE = $C0
 STAGE_PLUS_0_TILE = $CA
 STAGE_PLUS_1_TILE = $CB
@@ -366,6 +368,7 @@ BLCORNER_TILE = $D3
 HBAR_TILE = $D4
 BRCORNER_TILE = $D5
 COINNAMES_Y = 7
+COINNAMES_TILE = $E0
 
 load_digits_bar_stage_a:
   push af
@@ -492,7 +495,7 @@ continue_labels:
 ; Showing the description of a test ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 
-move_coindesc_window:
+move_coin_desc_window:
   ; If the current and wanted coin descriptions differ, or if the
   ; user requested retracting, retract.
   ld a, [want_coin_out]
@@ -554,6 +557,89 @@ move_coindesc_window:
   ld [wnd_y], a
   ret
 
+draw_coin_desc_if_needed:
+  ld a, [want_coin_out]
+  or a
+  ret z  ; Don't draw if drawer is closed
+  ld a, [wnd_progress]
+  or a
+  ret nz  ; Don't draw if drawer is still retracting
+  ld a, [wanted_coin_desc]
+  ld hl, cur_coin_desc
+  cp [hl]
+  ret z  ; Don't draw if already loaded
+  ; Otherwise fall through
+
+;;
+; Draws the description for the selected coin
+draw_coin_desc:
+  ld a, [wanted_coin_desc]
+  ld [cur_coin_desc], a
+  add a
+  add low(coin_list)
+  ld l, a
+  adc high(coin_list)
+  sub l
+  ld h, a  ; HL points to an entry in coin_list
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a  ; HL points to a coin's starting point
+  inc hl
+  inc hl   ; HL points to a coin's name
+  ; Description separated from name by a character $01-$0F,
+  ; canonically $0A (UNIX newline).  If $00 appears instead,
+  ; there is no description.
+  .finddescloop:
+    ld a, [hl]
+    or a
+    jr z, .founddesc
+    inc hl
+    cp 16
+    jr nc, .finddescloop
+  .founddesc:
+
+  ld de, _VRAM + DESCRIPTION_TILE * 16  ; $8800 to $88BF
+  ; At this point:
+  ; DE is the destination in CHRRAM1 ($8800 to $88BF)
+  ; HL is the text source
+
+  .lineloop:
+    push hl
+    call vwfClearBuf
+    pop hl
+    push de
+    ld b, 2
+    call vwfPuts
+    ld a, [hl]
+    or a
+    jr z, .desc_terminator
+      inc hl  ; Treat \0 as infinitely long \n stream
+    .desc_terminator:
+    pop de
+    push de
+    push hl
+    ld h, d
+    ld l, e
+    ld c, 16
+    call vwfPutBufHBlank
+    pop hl
+    pop de
+    inc d
+    ld a, d
+    cp high(_VRAM + (DESCRIPTION_TILE + 64) * 16)
+    jr c, .lineloop
+
+  ; Write the coin name at the top of the window
+  rst wait_vblank_irq
+  ld a, [cursor_y]
+  swap a
+  and $F0
+  add COINNAMES_TILE
+  ld c, 15
+  ldxy hl, 2, 0, _SCRN1
+  call memset_inc
+  ld [hl], HBAR_TILE
+  ret
 
 WYBASE equ 96
 wnd_y_sequence:
@@ -574,4 +660,4 @@ wnd_y_sequence_peak:
 wnd_y_sequence_last:
   db WYBASE+0
 
-checkmark_chr: incbin "obj/gb/checkmark.2b"
+checkmark_chr: incbin "obj/gb/checkmark.2b.pb16"

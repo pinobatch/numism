@@ -14,15 +14,19 @@ title=numism
 inttitle='NUMISM'
 objlist='header init ppuclear pads main unpb16 uniur coins continue vwflabels vwfdraw'
 genobjlist='vwf7_cp144p'
-twobitlist='coincels checkmark'
+twobitlist='coincels'
+pb16list='checkmark'
 iurlist='logo'
 
 mkdir -p obj/gb
 echo 'Force folder creation' > obj/gb/index.txt
 
 python3 tools/vwfbuild.py tilesets/vwf7_cp144p.png obj/gb/vwf7_cp144p.z80
-for filename in $twobitlist; do
+for filename in $twobitlist $pb16list; do
   rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
+done
+for filename in $pb16list; do
+  python3 tools/pb16.py "obj/gb/$filename.2b" "obj/gb/$filename.2b.pb16"
 done
 for filename in $iurlist; do
   rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
