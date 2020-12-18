@@ -9,12 +9,12 @@ Continue
 "Continue" is a conventional test framework.  It runs the 10 tests
 that make up a stage and displays their results.
 
-1. A and B: Window slides in and out
-2. Up and down: Move cursor to test
-3. Draw description of passed/failed test to window
+1. Draw description of passed/failed test to window
+2. Make `daa` _valid_ results exerciser
+3. 
 4. 
-5. Define test pattern for add hl flags
-6. Define test pattern for add sp flags
+5. Define test pattern for `add hl` flags
+6. Define test pattern for `add sp` flags
 7. Define test pattern for APU timer
 8. 
 9. 

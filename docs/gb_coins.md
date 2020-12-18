@@ -44,4 +44,4 @@ All this is preliminary:
 19. `push bc pop af push af pop de` sets DE=BC&$FFF0
 20. `inc hl` in mode 2 corrupts OAM only on DMG
 21. GBC palette can be written and read back during vblank only on GBC
-
+22. Wave RAM locked while playing: reads return $FF or the byte at the play position (the Demotronic test)

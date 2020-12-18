@@ -12,6 +12,7 @@
 *.iur
 *.sav
 kigb.cfg
+rew.ini
 nes/numism.nes
 nes/map.txt
 *.cdl

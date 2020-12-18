@@ -14,11 +14,12 @@ passbits:: ds NUM_STAGES*2
 
 section "continue_state", WRAM0
 cur_stage: ds 1
-cur_y: ds 1
+cursor_y: ds 1
 wnd_progress: ds 1
 wnd_y: ds 1
 cur_coin_desc: ds 1
 wanted_coin_desc: ds 1
+want_coin_out: ds 1
 
 ; Running several tests one after another ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -132,7 +133,7 @@ show_stages::
 
   ; Draw labels at left
   ld hl, continue_labels
-  ld de, $8D0
+  ld de, $8D6
   call vwfDrawLabels
 
   ; Set up header bar indicators
@@ -148,7 +149,7 @@ show_stages::
   ; TODO: Compress this
   ld hl, checkmark_chr
   ld de, CHRRAM0 + TEST_OK_TILE * $10
-  ld bc, 64
+  ld bc, 10*16
   call memcpy
 
   ; Draw digits in their place
@@ -173,8 +174,30 @@ show_stages::
   ld b, $10
   call vwfcanvas128
 
-  ; Draw area for coin description
-  ldxy hl, 2, 0, _SCRN1
+  ; Draw frame of coin description
+  ldxy hl, 1, 0, _SCRN1
+  ld [hl], TLCORNER_TILE
+  ld a, TRCORNER_TILE
+  call wr17a15
+  ld b, 4
+  dec a  ; ld a, VBAR_TILE
+  .wndsides_loop:
+    ld [hl], a
+    call wr17a15
+    dec b
+    jr nz, .wndsides_loop
+  ld a, BLCORNER_TILE
+  ld [hl+], a
+  inc a
+  ld c, 16
+  call memset_tiny
+  inc a
+  ld [hl+], a
+  ; And fill the description area with VWF canvas
+  ldxy hl, 2, 1, _SCRN1
+  ld a, $80
+  ld b, 4
+  call vwfcanvas128
 
   ; Now everything that doesn't depend on the stage number is in,
   ; so turn on display
@@ -184,19 +207,27 @@ show_stages::
   ldh [rSTAT], a
   ld a, %01101100
   ld [rBGP], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ld a, 7
+  ld [rWX], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [stat_lcdc_value], a
+  ldh [rWY], a
   ld a, 8*COINNAMES_Y
   ldh [rLYC], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [vblank_lcdc_value], a
   ldh [rLCDC], a
   ei
 
   xor a
+  ld [wnd_progress], a
+  ld [cursor_y], a
+  ld [want_coin_out], a
 .set_stage_to_a:
   ld [cur_stage], a
-  ld a, $FF
+  xor a
+  ld [cur_coin_desc], a
+  cpl  ; After drawing descriptions, move this above the store to cur_coin_desc
   ld c, a
   call draw_checkmarks_ca
   ld a, [cur_stage]
@@ -209,13 +240,14 @@ show_stages::
   call draw_checkmarks_stage_a
 
 .waitloop:
-  rst wait_vblank_irq
   call read_pad
+  ld b, PADF_UP|PADF_DOWN
+  call autorepeat
   ldh a, [new_keys]
   ld b, a
 
-  ld a, [cur_stage]
-  ld c, a
+  ld hl, cur_stage
+  ld a, [hl]
   bit PADB_LEFT, b
   jr z, .not_left
     dec a
@@ -226,12 +258,71 @@ show_stages::
   .not_right:
   cp NUM_STAGES
   jr nc, .stage_unchanged
-    cp c
+    cp [hl]
     jr nz, .set_stage_to_a
   .stage_unchanged:
 
-  ld a, b
-  and PADF_A|PADF_START
+  ld hl, cursor_y
+  ld a, [hl]
+  bit PADB_UP, b
+  jr z, .not_up
+    dec a
+  .not_up:
+  bit PADB_DOWN, b
+  jr z, .not_down
+    inc a
+  .not_down:
+  cp COINS_PER_STAGE
+  jr nc, .y_unchanged
+  cp [hl]
+  jr z, .y_unchanged
+    ld [hl], a
+  .y_unchanged:
+
+  ld hl, want_coin_out
+  bit PADB_A, b
+  jr z, .not_A
+    ld [hl], b
+  .not_A:
+  bit PADB_B, b
+  jr z, .not_B
+    ld [hl], 0
+  .not_B:
+
+  ld hl, SOAM
+  ld a, [cursor_y]
+  add COINNAMES_Y+2
+  add a
+  add a
+  add a
+  ld [hl+], a
+  ld a, 4+8
+  ld [hl+], a
+  ld a, RIGHT_ARROW_TILE
+  ld [hl+], a
+  xor a
+  ld [hl+], a
+  ld a, l
+  ld [oam_used], a
+  call lcd_clear_oam 
+
+  ld hl, cur_stage
+  ld a, [hl]
+  add a  ; set wanted coin to A*10+cursor_y
+  add a
+  add [hl]
+  add a
+  inc hl  ; ld hl, cursor_y
+  add [hl]
+  ld [wanted_coin_desc], a
+  call move_coindesc_window
+
+  rst wait_vblank_irq
+  call run_dma
+  ld a, [wnd_y]
+  ldh [rWY], a
+  ldh a, [new_keys]
+  and PADF_START
   jr z, .waitloop
 
   call lcd_off
@@ -239,6 +330,11 @@ forever:
   halt
   jr forever
 
+;;
+; Writes a 16-tile-wide strip of increasing tile IDs.
+; @param A first tile ID
+; @param HL top left corner of strip in tilemap
+; @param B number of rows
 vwfcanvas128:
   ld c, $10
   call memset_inc
@@ -248,6 +344,14 @@ vwfcanvas128:
   jr nz, vwfcanvas128
   ret
 
+wr17a15:
+  ld de, 17
+  add hl, de
+  ld [hl-], a
+  dec e
+  add hl, de
+  ret
+
 DIGITS_BAR_TILE = $C0
 STAGE_PLUS_0_TILE = $CA
 STAGE_PLUS_1_TILE = $CB
@@ -255,6 +359,12 @@ TEST_OK_TILE = $CC
 BLANK_TILE = $CD
 LEFT_ARROW_TILE = $CE
 RIGHT_ARROW_TILE = $CF
+TLCORNER_TILE = $D0
+VBAR_TILE = $D1
+TRCORNER_TILE = $D2
+BLCORNER_TILE = $D3
+HBAR_TILE = $D4
+BRCORNER_TILE = $D5
 COINNAMES_Y = 7
 
 load_digits_bar_stage_a:
@@ -382,54 +492,66 @@ continue_labels:
 ; Showing the description of a test ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 
+move_coindesc_window:
+  ; If the current and wanted coin descriptions differ, or if the
+  ; user requested retracting, retract.
+  ld a, [want_coin_out]
+  ld c, a
+  ld a, [cur_coin_desc]
+  ld hl, wanted_coin_desc
+  xor [hl]  ; A = zero if on wanted coin
+  cp 1
+  sbc a  ; A=$FF to extend or $00 to retract
+  and c
+  ld c, a  ; C nonzero to extend
+  ld hl, wnd_progress
+  jr nz, .retraction_not_requested
 
-move_deck_window:
-  ; the cursor
-  ld hl,wnd_progress
-  ld a,[hl]
+  ; There are two places to start retraction: once the animation
+  ; gets to the peak of overshoot or reaches its end.
+    ld a, [hl]
+    cp 128
+    jr nc, .retraction_not_requested  ; Retraction already in progress
+    cp wnd_y_sequence_peak-wnd_y_sequence
+    jr nz, .retract_not_peak
+      ld [hl], 256-(wnd_y_sequence_peak-wnd_y_sequence)
+      jr .retraction_not_requested
+    .retract_not_peak:
+    cp wnd_y_sequence_last-wnd_y_sequence
+    jr nz, .retraction_not_requested
+    ld [hl], 256-(wnd_y_sequence_last-wnd_y_sequence)
+  .retraction_not_requested:
 
-  ; Is a transition in progress?
-  cp wnd_y_sequence_peak-wnd_y_sequence
-  jr nz,.not_peak_transition
-    ; This transition is at its "peak", and its retraction to the
-    ; locked position can be shortcut if a transition is needed
-    ld a,[wanted_coin_desc]
-    ld b,a
-    ld a,[cur_coin_desc]
-    xor b
-    jr z,.not_peak_transition
-    ld [hl],256-(wnd_y_sequence_peak-wnd_y_sequence)
-  .not_peak_transition:
+  ; If all the way offscreen and user requested retract, stop.
+  ld a, [hl]
+  or c
+  jr z, .dont_advance
 
-  ld a,[hl]
-  cp 128
-  jr nc,.is_leaving
-  cp wnd_y_sequence_last-wnd_y_sequence + 1
-  jr c,.is_entering
+  ld a, [hl]
+  sub 128
+  cp 128+wnd_y_sequence_last-wnd_y_sequence
+  jr c, .advance
+    ld a, WYBASE
+    jr .have_wy
+  .advance:
+    inc [hl]
+  .dont_advance:
 
-  ld a, WYBASE
-  jr .have_wnd_y
+  ; Absolute value approximation
+  ld a, [hl]
+  add a  ; C set if negative
+  sbc a  ; A=$FF if negative
+  xor [hl]
 
-  .is_leaving:
-    cpl
-  .is_entering:
-  cp wnd_y_sequence_last-wnd_y_sequence
-  jr c,.notfin
-    ld a,wnd_y_sequence_last-wnd_y_sequence
-  .notfin:
-
-  ; Clock the sequence forward one step
-  inc [hl]
-
-  ; Look up wnd_y_sequence[a]
+  ; Look up distance for this time
   add low(wnd_y_sequence)
   ld l, a
   adc high(wnd_y_sequence)
   sub l
   ld h, a
-  ld a,[hl]
-.have_wnd_y:
-  ld [wnd_y],a
+  ld a, [hl]
+.have_wy:
+  ld [wnd_y], a
   ret
 
 

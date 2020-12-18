@@ -4,12 +4,14 @@ include "src/global.inc"
 section "COINS", ROM0, ALIGN[2]
 
 coin_list::
-  ; Level 1
+  ; stage 1
   dw coin_add_hl_flags, coin_add_sp_flags, coin_apu_off_ignore_writes, coin_apu_or_mask, coin_apu_sweep_status
   dw coin_apu_len_env00_status, coin_div_increases, coin_no8, coin_no9, coin_no10
-  ; Level 2
+  ; stage 2
   dw coin_ei_if_write, coin_di_halt_sets_if, coin_di_halt_2inc, coin_di_halt_no_handler, coin_daa_no_h
   dw coin_no16, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
+  ; stage 3
+
 
 
 section "STAGE12COINS", ROM0
@@ -316,6 +318,7 @@ coin_daa_no_h:
   ld a, $05
   ld b, $10
   call add_a_daa_eq_b_no_h
+  ret c
   ld a, $09
   ld b, $18
 add_a_daa_eq_b_no_h:
@@ -429,6 +432,30 @@ coin_oam_bug:
   db "NYA 16-bit inc corrupts OAM",10
   db "With H=FE, inc hl in mode 2",10
   db "corrupts OAM on B&W system",0
+.start:
+  or a
+  ret
+
+section "STAGE34COINS", ROM0
+
+; This is the first test I want to make with different behavior
+; on Game Boy and Game Boy Color
+coin_gbc_palette_readback:
+  jr .start
+  db "GBC palette reading in vblank",10
+  db "",10
+  db "",0
+.start:
+  or a
+  ret
+
+coin_wave_ram_locked:
+  jr .start
+  db "Wave RAM locked while playing",10
+  db "During a wave note, wave RAM",10
+  db "reads as the byte at the",10
+  db "play pointer or $FF",10
+  db 34,"NO BOY! NO DEMO!",34,0
 .start:
   or a
   ret

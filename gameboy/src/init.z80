@@ -68,7 +68,6 @@ reset_handler::
   ldh [rSCY], a   ; clear scroll
   ldh [rSCX], a   ; clear scroll
   ldh [rNR52], a  ; disable (and reset) audio
-
   if bgbcompat
     ; BGB triggers spurious "reading uninitialized WRAM" exceptions
     ; when DMAing the X, tile number, and attribute of an OAM entry
@@ -87,6 +86,7 @@ reset_handler::
   ld de,run_dma
   ld bc,hramcode_end-hramcode_start
   call memcpy
+  call run_dma
 
   jp main
 
