@@ -123,6 +123,23 @@ following instructions into the exerciser to make a quick spot check:
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
     - NO$GMB and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
 
+```
+INST 971900000000, AF 0000, HL 8800, DE 7800
+; disassembles to
+sub a  ; generate half carry and carry
+add hl, de
+; First inst can be SUB A (97) to set N and clear H,
+; AND A (A7) to set H and clear N, or OR A (B7) to clear NH
+; Play with DE: 77+88 is neither, 87+88 is C, 68+88 is H, 78+88 is HC
+
+INST E8FEF5C1E8FE, SP D000
+; disassembles to
+add sp, -2
+push af
+pop bc     ; Watch bit 4 of C, which shows the carry for D000+FFFE
+add sp, -2
+```
+
 If SP is not pointing into HRAM, the carry from E8 and F8 in NO$GMB
 and KiGB will always equal bit 7 of the relative value.
 

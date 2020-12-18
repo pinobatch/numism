@@ -25,23 +25,70 @@ test_failed:
 
 coin_add_hl_flags:
   jr .start
-  db "NYA add hl flags",10
+  db "add hl flags",10
   db "add hl,de; add hl,sp",10
   db "Z same, N=0, HC=carry",10
   db "from bits 11 and 15",0
 .start:
+  ld de, $8800
+  push de
+  pop af  ; Clear ZNHC
+
+  ld hl, $7800
+  add hl, de  ; Set HC
+  push af
+  pop bc
+  ld a, c
+  cp $30
+  jr nz, .local_test_failed
+
+  and a  ; Clear ZN, set H, clear C
+  ld hl, $8700
+  add hl, de  ; Clear NH, set C
+  push af
+  pop bc
+  ld a, c
+  cp $10
+  jr nz, .local_test_failed
+
+  sub a  ; Set ZN, clear H
+  ld hl, $6800
+  add hl, de  ; Clear N, set HC
+  push af
+  pop bc
+  ld a, c
+  cp $A0
+  jr nz, .local_test_failed
+
+  scf
+  sbc a  ; Clear Z, set NHC
+  ld hl, $7700
+  add hl, de  ; Clear NHC
+  push af
+  pop bc
+  ld a, c
   or a
+.local_test_failed:
+  jp nz, test_failed
   ret
 
 coin_add_sp_flags:
   jr .start
-  db "NYA add sp flags",10
+  db "add sp flags",10
   db "add sp,rel; ld hl,sp+rel",10
   db "Z=N=0, HC=carry from",10
   db "bits 3 and 7 of unsigned",10
   db "add to SP low byte",0
 .start:
+  ld hl, sp+0
+  ld sp, $D000
+  add sp, -2
+  ld sp, hl  ; No way to set carry if SPL = $00
+  push af
+  pop bc
+  ld a, c
   or a
+  jp nz, test_failed
   ret
 
 coin_apu_off_ignore_writes:
