@@ -46,8 +46,12 @@ on Twitter.
 
 Background
 ----------
-With only an estimated 16 KiB for the game part if we don't want to
-test MBC as well, we'll need to store the game's maps efficiently.
+Based on the coins implemented so far, I expect coin code and
+descriptions to fill about 12 KiB, and menu code and data to take
+another 4 KiB.  If we don't test MBC, this leaves 16 KiB for the
+game.
+
+Thus we'll need to store the game's maps efficiently.
 Nintendo's _Super Mario Bros._ uses an object paradigm, organizing
 level data as a list of (X, Y, thing) elements.  Later games in
 the series, such as _Super Mario Bros. 3_ and _Super Mario World_,
@@ -77,3 +81,25 @@ bottom metatiles.
 11. GB add Markov chain for empty cells
 12. GB add Markov chain for cell pairs
 
+Worldbuilding
+-------------
+To continue to fulfill [DRW's request] for games for retro consoles
+with female characters as well as promote [Bechdel-positive] works
+in general, I'm doing a lot of heroine for this project.  I plan
+to have the player characters in all editions present as female.
+
+1. Run surname anagram solver with multiple given names
+2. 
+3. 
+4. 
+5. Name NES/FC player character (thinking Emily)
+6. Name GB player character (thinking Mindy)
+7. Name SMS player character
+8. Name GBA player character
+9. Name NPCs
+10. 
+11. 
+12. 
+
+[DRW's request]: https://forums.nesdev.com/viewtopic.php?f=5&t=12966
+[Bechdel-positive]: https://allthetropes.org/wiki/The_Bechdel_Test

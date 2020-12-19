@@ -94,23 +94,6 @@ reset_handler::
   jp main
 
 ;;
-; Writes BC bytes of value H starting at DE.
-memset::
-  ; Increment B if C is nonzero
-  dec bc
-  inc b
-  inc c
-  ld a, h
-.loop:
-  ld [de],a
-  inc de
-  dec c
-  jr nz,.loop
-  dec b
-  jr nz,.loop
-  ret
-
-;;
 ; Copies BC bytes from HL to DE.
 ; @return A: last byte copied; HL at end of source;
 ; DE at end of destination; B=C=0
@@ -129,6 +112,7 @@ memcpy::
   jr nz,.loop
   ret
 
+section "hramcode", ROM0
 ;;
 ; The routine gets copied to high RAM.  While OAM DMA is running,
 ; both ROM and WRAM are inaccessible; only HRAM is readable.

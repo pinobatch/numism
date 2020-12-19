@@ -117,39 +117,38 @@ get_coin_list_stage_a:
 ; Below coin 2, a STAT IRQ switches the background from banks
 ; 0 and 1 to banks 2 and 1.
 
-show_stages::
-  ld h, BLANK_TILE
-  call clear_scrn0_to_h
-  ld b, 2  ; clear the window too
-  call memset
-  ld hl, $8000
-  call load_logo
+section "continue_menu", ROM0
 
+show_stages::
   ; Clear pixels in VWF canvas
-  ld de, $8800
+  ld de, CHRRAM1
   ld h, e
   ld bc, $1000
   call memset
+  ; Clear tilemaps as well
+  ld h, BLANK_TILE
+  ld b, 5
+  call memset
 
-  ; Draw labels at left
-  ld hl, continue_labels
-  ld de, $8D6
-  call vwfDrawLabels
-
-  ; Set up header bar indicators
-  ldxy hl, 5, 6
-  ld a, LEFT_ARROW_TILE
-  ld [hl+], a
-  ld a, STAGE_PLUS_1_TILE
-  ld [hl+], a
-  ld a, RIGHT_ARROW_TILE
-  ld [hl+], a
+  ld hl, CHRRAM0
+  call load_logo
 
   ; Load checkmark and related tiles
   ld de, checkmark_chr
   ld hl, CHRRAM0 + TEST_OK_TILE * $10
   ld b, 10
   call pb16_unpack_block
+
+  ; Draw "Stage" label and header bar indicators
+  ld hl, continue_labels
+  ld de, $800+LABELS_TILE
+  call vwfDrawLabels
+  ldxy hl, 5, 6
+  ld a, LEFT_ARROW_TILE
+  ld [hl+], a
+  ld a, STAGE_PLUS_1_TILE
+  ld [hl+], a
+  ld [hl], RIGHT_ARROW_TILE
 
   ; Draw digits in their place
   lb bc, 9, DIGITS_BAR_TILE+1
@@ -192,6 +191,7 @@ show_stages::
   call memset_tiny
   inc a
   ld [hl+], a
+
   ; And fill the description area with VWF canvas
   ldxy hl, 2, 1, _SCRN1
   ld a, DESCRIPTION_TILE
@@ -204,13 +204,13 @@ show_stages::
   ldh [rIE],a  ; enable IRQs
   ld a, STATF_LYC
   ldh [rSTAT], a
-  ld a, %01101100
+  ld a, %01101100  ; white, black, dark gray, light gray
   ld [rBGP], a
   ld a, 7
   ld [rWX], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [stat_lcdc_value], a
-  ldh [rWY], a
+  ldh [rWY], a  ; Keep window out of the way until it's time
   ld a, 8*COINNAMES_Y
   ldh [rLYC], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_WIN9C00
@@ -225,11 +225,15 @@ show_stages::
 .set_stage_to_a:
   ld [cur_stage], a
   push af
-  xor a
-  cpl
+  rst wait_vblank_irq
+  ld a, BLANK_TILE
+  ldxy hl, 2, 0, _SCRN1  ; Hide coin title bar during screen transition
+  ld c, 15
+  rst memset_tiny
+  ld a, $FF
   ld [cur_coin_desc], a
-  ld c, a  ; Draw all as failed during screen transitions
-  call draw_checkmarks_ca
+  ld c, a
+  call draw_checkmarks_ca  ; Hide checkmarks during screen transition
   pop af
   push af
   call load_digits_bar_stage_a
@@ -237,7 +241,7 @@ show_stages::
   push af
   call draw_coin_names_stage_a
   pop af
-  call draw_checkmarks_stage_a
+  call draw_checkmarks_stage_a  ; Now draw actual results
 
 .waitloop:
   call read_pad
@@ -296,7 +300,7 @@ show_stages::
   add a
   add a
   ld [hl+], a
-  ld a, 4+8
+  ld a, 4+8  ; arrow X
   ld [hl+], a
   ld a, RIGHT_ARROW_TILE
   ld [hl+], a
@@ -306,15 +310,6 @@ show_stages::
   ld [oam_used], a
   call lcd_clear_oam 
 
-  ld hl, cur_stage
-  ld a, [hl]
-  add a  ; set wanted coin to A*10+cursor_y
-  add a
-  add [hl]
-  add a
-  inc hl  ; ld hl, cursor_y
-  add [hl]
-  ld [wanted_coin_desc], a
   call move_coin_desc_window
   call draw_coin_desc_if_needed
 
@@ -324,34 +319,12 @@ show_stages::
   ldh [rWY], a
   ldh a, [new_keys]
   and PADF_START
-  jp z, .waitloop
+  jr z, .waitloop
 
   call lcd_off
 forever:
   halt
   jr forever
-
-;;
-; Writes a 16-tile-wide strip of increasing tile IDs.
-; @param A first tile ID
-; @param HL top left corner of strip in tilemap
-; @param B number of rows
-vwfcanvas128:
-  ld c, $10
-  call memset_inc
-  ld de, $10
-  add hl, de
-  dec b
-  jr nz, vwfcanvas128
-  ret
-
-wr17a15:
-  ld de, 17
-  add hl, de
-  ld [hl-], a
-  dec e
-  add hl, de
-  ret
 
 DESCRIPTION_TILE = $80
 DIGITS_BAR_TILE = $C0
@@ -367,8 +340,9 @@ TRCORNER_TILE = $D2
 BLCORNER_TILE = $D3
 HBAR_TILE = $D4
 BRCORNER_TILE = $D5
-COINNAMES_Y = 7
+LABELS_TILE = $D6
 COINNAMES_TILE = $E0
+COINNAMES_Y = 7
 
 load_digits_bar_stage_a:
   push af
@@ -488,20 +462,26 @@ draw_checkmarks_ca:
     jr nz, .loop
   ret
 
-continue_labels:
-  db 8, 48
-  db "Stage",$00
-
 ; Showing the description of a test ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 
 move_coin_desc_window:
+  ld hl, cur_stage
+  ld a, [hl]
+  add a  ; set wanted coin to A*10+cursor_y
+  add a
+  add [hl]
+  add a
+  inc hl  ; ld hl, cursor_y
+  add [hl]
+  ld hl, wanted_coin_desc
+  ld [hl], a
+
   ; If the current and wanted coin descriptions differ, or if the
   ; user requested retracting, retract.
   ld a, [want_coin_out]
   ld c, a
   ld a, [cur_coin_desc]
-  ld hl, wanted_coin_desc
   xor [hl]  ; A = zero if on wanted coin
   cp 1
   sbc a  ; A=$FF to extend or $00 to retract
@@ -659,5 +639,39 @@ wnd_y_sequence_peak:
   db WYBASE-1
 wnd_y_sequence_last:
   db WYBASE+0
+
+; Things small enough to fill alignment gaps
+section "continue_little1", ROM0
+continue_labels:
+  db 8, 48
+  db "Stage",$00
+
+section "continue_little2", ROM0
+;;
+; Writes a 16-tile-wide strip of increasing tile IDs.
+; @param A first tile ID
+; @param HL top left corner of strip in tilemap
+; @param B number of rows
+vwfcanvas128:
+  ld c, $10
+  call memset_inc
+  ld de, $10
+  add hl, de
+  dec b
+  jr nz, vwfcanvas128
+  ret
+
+section "continue_little3", ROM0
+;;
+; Adds 17 to HL, writes the byte in A, adds 15 to HL. Used to draw frame.
+wr17a15:
+  ld de, 17
+  add hl, de
+  ld [hl-], a
+  dec e
+  add hl, de
+  ret
+
+section "continue_chr", ROM0
 
 checkmark_chr: incbin "obj/gb/checkmark.2b.pb16"

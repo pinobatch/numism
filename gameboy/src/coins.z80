@@ -235,7 +235,7 @@ coin_div_increases:
 coin_no8:
   jr .start
   db "Coin #8",10
-  db "Always pass",0
+  db "Always pass for now",0
 .start:
   or a
   ret
@@ -243,7 +243,7 @@ coin_no8:
 coin_no9:
   jr .start
   db "Coin #9",10
-  db "Always pass",0
+  db "Always pass for now",0
 .start:
   or a
   ret
@@ -251,7 +251,7 @@ coin_no9:
 coin_no10:
   jr .start
   db "Coin #10",10
-  db "Always pass",0
+  db "Always pass for now",0
 .start:
   or a
   ret
@@ -456,7 +456,8 @@ coin_apu_status_ro:
 coin_push_af_low_4:
   jr .start
   db "flags low nibble",10
-  db "push bc pop af push af pop de",10
+  db "push bc pop af",10
+  db "  push af pop de",10
   db "Pushes flags bit 3-0 as 0",0
 .start:
   ld bc, $0CA5

@@ -138,7 +138,23 @@ clear_scrn0_to_0::
 clear_scrn0_to_h::
   ld de,_SCRN0
   ld bc,32*32
-  jp memset
+;;
+; Writes BC bytes of value H starting at DE.
+memset::
+  ; Increment B if C is nonzero
+  dec bc
+  inc b
+  inc c
+  ld a, h
+.loop:
+  ld [de],a
+  inc de
+  dec c
+  jr nz,.loop
+  dec b
+  jr nz,.loop
+  ret
+
 
 SECTION "rom_ppuclear", ROM0
 
