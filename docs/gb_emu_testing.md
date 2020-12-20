@@ -5,9 +5,9 @@ I'm testing several current and historic emulators of the Game Boy
 compact video game system to compare and contrast their behavior with
 that of an authentic Game Boy.  My main goal is to produce "coins,"
 my term for short test programs to highlight a behavior difference.
-(See [What makes a good coin?] and [Game Boy coin list].)  Along the
-way, I'm likely to produce exercisers, or in-depth test ROMs used to
-research differences, as well as documentation of differences.
+(See [What makes a good coin?] and [Game Boy coin list].)
+Along the way, I'm producing exercisers, or in-depth test ROMs
+used to help me document specific differences.
 
 [What makes a good coin?]: ./good_coin.md
 [Game Boy coin list]: ./gb_coins.md
@@ -130,18 +130,18 @@ sub a  ; generate half carry and carry
 add hl, de
 ; First inst can be SUB A (97) to set N and clear H,
 ; AND A (A7) to set H and clear N, or OR A (B7) to clear NH
-; Play with DE: 77+88 is neither, 87+88 is C, 68+88 is H, 78+88 is HC
+; Vary DE: 77+88 is neither, 87+88 is C, 68+88 is H, 78+88 is HC
 
 INST E8FEF5C1E8FE, SP D000
 ; disassembles to
 add sp, -2
 push af
-pop bc     ; Watch bit 4 of C, which shows the carry for D000+FFFE
-add sp, -2
+pop bc     ; C bit 4 shows carry for D000+FFFE
+add sp, -2 ; F bit 4 shows carry for CFFE+FFFE
 ```
 
-If SP is not pointing into HRAM, the carry from E8 and F8 in NO$GMB
-and KiGB will always equal bit 7 of the relative value.
+If SP points outside HRAM, the carry from E8 and F8 in NO$GMB
+and KiGB practically always equals bit 7 of the relative value.
 
 If it's any comfort, NO$GMB and KiGB do better than VBA and TGB Dual.
 They at least pass Blargg's `daa` test for all values of AF.
@@ -228,7 +228,7 @@ honoring writes to IF at all.
 
 DMG sound
 ---------
-NO$GMB and VBA fail all tests because they dsn't mask write-only bits
+NO$GMB and VBA fail all tests because they don't mask write-only bits
 when reading back values from audio registers and honor writes while
 the APU is off.  Still curious what differences are most impactful.
 
@@ -268,8 +268,8 @@ period to its ultrasonic minimum.
 
 VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
 11 (04), and 12 (01).  mGBA passes all but 7 (05) and 10 (01).
-KiGB is the first time I saw a ROM crash an emulator, and I'm not
-sure how much is a KiGB bug and how much a Wine bug.
+KiGB is the first time I saw a Blargg ROM crash a GB emulator, and
+I'm not sure how much is a KiGB bug and how much a Wine bug.
 
 Halt bug
 --------
@@ -326,11 +326,10 @@ multiple coins.
 
 Blargg's test finishes in half a second on Game Boy, VBA-M, and mGBA.
 It begins with an 11-cycle loop in `start_timer` ($C2D6) that tries
-to synchronize to the 4-cycle phase by writing 0 and reading it 3
-cycles later, trying again if it incremented.  I guess (need to
-trace in bgb) that on the Game Boy, this succeeds within four tries.
-On NO$GMB, it always increments and thus gets stuck, and the test
-has no timeout for this.
+to synchronize to the 4-cycle phase by writing 0 to TIMA and reading
+it 3 cycles later, trying again if it incremented.  On a Game Boy,
+this succeeds within four tries.  On NO$GMB, it always increments
+and thus gets stuck, and the test has no timeout for this.
 
 DIV in NO$GMB counts _backwards,_ which would interfere with games'
 random number generators.  This gives FF on NO$GMB and 01 elsewhere:
@@ -442,8 +441,6 @@ Other tests
 Things I can think off the top of my head to make exercisers for:
 
 - DIV and TIMA sync at all TAC rates
-- Find sums and differences of _valid_ BCD bytes that fail `daa` in
-  VBA and rew. other than the H flag
 - In which modes OAM and VRAM can be read and written
 - Values read and written to GBC palette ports in DMG and DMG-on-GBC,
   and DMG palette ports in GBC mode
