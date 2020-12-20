@@ -372,6 +372,64 @@ higher on a small fraction.  Everything but NO$GMB gets this right.
 
 TODO: Ask gbdev #emudev which games depend on working timers
 
+Mode 3 duration
+---------------
+During each scanline, the PPU iterates through three different modes:
+mode 2 (scanning OAM to find sprites overlapping that scanline),
+mode 3 (rendering pixels), and mode 0 (horizontal blanking).
+The duration of mode 3 varies based on how many overlapping sprites
+the PPU found in mode 2.  Because video memory (VRAM) ignores writes
+in mode 3, the programmer must write to VRAM outside mode 3.
+
+To determine whether emulators accept or ignore writes properly,
+I set out to time mode 3.  The STAT ($FF41) register can schedule
+interrupt $48 at the start of mode 2, the start of mode 0 (horizontal
+blanking interrupt or "hint"), or the start of mode 2 on a particular
+scanline (LCD Y coordinate comparison or "LYC").  Because mode 2
+always lasts 80 dots or 20 cycles, measuring modes 2 and 3 together
+gives a duration for mode 3.
+
+I chose to measure mode 3 with the stack red zone.  The exerciser
+lets the user move sprites onto or off Y=64.  Then it schedules a
+STAT interrupt for LYC, waits for it, schedules another for hint,
+falls into a NOP slide, and reads from the red zone how many NOPs
+were executed.  This works well in most emulators.
+
+The exerciser lets the user move sprites onto or off the Y=64 line
+and measures the time from the start of
+mode 2 on that line to the start of the following mode 0.
+
+- High-tier emulators match the Game Boy exactly.  
+  42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
+- Mid-tier emulators show some sort of variance between 0 and
+  10 sprites.  
+  42 to 67 (VBA-M), 42 to 57 (mGBA)
+- Low-tier emulators show constant duration.  
+  42 (rew.), 47 (VBA), 48 (KiGB)
+- Two emulators don't get the hint, not firing a second interrupt.  
+  1 (NO$GMB, Goomba)
+
+NO$GMB behavior is especially hard to characterize because it differs
+based on whether step debugging is active.
+
+Say IF is $12, IE is $01, and I write $02 to IE.  In BGB, this write
+immediately goes through, and I can see the step debugger jump into
+the STAT handler.  In NO$GMB, I see the effect of the STAT handler
+when running normally.  If I put a breakpoint before the IE write and
+step through it, the IE and IF in the I/O map change but the handler
+doesn't get called.  Stepping by some amounts even causes the initial
+SP and initial IEIF variables in the exerciser to get corrupted.
+```
+INST FB40000000E2, AF 0200, BC 00FF, IEIF 0112
+; disassembles to
+ei
+ld b, b          ; source code breakpoint
+nop
+nop
+nop
+ld [$FF00+C], a  ; write to IF
+```
+
 Memory timing
 -------------
 Instructions that access memory do so on the _last_ cycles of an

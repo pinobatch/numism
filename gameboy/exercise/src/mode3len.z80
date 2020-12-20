@@ -242,12 +242,17 @@ measure_mode3:
   ld a, STATF_MODE00
   ld hl, sp+-2
 
-  ; Advance into mode 2 of that line.  The CPU calls the STAT
+  ; At the start of mode 2 on the chosen line, the CPU calls the STAT
   ; interrupt handler, which happens to take as long as mode 2.
-  ; Include the halt in the length calculation to compensate for
-  ; the first instruction of the slide taking an extra write cycle.
+  ; This leaves us at the start of mode 3.  Include the halt in the
+  ; length calculation to compensate for it taking an extra cycle
+  ; to schedule the hblank interrupt.
 .nopslide_start:
   halt
+
+  rept 3
+    nop
+  endr
 
   ; Schedule another interrupt at the end of drawing.
   ; Caution: On DMG, writing to STAT writes FF then the value.
@@ -258,7 +263,7 @@ measure_mode3:
 
   ; now we are in mode 2 and measuring the remainder of mode 2
   ; plus all of mode 3
-  rept 78
+  rept 75
     nop
   endr
 
