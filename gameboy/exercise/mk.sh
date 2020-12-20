@@ -19,7 +19,7 @@ for filename in $onebitlist; do
   rgbgfx -d 1 -o "obj/gb/$filename.1b" "tilesets/$filename.png"
 done
 for filename in $objlist; do
-  rgbasm -o "obj/gb/$filename.o" "src/$filename.z80"
+  rgbasm -h -o "obj/gb/$filename.o" "src/$filename.z80"
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist)
 rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto

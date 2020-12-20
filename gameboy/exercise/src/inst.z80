@@ -18,11 +18,12 @@ NUM_REGPAIRS equ 6
 
 ; $40 is vblank_handler in ppuclear.z80
 SECTION "rst48", ROM0[$0048]  ; STAT
-  push af
-  ld a, $48
-  ldh [last_int],a
-  pop af
-  reti
+                    ; 5
+  push af           ; 4
+  ld a, $48         ; 2
+  ldh [last_int],a  ; 2
+  pop af            ; 3
+  reti              ; 4
 
 SECTION "rst50", ROM0[$0050]  ; Timer
   push af
@@ -656,6 +657,7 @@ hblank_put_a::
 
 ;;
 ; Waits for mode 0 or 1, then writes characters B and C to [DE]
+; HL unchanged
 hblank_put_bc::
   ldh a, [rSTAT]
   bit 1, a

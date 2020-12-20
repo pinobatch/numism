@@ -98,6 +98,8 @@ draws a plot of where they do not match.  The black pixels in each
 one set of flags: bits 3-0 as X and bits 7-4 as Y.  The different
 squares represent results with different sets of NHC flags.
 
+![Screenshot of DAA test](../../docs/gb_exerciser_daa.png)
+
 Below the plot is the total number of errors.  It may be twice as
 many as black pixels because while the plot disregards input Z flag,
 the error count includes both Z clear and Z set.
@@ -111,13 +113,13 @@ implementation.
 
 Mode 3 duration measurer
 ------------------------
-**Draft of planned functionality not yet implemented.**
-
 This measures the approximate duration of pixel drawing (mode 3)
 on one scanline.  Ordinarily, the picture processing unit (PPU)
 calculates four dots per CPU cycle, taking breaks at times to fetch
 sprite patterns.  The amount these breaks add to mode 3 depends on
 how many sprites are on the line and where they are positioned.
+
+![Screenshot of mode 3 duration test](../../docs/gb_exerciser_mode3len.png)
 
 * Left, Right: Choose a sprite
 * A + Control Pad: Move that sprite

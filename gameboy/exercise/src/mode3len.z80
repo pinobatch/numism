@@ -1,9 +1,7 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-
-SECTION UNION "hTestState", HRAM
-obj_xy: ds 32
+LYC_TO_MEASURE equ 64
 
 section "mode3len_test", ROM0
 
@@ -13,40 +11,208 @@ mode3len_test::
   call cls_draw_labels
   xor a
   ldh [cursor_x], a
-  ld [oam_used], a
-  call lcd_clear_oam
+  call init_obj_locs
+  call load_obj_digit_chr
+
+  ; Draw marker for scanline under test
+  ldxy hl, 0, (LYC_TO_MEASURE / 8)
+  ld a, 38
+  ld c, 20
+  call memset_tiny
 
   ld a, %11100100
   ldh [rBGP], a
-  ldh [rOBP1], a
-  ld a, %01100100
   ldh [rOBP0], a
+  ld a, %11111100
+  ldh [rOBP1], a
+  ld a, LYC_TO_MEASURE
+  ldh [rLYC], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
   ldh [rLCDC], a
 
 .forever:
   call read_pad
+  call handle_input
+  call draw_obj_loc
   call wait_vblank_irq
+  call run_dma
+  call measure_mode3
+  call bcd8bit_ac
+  ld b, a
+  ldxy de, 13, 2
+  call hblank_put_bc
   
   ldh a, [new_keys]
   bit PADB_SELECT, a
   jr z, .forever
   jp inst_test
 
-init_obj_locs:
-  ret
+; the UI ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-draw_obj_locs:
-  ld hl, oam_used
-  ld l, [hl]
-  
+DIGIT_TILE_BASE = $70
+
+;;
+; Inits the 64 objs
+; Though modifying shadow OAM in place isn't recommended for a game,
+; it simplifies test ROMs.
+init_obj_locs:
+  ld hl, SOAM
+  .loop:
+    ld a, l  ; Sprite index: bits 5, 4, 3, 2 of L becomes
+    ld b, a
+    and 1<<2
+    add a
+    add a
+    ; initially keep all sprites off the scanline under test
+    add LYC_TO_MEASURE - 12 + 16
+    ld [hl+], a
+    ld a, b
+    add a
+    add 16+8
+    ld [hl+], a
+    ld a, b  ; calculate tile ID
+    rrca
+    rrca
+    or DIGIT_TILE_BASE
+    ld [hl+], a
+    xor a    ; palette attribute is 0
+    ld [hl+], a
+    bit 6, l
+    jr z, .loop
   ld a, l
   ld [oam_used], a
+  jp lcd_clear_oam
+
+load_obj_digit_chr:
+  ld hl, CHRRAM0
+  ld de, CHRRAM0+DIGIT_TILE_BASE * 16
+  ld c, 0  ; C controls whether dark gray or light gray
+  .tileloop:
+    ld b, 16
+    .byteloop:
+      ld a, [hl+]
+      cpl
+      and c
+      ld [de], a
+      inc e
+      ld a, c
+      cpl
+      ld c, a
+      dec b
+      jr nz, .byteloop
+    ld a, c
+    cpl
+    ld c, a
+    ld a, e
+    or a
+    jr nz, .tileloop
+  ret
+
+draw_obj_loc:
+  ldh a, [cursor_x]
+  ld b, a
+  ld c, " "
+  ldxy de, 5, 1
+  call hblank_put_bc
+
+  ; Write the X, Y coordinates
+  ld h, high(SOAM)
+  ldh a, [cursor_x]
+  add a
+  add a
+  ld l, a      ; HL points to the sprite under control
+  ld a, [hl+]  ; A = Y coordinate
+  sub 16
+  ldxy de, 15, 1
+  call .wr_3dig
+  ld a, [hl+]  ; A = X coordinate
+  sub 8
+  ldxy de, 9, 1
+  call .wr_3dig
+
+  ; Blink the sprite under control
+  inc l
+  ldh a, [nmis]
+  and $18
+  jr z, .blink1
+    ld a, $10
+  .blink1:
+  ld [hl], a
+  ret
+
+
+.wr_3dig:
+  call bcd8bit_baa
+  push af
+  ld a, $03
+  and b
+  ld b, a
+  call hblank_put_bc
+  pop af
+  dec e
+  jp hblank_put_a
+
+handle_input:
+  ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
+  call autorepeat
+
+  ldh a, [new_keys]  ; Load keypresses into B
+  ld b, a
+  ld h, high(SOAM)
+  ldh a, [cursor_x]
+  add a
+  add a
+  inc a
+  ld l, a  ; [HL]: X coordinate of sprite under control
+
+  ldh a, [cur_keys]
+  and PADF_A
+  jr nz, .a_held
+
+    ; Unblink sprite under control in case moved
+    inc l
+    inc l
+    ld [hl], 0
+
+    ldh a, [cursor_x]
+    bit PADB_LEFT, b
+    jr z, .sel_not_prev
+      dec a
+    .sel_not_prev:
+    bit PADB_RIGHT, b
+    jr z, .sel_not_next
+      inc a
+    .sel_not_next:
+    and $0F
+    ldh [cursor_x], a
+    ret
+  .a_held:
+
+    bit PADB_LEFT, b
+    jr z, .not_move_left
+      dec [hl]
+    .not_move_left:
+    bit PADB_RIGHT, b
+    jr z, .not_move_right
+      inc [hl]
+    .not_move_right:
+    dec l
+    bit PADB_UP, b
+    jr z, .not_move_up
+      dec [hl]
+    .not_move_up:
+    bit PADB_DOWN, b
+    jr z, .not_move_down
+      inc [hl]
+    .not_move_down:
+
   ret
 
 mode3len_labels:
   dwxy 1, 1
-  db "OBJ 0   0,  0", $FF
+  db "OBJ 0 X:    Y:", $FF
+  dwxy 1, 2
+  db "MODE 3 TIME:", $FF
   dwxy 1, 14
   db "DIR:PICK OBJ", $FF
   dwxy 1, 15
@@ -54,4 +220,51 @@ mode3len_labels:
   dwxy 1, 16
   db "SEL:MODE 3 LENGTH", $FF
   db $00
+
+; measurement ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "measure_mode3", ROM0
+
+measure_mode3:
+  ; Allow only IRQs on the chosen scanline to cause an interrupt
+  ld c, low(rSTAT)
+  ld a, STATF_LYC
+  ld [$FF00+C], a
+  ld a, [rIE]
+  push af
+  ld a, IEF_LCDC
+  ldh [rIE], a
+
+  ; rew. doesn't respond to IF writes, and VBA behaves badly with
+  ; di halt).  So drain out pending interrupts while preparing for
+  ; the steps to come.
+  ei
+  ld a, STATF_MODE00
+  ld hl, sp+-2
+
+  ; Advance into mode 2 of that line.  The CPU calls the STAT
+  ; interrupt handler, which happens to take as long as mode 2.
+  ; Include the halt in the length calculation to compensate for
+  ; the first instruction of the slide taking an extra write cycle.
+.nopslide_start:
+  halt
+
+  ; Schedule another interrupt at the end of drawing.
+  ; Caution: On DMG, writing to STAT writes FF then the value.
+  ; This causes an extra interrupt during mode 3 outside line LYC,
+  ; on which Road Rash (DMG version) and Xerd no Densetsu depend.
+  ; But because we're in LYC, we're safe.
+  ld [$FF00+C], a
+
+  ; now we are in mode 2 and measuring the remainder of mode 2
+  ; plus all of mode 3
+  rept 78
+    nop
+  endr
+
+  pop af
+  ldh [rIE], a  ; Restore previous interrupt setting
+  ld a, [hl]    ; Read progress into slide from stack red zone
+  sub low(.nopslide_start)
+  ret
 
