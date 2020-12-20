@@ -12,7 +12,7 @@ set -e
 
 title=exercise
 inttitle='EXERCISE'
-objlist='header init inst pads ppuclear sound daa'
+objlist='header init pads ppuclear bcd inst sound daa mode3len'
 onebitlist='Crash_dump_uncial'
 
 for filename in $onebitlist; do

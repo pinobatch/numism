@@ -157,7 +157,7 @@ valid_pair_test:
   call daa_present
   jr z, .forever
 next_test:
-  jp inst_test
+  jp mode3len_test
 
 daa_present:
   push bc

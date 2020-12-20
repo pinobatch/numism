@@ -6,6 +6,8 @@ leave space for splitting up other tasks.  Also there's a fog that
 blocks roadmapping several sprints from now, and I expect the fog
 to clear once I complete a sprint.
 
+All work items apply to the Game Boy port unless otherwise specified.
+
 Continue
 --------
 "Continue" is a conventional test framework.  It runs the 10 tests

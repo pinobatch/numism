@@ -109,3 +109,16 @@ implementation.
 
 [binary-coded decimal]: https://en.wikipedia.org/wiki/Binary-coded_decimal
 
+Mode 3 duration measurer
+------------------------
+**Draft of planned functionality not yet implemented.**
+
+This measures the approximate duration of pixel drawing (mode 3)
+on one scanline.  Ordinarily, the picture processing unit (PPU)
+calculates four dots per CPU cycle, taking breaks at times to fetch
+sprite patterns.  The amount these breaks add to mode 3 depends on
+how many sprites are on the line and where they are positioned.
+
+* Left, Right: Choose a sprite
+* A + Control Pad: Move that sprite
+
