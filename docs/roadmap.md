@@ -14,7 +14,7 @@ Continue
 that make up a stage and displays their results.  By the end of this
 sprint, I expect to fill the majority of stages 1 and 2 with coins.
 
-1. Make VRAM blocking exerciser
+1. 
 2. 
 3. 
 4. Define test pattern for APU timer

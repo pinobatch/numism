@@ -318,27 +318,30 @@ coin_lyc_to_hint:
   db "FF41, then horizontal blank",10
   db "interrupt on same line",0
 .start:
+  call lcd_on_blank
+  call measure_mode3
+  push af
+  call lcd_off
+  pop af
+  cp 4  ; If A < 4 then there was only one interrupt
+  ret
+
+lcd_on_blank:
   call lcd_off
   ld a, 64
   ldh [rLYC], a
   xor a
   ldh [rSCX], a
   ldh [rBGP], a    ; hide everything during test
-  ld [oam_used], a
+  ld hl, $FE00     ; clear ALL of OAM to 0
+  ld c, $A0
+  call memset_tiny
   inc a
   ldh [rIE], a
-  call lcd_clear_oam
-  call run_dma     ; on GBC, even disabled sprites affect mode 3 time
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [rLCDC], a
-  call measure_mode3
-  push af
-  rst wait_vblank_irq
-  xor a
-  ldh [rLCDC], a
-  pop af
-  cp 4  ; If A < 4 then there was only one interrupt
   ret
+
 
 IEB_TIMER = 2
 
@@ -398,13 +401,109 @@ sync_to_TIMA:
   scf
   ret
 
+; We assume we can read and write in mode 1. Lots of games
+; don't work otherwise.
+; 
+; The only emulator I'm aware of that doesn't make mode 1 wide open
+; is one that ISSOtm mentioned:
+; the Game Boy emulator in Pokémon Stadium 2 Game Boy Tower.
+; Only the vblank handler can access VRAM.  Once it does RETI,
+; VRAM is locked even if mode 1 is still in effect.
 coin_no10:
   jr .start
-  db "Coin #10",10
-  db "Always pass for now",0
+  db "VRAM/OAM blocked writes",10
+  db "VRAM and OAM are",10
+  db "inaccessible in mode 3.",10
+  db "OAM inaccessible in mode 2.",0
 .start:
+  call lcd_on_blank
+
+  ; Write to video memory (expect lots of invalid
+  ld hl, $9F00
+  call write_in_all_modes
+  ld hl, $FE80
+  call write_in_all_modes
+
+  ; Read back
+  ld hl, $9F00
+  call write_in_all_modes_readback
+;  ld [debughex+0], a
+  cp %00010100  ; VRAM: mode 3 blocked
+  jr nz, .local_failed
+  ld hl, $FE80
+  call write_in_all_modes_readback
+;  ld [debughex+1], a
+  ; On Game Boy, Super Game Boy, and Game Boy pocket, the (invalid)
+  ; writes to OAM mess up the previous valid writes.  This looks
+  ; like it could be the OAM bug.  Until I understand the OAM bug
+  ; in more detail, I'll disregard the affected writes for now.
+  and %00111111  ; disregard writes affected by OAM bug
+  cp %00111100  ; OAM: modes 2 and 3 blocked
+  jr nz, .local_failed
+  call lcd_off
   or a
   ret
+.local_failed:
+  call lcd_off
+  scf
+  ret
+
+write_in_all_modes:
+  lb de, "0", 0
+  call write_in_mode_E
+  lb de, "1", 1
+  call write_in_mode_E
+  lb de, "2", 2
+  call write_in_mode_E
+  lb de, "3", 3
+  call write_in_mode_E
+  lb de, "O", 2
+  call write_in_mode_E
+  lb de, "P", 3
+  call write_in_mode_E
+  lb de, "H", 0
+  call write_in_mode_E
+  lb de, "V", 1
+  ; fall through
+;;
+; @param D byte to write
+; @param E mode to write in
+write_in_mode_E:
+  lb bc, 3, low(rSTAT)
+  .wait0loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr z, .wait0loop
+  .wait1loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr nz, .wait1loop
+  ld [hl], d
+  ld a, d
+  cpl
+  inc l
+  ld [hl], a
+  inc l
+  ret
+
+write_in_all_modes_readback:
+  push hl
+  ei
+  call wait_vblank_irq
+  pop hl
+  ld b, 1
+  .loop:
+    ld a, [hl+]
+    xor [hl]
+    inc l
+    cp $FF
+    rl b
+    jr nc, .loop
+  ld a, b
+  ret
+
 
 ; mode 3 duration measurement ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

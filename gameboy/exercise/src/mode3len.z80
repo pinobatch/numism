@@ -30,6 +30,9 @@ mode3len_test::
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
   ldh [rLCDC], a
 
+  ld b, b
+  call inaccess
+
 .forever:
   call read_pad
   call handle_input
@@ -271,5 +274,78 @@ measure_mode3:
   ldh [rIE], a  ; Restore previous interrupt setting
   ld a, [hl]    ; Read progress into slide from stack red zone
   sub low(.nopslide_start)
+  ret
+
+; inaccessible memory exerciser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inaccess:
+  ld hl, $9F00
+  call write_in_all_modes
+  ld hl, $FE80
+  call write_in_all_modes
+  ld hl, $9F00
+  call write_in_all_modes_readback
+  ldxy de, 1, 12
+  call hblank_put_a
+  ld hl, $FE80
+  call write_in_all_modes_readback
+  ldxy de, 4, 12
+  call hblank_put_a
+  ret
+
+write_in_all_modes:
+  lb de, "0", 0
+  call write_in_mode_E
+  lb de, "1", 1
+  call write_in_mode_E
+  lb de, "2", 2
+  call write_in_mode_E
+  lb de, "3", 3
+  call write_in_mode_E
+  lb de, "O", 2
+  call write_in_mode_E
+  lb de, "P", 3
+  call write_in_mode_E
+  lb de, "H", 0
+  call write_in_mode_E
+  lb de, "V", 1
+  ; fall through
+;;
+; @param D byte to write
+; @param E mode to write in
+write_in_mode_E:
+  lb bc, 3, low(rSTAT)
+  .wait0loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr z, .wait0loop
+  .wait1loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr nz, .wait1loop
+  ld [hl], d
+  ld a, d
+  cpl
+  inc l
+  ld [hl], a
+  inc l
+  ret
+
+write_in_all_modes_readback:
+  push hl
+  ei
+  call wait_vblank_irq
+  pop hl
+  ld b, 1
+  .loop:
+    ld a, [hl+]
+    xor [hl]
+    inc l
+    cp $FF
+    rl b
+    jr nc, .loop
+  ld a, b
   ret
 

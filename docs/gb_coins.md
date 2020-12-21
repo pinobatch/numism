@@ -32,7 +32,7 @@ All this is preliminary:
 8. Can get LYC and mode 0 interrupts on same scanline
 9. TAC=5 TIMA=-20 sets IF in 80 cycles; can sync to timer by writing
    and reading 3 cycles later
-10. 
+10. Writes to VRAM in mode 3 or OAM in mode 2/3 don't take effect
 11. `ei push bc pop bc ldh [rIF], a halt` with IE=A=$04 puts
     return address in stack red zone
 12. `di halt` with TAC=IE=$04 and TIMA=IF=$00 sets IF bit 2

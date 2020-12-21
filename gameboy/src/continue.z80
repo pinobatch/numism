@@ -8,6 +8,7 @@ include "src/global.inc"
 
 COINS_PER_STAGE equ 10
 NUM_STAGES equ 2
+WITH_DEBUGHEX equ 0
 
 section "passbits", WRAM0, ALIGN[2]
 passbits:: ds NUM_STAGES*2
@@ -20,6 +21,9 @@ wnd_y: ds 1
 cur_coin_desc: ds 1
 wanted_coin_desc: ds 1
 want_coin_out: ds 1
+
+; Contentious coins write tracing data here
+debughex:: ds 2
 
 ; Running several tests one after another ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -119,8 +123,33 @@ get_coin_list_stage_a:
 
 section "continue_menu", ROM0
 
+;;
+; Writes two hex nibbles ("0123456789ABCDEF") to HL
+puthex::
+  push af
+  swap a
+  call putnibble
+  pop af
+  ; fall through
+
+;;
+; Writes bits 3-0 as an ASCII hex digit to HL
+; @param A nibble to write (bits 7-4 ignored)
+; @param HL destination address
+; @return A: ASCII character written; HL: increased by 1
+putnibble::
+  and $0F
+  cp $0A
+  jr c,.not_letter
+  add ("A"-"9"-1)
+.not_letter:
+  add "0"
+  ld [hl+],a
+  ret
+
 show_stages::
   ; Clear pixels in VWF canvas
+  call lcd_off
   ld de, CHRRAM1
   ld h, e
   ld bc, $1000
@@ -132,6 +161,28 @@ show_stages::
 
   ld hl, CHRRAM0
   call load_logo
+
+  if WITH_DEBUGHEX
+  ld a, $30
+  ldxy hl, 2, 5
+  ld c, 16
+  call memset_inc
+  call vwfClearBuf
+  ld hl, CHRRAM0 + TEST_OK_TILE * $10
+  push hl
+  ld a, [debughex+0]
+  call puthex
+  ld a, [debughex+1]
+  call puthex
+  ld [hl], 0
+  pop hl
+  ld b, 0
+  call vwfPuts
+  lb bc, 0, 3
+  ld hl, $8300
+  call vwfPutBuf03_lenC
+  endc
+
 
   ; Load checkmark and related tiles
   ld de, checkmark_chr
