@@ -29,8 +29,9 @@ All this is preliminary:
 5. Upward sweep turns off NR52 status and downward sweep doesn't
 6. APU length counter expiry and envelope $00 turn off NR52 status
 7. DIV increases by 1 unit per period
-8. 
-9. 
+8. Can get LYC and mode 0 interrupts on same scanline
+9. TAC=5 TIMA=-20 sets IF in 80 cycles; can sync to timer by writing
+   and reading 3 cycles later
 10. 
 11. `ei push bc pop bc ldh [rIF], a halt` with IE=A=$04 puts
     return address in stack red zone
@@ -43,5 +44,7 @@ All this is preliminary:
 18. NR52 bits 6-0 are read-only
 19. `push bc pop af push af pop de` sets DE=BC&$FFF0
 20. `inc hl` in mode 2 corrupts OAM only on DMG
-21. GBC palette can be written and read back during vblank only on GBC
-22. Wave RAM locked while playing: reads return $FF or the byte at the play position (the Demotronic test)
+21. GBC palette can be written and read back during vblank only on
+    GBC
+22. Wave RAM locked while playing: reads return $FF or the byte at
+    the play position (the Demotronic test)

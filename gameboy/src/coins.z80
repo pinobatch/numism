@@ -6,7 +6,7 @@ section "COINS", ROM0, ALIGN[2]
 coin_list::
   ; stage 1
   dw coin_add_hl_flags, coin_add_sp_flags, coin_apu_off_ignore_writes, coin_apu_or_mask, coin_apu_sweep_status
-  dw coin_apu_len_env00_status, coin_div_increases, coin_no8, coin_no9, coin_no10
+  dw coin_apu_len_env00_status, coin_div_increases, coin_lyc_to_hint, coin_start_timer, coin_no10
   ; stage 2
   dw coin_ei_if_write, coin_di_halt_sets_if, coin_di_halt_2inc, coin_di_halt_no_handler, coin_daa_no_h
   dw coin_no16, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
@@ -14,7 +14,7 @@ coin_list::
 
 
 
-section "STAGE12COINS", ROM0
+section "STAGE1COINS", ROM0
 
 ; Each coin is a subroutine then a description.
 ; The subroutine returns carry clear for pass or set for fail
@@ -232,20 +232,91 @@ coin_div_increases:
     jr nz, .trialloop
   ret
 
-coin_no8:
+coin_lyc_to_hint:
   jr .start
-  db "Coin #8",10
-  db "Always pass for now",0
+  db "Getting the hint",10
+  db "Schedule LYC interrupt at",10
+  db "FF41, then horizontal blank",10
+  db "interrupt on same line",0
 .start:
-  or a
+  call lcd_off
+  ld a, 64
+  ldh [rLYC], a
+  xor a
+  ldh [rSCX], a
+  ldh [rBGP], a    ; hide everything during test
+  ld [oam_used], a
+  inc a
+  ldh [rIE], a
+  call lcd_clear_oam
+  call run_dma     ; on GBC, even disabled sprites affect mode 3 time
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
+  ldh [rLCDC], a
+  call measure_mode3
+  push af
+  rst wait_vblank_irq
+  xor a
+  ldh [rLCDC], a
+  pop af
+  cp 4  ; If A < 4 then there was only one interrupt
   ret
 
-coin_no9:
+IEB_TIMER = 2
+
+;;
+; Analogous to the "does the timer even work?" check from blargg's
+; instr_timing test, adding a timeout on the start_timer part
+coin_start_timer:
   jr .start
-  db "Coin #9",10
-  db "Always pass for now",0
+  db "Four-cycle timer",10
+  db "FF07=5,FF05=-20 sets FF0F",10
+  db "timer bit after 80 cycles;",10
+  db "can write 0 to FF05 and",10
+  db "read 0 after 3 cycles",0
 .start:
-  or a
+  ; 1. Set up the timer
+  di
+  ld hl, rIE
+  res IEB_TIMER, [hl]  ; keep VBA from calling handlers despite DI
+  ld l, low(rIF)
+  ld a, 5
+  ldh [rTAC], a  ; four mcycles per increment, 262 kHz
+  xor a
+  ldh [rTMA], a  ; set reload value for full range
+  ld [hl], a     ; ack all interrupts (everywhere but rew.)
+
+  ; 2. Ensure the timer increases from -20 to 0 in 80 cycles
+  ld a, 256-20
+  ldh [rTIMA], a
+  ld b, 20-2
+  ; This delay loop triggers a heisenbug in NO$GMB:
+  ; IF.2 gets set if and only if not step debugging
+  .delayloop1:
+    dec b
+    jr nz, .delayloop1
+  bit IEB_TIMER, [hl]
+  jr nz, sync_to_TIMA.fail
+  bit IEB_TIMER, [hl]
+  jr z, sync_to_TIMA.fail
+  ; If we've reached here in NO$GMB then step debugging was off.
+  ; Fall through to the test
+
+  ; 3. Align to 4-cycle timer by looping while [. . W .|. R . .] for
+  ; an odd number of cycles until we hit [W . . R]
+  ; (NO$GMB has failed this one in the past)
+sync_to_TIMA:
+  ld b, 4
+.loopfifteen:
+  xor a           ; 1
+  ldh [rTIMA], a  ; 3 write on cycle N
+  ldh a, [rTIMA]  ; 3 read on cycle N+3
+  or a            ; 1
+  ret z           ; 2
+  nop             ; 1
+  dec b           ; 1
+  jr nz, .loopfifteen  ; 3
+.fail:
+  scf
   ret
 
 coin_no10:
@@ -255,6 +326,65 @@ coin_no10:
 .start:
   or a
   ret
+
+; mode 3 duration measurement ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This kernel will be used by multiple coins to measure the effect of
+; sprite positions, SCX&7, and WX&7 on duration of mode 3.
+
+section "measure_mode3", ROM0
+
+measure_mode3:
+  ; Allow only IRQs on the chosen scanline to cause an interrupt
+  ld c, low(rSTAT)
+  ld a, STATF_LYC
+  ld [$FF00+C], a
+  ld a, [rIE]
+  push af
+  ld a, IEF_LCDC
+  ldh [rIE], a
+
+  ; rew. doesn't respond to IF writes, and VBA behaves badly with
+  ; di halt).  So drain out pending interrupts while preparing for
+  ; the steps to come.
+  ei
+  ld a, STATF_MODE00
+  ld hl, sp+-2
+
+  ; At the start of mode 2 on the chosen line, the CPU calls the STAT
+  ; interrupt handler, which happens to take as long as mode 2.
+  ; This leaves us at the start of mode 3.  Include the halt in the
+  ; length calculation to compensate for it taking an extra cycle
+  ; to schedule the hblank interrupt.
+.nopslide_start:
+  halt
+
+  rept 3
+    nop
+  endr
+
+  ; Schedule another interrupt at the end of drawing.
+  ; Caution: On DMG, writing to STAT writes FF then the value.
+  ; This causes an extra interrupt during mode 3 outside line LYC,
+  ; on which Road Rash (DMG version) and Xerd no Densetsu depend.
+  ; But because we're in LYC, we're safe.
+  ld [$FF00+C], a
+
+  ; now we are in mode 2 and measuring the remainder of mode 2
+  ; plus all of mode 3
+  rept 75
+    nop
+  endr
+
+  pop af
+  ldh [rIE], a  ; Restore previous interrupt setting
+  ld a, [hl]    ; Read progress into slide from stack red zone
+  sub low(.nopslide_start)
+  ret
+
+; Stage 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "STAGE2COINS", ROM0
 
 coin_ei_if_write:
   jr .start
@@ -484,7 +614,9 @@ coin_oam_bug:
   or a
   ret
 
-section "STAGE34COINS", ROM0
+; Stage 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "STAGE3COINS", ROM0
 
 ; This is the first test I want to make with different behavior
 ; on Game Boy and Game Boy Color
