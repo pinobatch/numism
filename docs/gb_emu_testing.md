@@ -6,11 +6,12 @@ compact video game system to compare and contrast their behavior with
 that of an authentic Game Boy.  My main goal is to produce "coins,"
 my term for short test programs to highlight a behavior difference.
 (See [What makes a good coin?] and [Game Boy coin list].)
-Along the way, I'm producing exercisers, or in-depth test ROMs
+Along the way, I'm producing [exercisers], or in-depth test ROMs
 used to help me document specific differences.
 
 [What makes a good coin?]: ./good_coin.md
 [Game Boy coin list]: ./gb_coins.md
+[exercisers]: ../gameboy/exerciser/README.md
 
 Installing emulators
 --------------------
@@ -58,14 +59,14 @@ C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
 [Goomba Color]: https://www.dwedit.org/gba/goombacolor.php
 [Visual Basic 6 runtime]: https://www.microsoft.com/en-us/download/details.aspx?id=24417
 
-Emulator test results
----------------------
+Results of Blargg's emulator tests
+----------------------------------
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
-ROMs by Blargg that measure CPU-visible behaviors.  The tests show
-the following results in NO$GMB final, VisualBoyAdvance 1.7.2,
+ROMs by Shay Green (known in the scene as Blargg) that measure
+CPU-visible behaviors.  The tests show the following results in
+NO$GMB 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
 Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
-VisualBoyAdvance-M 2.1.4, Gambatte r696, BizHawk 2.5.2 Gambatte,
-and mGBA 0.9-6554-a2cd8f6cc:
+Gambatte r696, BizHawk 2.5.2 Gambatte, and mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
   VBA 6 of 11; rew. 7 of 11; NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
@@ -100,8 +101,8 @@ Some notes from research into behavior differences follow:
 
 [TASVideos GB Accuracy Tests]: http://tasvideos.org/EmulatorResources/GBAccuracyTests.html
 
-CPU instructions
-----------------
+### CPU instructions
+
 Blargg's CPU instructions test shows that both NO$GMB and KiGB
 produce incorrect flags for two categories of instructions:
 `op sp, hl` (adding an 8-bit signed value to SP) and `op rp` (adding
@@ -226,8 +227,8 @@ honoring writes to IF at all.
 
 [stack red zone]: https://en.wikipedia.org/wiki/Red_zone_(computing)
 
-DMG sound
----------
+### DMG sound
+
 NO$GMB and VBA fail all tests because they don't mask write-only bits
 when reading back values from audio registers and honor writes while
 the APU is off.  Still curious what differences are most impactful.
@@ -236,11 +237,11 @@ Before I added a designated sound exerciser, I used these
 instructions to explore APU reset:
 ```
 INST E21FE2F01100, AF 0010, BC 0026
-  ; Disassembly of above
-  ld [$FF00+C], a  ; Turn off APU, clearing all regs
-  rra              ; Put 1 in bit 7
-  ld [$FF00+C], a  ; Turn on APU
-  ldh a, [$FF11]   ; Audio regs are FF10-FF25
+; disassembles to
+ld [$FF00+C], a  ; Turn off APU, clearing all regs
+rra              ; Put 1 in bit 7
+ld [$FF00+C], a  ; Turn on APU
+ldh a, [$FF11]   ; Audio regs are FF10-FF25
 ```
 The resulting OR mask pattern matched that in Blargg's test,
 of which NO$GMB observes only the last byte:
@@ -271,9 +272,7 @@ VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
 KiGB is the first time I saw a Blargg ROM crash a GB emulator, and
 I'm not sure how much is a KiGB bug and how much a Wine bug.
 
-Halt bug
---------
-**Not in stage 1 because NO$GMB passes.**
+### Halt bug
 
 Like 65816 and unlike Z80, SM83 has a `halt` instruction that works
 while interrupts are disabled.  (My code refers to this as a
@@ -284,7 +283,7 @@ opcode and its operand.
 Most emulators' behavior can be characterized with this exerciser:
 ```
 INST E27614761C00, AF 0700, BC 0007, IEIF 0100
-; Disassembles to
+; disassembles to
 ld [$FF00+c], a  ; Set timer mode to 7 for use with IEIF 0400
 halt
 inc d  ; If no interrupt is pending, this runs once
@@ -306,8 +305,8 @@ the STAT handler.
 Beyond that, I don't fully understand `halt` in VBA.  I don't _want_
 to fully understand `halt` in VBA.  I just want tests not to crash.
 
-Instruction timing
-------------------
+### Instruction timing
+
 The Game Boy has three incrementing timers.  Blargg's instruction
 timing test uses one of them to measure CPU instructions' duration.
 If timers behave inconsistently, each instruction will appear to have
@@ -349,7 +348,7 @@ This exerciser locks TIMA in 64-cycle mode to the same phase as DIV.
 Run this first:
 ```
 INST E2AF22222200, AF 0700, BC 0007, HL FF04
-# disassembles to
+; disassembles to
 ld [$FF00+c], a
 xor a
 ld [hl+], a  ; reset DIV
@@ -359,7 +358,7 @@ ld [hl+], a  ; set TIMA overflow reload to 0
 Then run this repeatedly:
 ```
 INST 0520FD2A1B46, BC 0100, HL FF04
-# disassembles to
+; disassembles to
 label:
 dec b        ; wait 4*B cycles
 jr nz, label
@@ -372,66 +371,8 @@ higher on a small fraction.  Everything but NO$GMB gets this right.
 
 TODO: Ask gbdev #emudev which games depend on working timers
 
-Mode 3 duration
----------------
-During each scanline, the PPU iterates through three different modes:
-mode 2 (scanning OAM to find sprites overlapping that scanline),
-mode 3 (rendering pixels), and mode 0 (horizontal blanking).
-The duration of mode 3 varies based on how many overlapping sprites
-the PPU found in mode 2.  Because video memory (VRAM) ignores writes
-in mode 3, the programmer must write to VRAM outside mode 3.
+### Memory timing
 
-To determine whether emulators accept or ignore writes properly,
-I set out to time mode 3.  The STAT ($FF41) register can schedule
-interrupt $48 at the start of mode 2, the start of mode 0 (horizontal
-blanking interrupt or "hint"), or the start of mode 2 on a particular
-scanline (LCD Y coordinate comparison or "LYC").  Because mode 2
-always lasts 80 dots or 20 cycles, measuring modes 2 and 3 together
-gives a duration for mode 3.
-
-I chose to measure mode 3 with the stack red zone.  The exerciser
-lets the user move sprites onto or off Y=64.  Then it schedules a
-STAT interrupt for LYC, waits for it, schedules another for hint,
-falls into a NOP slide, and reads from the red zone how many NOPs
-were executed.  This works well in most emulators.
-
-The exerciser lets the user move sprites onto or off the Y=64 line
-and measures the time from the start of
-mode 2 on that line to the start of the following mode 0.
-
-- High-tier emulators match the Game Boy exactly.  
-  42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
-- Mid-tier emulators show some sort of variance between 0 and
-  10 sprites.  
-  42 to 67 (VBA-M), 42 to 57 (mGBA)
-- Low-tier emulators show constant duration.  
-  42 (rew.), 47 (VBA), 48 (KiGB)
-- Two emulators don't get the hint, not firing a second interrupt.  
-  1 (NO$GMB, Goomba)
-
-NO$GMB behavior is especially hard to characterize because it differs
-based on whether step debugging is active.
-
-Say IF is $12, IE is $01, and I write $02 to IE.  In BGB, this write
-immediately goes through, and I can see the step debugger jump into
-the STAT handler.  In NO$GMB, I see the effect of the STAT handler
-when running normally.  If I put a breakpoint before the IE write and
-step through it, the IE and IF in the I/O map change but the handler
-doesn't get called.  Stepping by some amounts even causes the initial
-SP and initial IEIF variables in the exerciser to get corrupted.
-```
-INST FB40000000E2, AF 0200, BC 00FF, IEIF 0112
-; disassembles to
-ei
-ld b, b          ; source code breakpoint
-nop
-nop
-nop
-ld [$FF00+C], a  ; write to IF
-```
-
-Memory timing
--------------
 Instructions that access memory do so on the _last_ cycles of an
 instruction.  This includes read instructions, write instructions,
 and read-modify-write instructions.
@@ -449,9 +390,9 @@ VBA-M fails 3 (01).
 
 TODO: Ask gbdev #emudev which games actually depend on working memory timing
 
-OAM bug
--------
-**Not in stage 1 because GBC is not affected.**
+### OAM bug
+
+**Model-specific.**
 
 The NES PPU's object attribute memory (OAM) controller is broken.
 So is that of the monochrome Game Boy.  It copies one 8-byte pair of
@@ -479,6 +420,68 @@ back on.  KiGB also fails, and it has no debugger to explain why.
 VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
 7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
 
+Mode 3 duration
+---------------
+This is the first test not directly inspired by a Blargg test.
+
+During each scanline, the PPU iterates through three different modes:
+mode 2 (scanning OAM to find sprites overlapping that scanline),
+mode 3 (rendering pixels), and mode 0 (horizontal blanking).
+The duration of mode 3 varies based on how many overlapping sprites
+the PPU found in mode 2.  Because video memory (VRAM) ignores writes
+in mode 3, the programmer must write to VRAM outside mode 3.
+
+To determine whether emulators accept or ignore writes properly,
+I set out to time mode 3.  The STAT ($FF41) register can schedule
+interrupt $48 at the start of mode 2, the start of mode 0 (horizontal
+blanking interrupt or "hint"), or the start of mode 2 on a particular
+scanline (LCD Y coordinate comparison or "LYC").  Because mode 2
+always lasts 80 dots or 20 cycles, measuring modes 2 and 3 together
+gives a duration for mode 3.
+
+I chose to measure mode 3 with the stack red zone.  The exerciser
+lets the user move sprites onto or off Y=64.  Then it schedules a
+STAT interrupt for LYC, waits for it, schedules another for hint,
+falls into a NOP slide, and reads from the red zone how many NOPs
+were executed.  This works well in most emulators.
+
+The exerciser lets the user move sprites onto or off the Y=64 line
+and measures the time from 20 cycles after the start of
+mode 2 on that line to the start of the following mode 0.
+
+- High-tier emulators match the Game Boy exactly.  
+  42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
+- Mid-tier emulators show some sort of variance between 0 and
+  10 sprites.  
+  42 to 67 (VBA-M), 42 to 57 (mGBA)
+- Low-tier emulators show constant duration.  
+  42 (rew.), 47 (VBA), 48 (KiGB)
+- Two emulators don't get the hint, not firing the second interrupt.  
+  1 (NO$GMB, Goomba)
+
+NO$GMB behavior is especially hard to characterize because it has a
+[Heisenbug]: it differs based on whether step debugging is active.
+
+Say IF is $12, IE is $01, and I write $02 to IE.  In BGB, this write
+immediately goes through, and I can see the step debugger jump into
+the STAT handler.  In NO$GMB, I see the effect of the STAT handler
+when running normally.  If I put a breakpoint before the IE write and
+step through it, the IE and IF in the I/O map change but the handler
+doesn't get called.  Stepping by some amounts even causes the initial
+SP and initial IEIF variables in the exerciser to get corrupted.
+```
+INST FB40000000E2, AF 0200, BC 00FF, IEIF 0112
+; disassembles to
+ei
+ld b, b          ; source code breakpoint
+nop
+nop
+nop
+ld [$FF00+C], a  ; write to IF
+```
+
+[Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug
+
 Palettes
 --------
 BGP, OBP0, and OBP1 ($FF47 through $FF49) map pixel values to shades
@@ -487,7 +490,7 @@ writable in all PPU modes, even though the PPU never uses bits 1-0
 of OBP0 and OBP1.  (This differs from the APU.)
 ```
 INST 707E71000000, BC: 00E4, HL: FF47
-; Disassembles to
+; disassembles to
 ld [hl], b  ; write value
 ld a, [hl]  ; read it back
 ld [hl], c  ; restore value
