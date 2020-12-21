@@ -165,7 +165,6 @@ zerofill_apu:
   ld hl, rNR10
   jp memset_tiny
 
-
 coin_apu_or_mask:
   jr .start
   db "APU OR mask",10
@@ -190,22 +189,102 @@ pass_if_apu_equals_or_mask:
 
 coin_apu_sweep_status:
   jr .start
-  db "NYA APU sweep status",10
+  db "APU sweep status",10
   db "Upward sweep on pulse 1",10
   db "clears channel status;",10
   db "downward sweep doesn't",0
 .start:
+  call init_silent_apu
+  di
+
+  ld a, $25
+  ld bc, $8787
+  call play_sweep_note
+  ld a, d
   or a
+  jp z, test_failed
+
+  ld a, $1A
+  ld bc, $8300
+  call play_sweep_note
+  ld a, d
+  or a
+  jp nz, test_failed
   ret
+
+;;
+; Turn on the APU; just don't route any channels to any speakers
+init_silent_apu:
+  ld hl, rNR52
+  xor a
+  ld [hl], a
+  ld [hl], $80
+  dec l
+;  ld a, $77  ; uncomment this to debug APU tests
+  ld [hl-], a
+  ld [hl], a
+  ret
+
+play_sweep_note:
+  ld hl, rNR10
+  ld [hl+], a  ; sweep direction
+  ld a, $80
+  ld [hl+], a  ; duty and length counter
+  ld [hl+], a  ; envelope
+  ld [hl], c
+  inc l
+  ld [hl], b
+  ; fall through to time_pulse1_note
+
+time_pulse1_note:
+  ; Give a sweep 1/8 second cycles to ring out
+  ld hl, rNR52
+  ld de, -96768/9
+  .waitloop:
+    bit 0, [hl]
+    ret z
+    inc e
+    jr nz, .waitloop
+    inc d
+    jr nz, .waitloop
+  ret
+
+play_pulse1_envb_lenc:
+  ld hl, rNR10
+  xor a
+  ld [hl+], a
+  ld [hl], c
+  inc l
+  ld [hl], b
+  inc l
+  ld [hl+], a
+  ld [hl], $C7
+  jr time_pulse1_note
 
 coin_apu_len_env00_status:
   jr .start
-  db "NYA APU length & env 00",10
+  db "APU length & envelope 00",10
   db "Length counter expiry or",10
   db "envelope set to 0 clears",10
   db "channel status",0
 .start:
+  call init_silent_apu
+  di
+  lb bc, $80, $80  ; control arm
+  call play_pulse1_envb_lenc
+  ld a, d
   or a
+  jp nz, test_failed
+  lb bc, $80, $7C  ; experiment arm: length counter
+  call play_pulse1_envb_lenc
+  ld a, d
+  or a
+  jp z, test_failed
+  lb bc, $00, $80  ; experiment arm: 0 envelope
+  call play_pulse1_envb_lenc
+  ld a, d
+  or a
+  jp z, test_failed
   ret
 
 coin_div_increases:

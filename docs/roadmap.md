@@ -14,17 +14,17 @@ Continue
 that make up a stage and displays their results.  By the end of this
 sprint, I expect to fill the majority of stages 1 and 2 with coins.
 
-1. 
-2. Define test pattern for APU timer
-3. Make instruction timer
-4. Make mode 3 length measurer
-5. Make OAM bug exerciser: fill OAM, wait for a mode, do inc/dec,
-   read OAM.  Repeat for modes 0, 1, 2, and 3.
+1. Make VRAM blocking exerciser
+2. 
+3. 
+4. Define test pattern for APU timer
+5. 
 6. 
-7. 
+7. Make instruction timer
 8. 
 9. 
-10. 
+10. Make OAM bug exerciser: fill OAM, wait for a mode, do inc/dec,
+   read OAM.  Repeat for modes 0, 1, 2, and 3.
 11. 
 12. 
 
