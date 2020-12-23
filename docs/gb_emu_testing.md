@@ -420,6 +420,28 @@ back on.  KiGB also fails, and it has no debugger to explain why.
 VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
 7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
 
+To write my own rough OAM bug test, I first needed to prove to myself
+that the unused bits 3-0 of the attribute byte at $FE03+4n (palette,
+flip, priority) exist as memory.  They don't on NES.  They do on DMG.
+```
+INST 774600000000, AF A500, HL FE03
+; disassembles to
+ld [hl], a
+ld b, [hl]
+```
+
+My test performs the following steps:
+
+1. Turn off the LCD, fill OAM, and read it back.  Fail on difference.
+2. Turn on the LCD, wait a few scanlines, wait for mode 0, wait for
+   mode 2, do a few 16-bit `inc` and `dec`, and turn off the LCD.
+3. Read back OAM.  On GBC, fail on difference; otherwise fail on
+   no difference.
+
+NO$GMB, KiGB, rew., Goomba, VBA, VBA-M, BGB, mGBA, Gambatte, and
+BizHawk Gambatte all fail in Game Boy mode.  Among tested emulators,
+only SameBoy passes.
+
 Mode 3 duration
 ---------------
 This is the first test not directly inspired by a Blargg test.

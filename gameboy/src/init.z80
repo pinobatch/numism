@@ -56,6 +56,9 @@ section "rom_init", ROM0
 reset_handler::
   di  ; Disable interrupts
   ld sp, stack_top + STACK_SIZE  ; Set up stack pointer (full descending)
+  ld hl, initial_a
+  ld [hl+], a
+  ld [hl], b
 
   call busy_wait_vblank  ; Spin because interrupts are not yet set up
 

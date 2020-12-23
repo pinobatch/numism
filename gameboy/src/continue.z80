@@ -49,6 +49,13 @@ run_tests_in_stage_a::
   ld a, $10000 >> COINS_PER_STAGE
   ld [de], a
 
+  if WITH_DEBUGHEX
+  ld hl, debughex
+  ld [hl], $C0
+  inc hl
+  ld [hl], $DE
+  endc
+
   ; HL: pointer into coin_list
   ld a, b
   call get_coin_list_stage_a
@@ -162,6 +169,12 @@ show_stages::
   ld hl, CHRRAM0
   call load_logo
 
+  ; Hide data left in OAM by a coin until first DMA
+  xor a
+  ld hl, $FE00
+  ld c, 160
+  rst memset_tiny
+
   if WITH_DEBUGHEX
   ld a, $30
   ldxy hl, 2, 5
@@ -182,7 +195,6 @@ show_stages::
   ld hl, $8300
   call vwfPutBuf03_lenC
   endc
-
 
   ; Load checkmark and related tiles
   ld de, checkmark_chr
@@ -256,9 +268,10 @@ show_stages::
   ld a, STATF_LYC
   ldh [rSTAT], a
   ld a, %01101100  ; white, black, dark gray, light gray
-  ld [rBGP], a
+  ldh [rBGP], a
+  ldh [rOBP0], a
   ld a, 7
-  ld [rWX], a
+  ldh [rWX], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [stat_lcdc_value], a
   ldh [rWY], a  ; Keep window out of the way until it's time

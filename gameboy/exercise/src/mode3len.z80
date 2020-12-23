@@ -2,6 +2,7 @@ include "src/hardware.inc"
 include "src/global.inc"
 
 LYC_TO_MEASURE equ 64
+WITH_INACCESS equ 0
 
 section "mode3len_test", ROM0
 
@@ -30,7 +31,6 @@ mode3len_test::
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
   ldh [rLCDC], a
 
-  ld b, b
   call inaccess
 
 .forever:
@@ -277,6 +277,12 @@ measure_mode3:
   ret
 
 ; inaccessible memory exerciser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Gate this behind a build-time switch until such time as I figure
+; out how to document it and to reliably trigger an OAM bug
+; like the coin in Numism is doing.
+
+  if WITH_INACCESS
 
 inaccess:
   ld hl, $9F00
@@ -349,3 +355,9 @@ write_in_all_modes_readback:
   ld a, b
   ret
 
+  else
+
+inaccess:
+  ret
+
+  endc

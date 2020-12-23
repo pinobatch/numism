@@ -11,20 +11,20 @@ All work items apply to the Game Boy port unless otherwise specified.
 Continue
 --------
 "Continue" is a conventional test framework.  It runs the 10 tests
-that make up a stage and displays their results.  By the end of this
-sprint, I expect to fill the majority of stages 1 and 2 with coins.
+that make up a stage and displays their results.  I set out during
+this sprint to fill the majority of stages 1 and 2 with coins, and
+with 19 out of 20 complete, I believe I succeeded.
 
 1. 
 2. 
 3. 
-4. Define test pattern for APU timer
+4. 
 5. 
 6. 
 7. Make instruction timer
 8. 
 9. 
-10. Make OAM bug exerciser: fill OAM, wait for a mode, do inc/dec,
-   read OAM.  Repeat for modes 0, 1, 2, and 3.
+10. 
 11. 
 12. 
 

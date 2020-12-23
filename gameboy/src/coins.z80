@@ -6,7 +6,7 @@ section "COINS", ROM0, ALIGN[2]
 coin_list::
   ; stage 1
   dw coin_add_hl_flags, coin_add_sp_flags, coin_apu_off_ignore_writes, coin_apu_or_mask, coin_apu_sweep_status
-  dw coin_apu_len_env00_status, coin_div_increases, coin_lyc_to_hint, coin_start_timer, coin_no10
+  dw coin_apu_len_env00_status, coin_div_increases, coin_lyc_to_hint, coin_start_timer, coin_vram_blocked_writes
   ; stage 2
   dw coin_ei_if_write, coin_di_halt_sets_if, coin_di_halt_2inc, coin_di_halt_no_handler, coin_daa_no_h
   dw coin_no16, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
@@ -328,14 +328,15 @@ coin_lyc_to_hint:
 
 lcd_on_blank:
   call lcd_off
+  ld hl, $FE00     ; clear ALL of OAM to 0
+  ld c, $A0
+  call memset_tiny
+lcd_on_blank_keep_oam:
   ld a, 64
   ldh [rLYC], a
   xor a
   ldh [rSCX], a
   ldh [rBGP], a    ; hide everything during test
-  ld hl, $FE00     ; clear ALL of OAM to 0
-  ld c, $A0
-  call memset_tiny
   inc a
   ldh [rIE], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
@@ -409,7 +410,7 @@ sync_to_TIMA:
 ; the Game Boy emulator in Pokémon Stadium 2 Game Boy Tower.
 ; Only the vblank handler can access VRAM.  Once it does RETI,
 ; VRAM is locked even if mode 1 is still in effect.
-coin_no10:
+coin_vram_blocked_writes:
   jr .start
   db "VRAM/OAM blocked writes",10
   db "VRAM and OAM are",10
@@ -783,13 +784,98 @@ coin_push_af_low_4:
   jp nz, test_failed
   ret
 
+;;
+; This is a very rough test for OAM bug
 coin_oam_bug:
   jr .start
-  db "NYA 16-bit inc corrupts OAM",10
+  db "16-bit inc corrupts OAM",10
   db "With H=FE, inc hl in mode 2",10
   db "corrupts OAM on B&W system",0
 .start:
-  or a
+  call lcd_off  ; we can stay in mode 1 as long as we need
+  ld a, $A5
+  call oamset_inc  ; modes 0-1 not affected by bug
+
+  ; Ensure that OAM readback works, even for the 4 unused bits
+  ; of DMG's palette/flip/priority byte
+  ld b, $A5
+  call oamcmp_inc
+  ld a, l
+  ld [debughex+0], a
+  ret c
+
+  xor a
+  ld [rOBP0], a
+
+  call lcd_on_blank_keep_oam
+
+  ; In case the first line is "weird", wait for a non-weird line
+  ld hl, rLY
+  ld a, 20
+  .goto20:
+    cp [hl]
+    jr nz, .goto20
+
+  ; Wait for mode 0 then mode 2
+  ; This can be a lot faster than when waiting for an arbitrary mode
+
+  ld b, $FE
+  ld d, b
+  ld l, low(rSTAT)
+  .gotom0:
+    bit 1, [hl]
+    jr nz, .gotom0
+  .gotom2:
+    bit 1, [hl]
+    jr z, .gotom2
+  dec h
+
+  ; We're 5 to 9 cycles into mode 2.  Now trigger OAM bug.
+  inc hl
+  dec hl
+  inc bc
+  dec bc
+  inc de
+  dec de
+
+  ; Measure the damage
+  call lcd_off
+  ld b, $A5
+  call oamcmp_inc
+  sbc a
+  ld b, a  ; A=FF for difference, 00 for identical
+  ld a, l
+  ld [debughex+1], a
+
+  ld a, [initial_a]
+  xor $11  ; A=0 for GBC, nonzero for mono (DMG/MGB/SGB)
+  cp 1
+  sbc a    ; A=$FF for GBC, $00 for mono
+  xor b    ; A=$00 for fail, $FF for success
+  cpl
+  add a
+  ret
+
+;;
+; Writes test pattern starting at A
+oamset_inc:
+  ld hl, $FE00
+  ld c, 160
+  jp memset_inc
+
+;;
+; Compares OAM to oamset_inc written data, starting at B
+oamcmp_inc:
+  ld hl, $FE00
+  ld c, 160
+  .loop:
+    ld a, [hl]
+    sub b
+    xor l
+    jp nz, test_failed
+    inc l
+    dec c
+    jr nz, .loop
   ret
 
 ; Stage 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
