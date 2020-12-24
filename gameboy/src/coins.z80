@@ -9,10 +9,13 @@ coin_list::
   dw coin_apu_len_env00_status, coin_div_increases, coin_lyc_to_hint, coin_start_timer, coin_vram_blocked_writes
   ; stage 2
   dw coin_ei_if_write, coin_di_halt_sets_if, coin_di_halt_2inc, coin_di_halt_no_handler, coin_daa_no_h
-  dw coin_no16, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
+  dw coin_div_stops_apu, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
   ; stage 3
 
 
+; Controls whether tests using init_silent_apu are audible.
+; Set to nonzero during debugging.
+APU_NOT_SILENT equ 0
 
 section "STAGE1COINS", ROM0
 
@@ -199,14 +202,14 @@ coin_apu_sweep_status:
 
   ld a, $25
   ld bc, $8787
-  call play_sweep_note
+  call time_sweep_note
   ld a, d
   or a
   jp z, test_failed
 
   ld a, $1A
   ld bc, $8300
-  call play_sweep_note
+  call time_sweep_note
   ld a, d
   or a
   jp nz, test_failed
@@ -220,12 +223,14 @@ init_silent_apu:
   ld [hl], a
   ld [hl], $80
   dec l
-;  ld a, $77  ; uncomment this to debug APU tests
+  if APU_NOT_SILENT
+    ld a, $77  ; uncomment this to debug APU tests
+  endc
   ld [hl-], a
   ld [hl], a
   ret
 
-play_sweep_note:
+time_sweep_note:
   ld hl, rNR10
   ld [hl+], a  ; sweep direction
   ld a, $80
@@ -236,6 +241,9 @@ play_sweep_note:
   ld [hl], b
   ; fall through to time_pulse1_note
 
+;;
+; Waits a tenth of a second for a note to end.
+; @return E: negative if stopped or 0 if still playing
 time_pulse1_note:
   ; Give a sweep 1/8 second cycles to ring out
   ld hl, rNR52
@@ -249,6 +257,10 @@ time_pulse1_note:
     jr nz, .waitloop
   ret
 
+time_pulse1_envb_lenc:
+  call play_pulse1_envb_lenc
+  jr time_pulse1_note
+
 play_pulse1_envb_lenc:
   ld hl, rNR10
   xor a
@@ -259,7 +271,7 @@ play_pulse1_envb_lenc:
   inc l
   ld [hl+], a
   ld [hl], $C7
-  jr time_pulse1_note
+  ret
 
 coin_apu_len_env00_status:
   jr .start
@@ -271,17 +283,17 @@ coin_apu_len_env00_status:
   call init_silent_apu
   di
   lb bc, $80, $80  ; control arm
-  call play_pulse1_envb_lenc
+  call time_pulse1_envb_lenc
   ld a, d
   or a
   jp nz, test_failed
   lb bc, $80, $7C  ; experiment arm: length counter
-  call play_pulse1_envb_lenc
+  call time_pulse1_envb_lenc
   ld a, d
   or a
   jp z, test_failed
   lb bc, $00, $80  ; experiment arm: 0 envelope
-  call play_pulse1_envb_lenc
+  call time_pulse1_envb_lenc
   ld a, d
   or a
   jp z, test_failed
@@ -330,7 +342,7 @@ lcd_on_blank:
   call lcd_off
   ld hl, $FE00     ; clear ALL of OAM to 0
   ld c, $A0
-  call memset_tiny
+  rst memset_tiny
 lcd_on_blank_keep_oam:
   ld a, 64
   ldh [rLYC], a
@@ -417,10 +429,16 @@ coin_vram_blocked_writes:
   db "inaccessible in mode 3.",10
   db "OAM inaccessible in mode 2.",0
 .start:
+  call lcd_off
+  ld hl, $9F00
+  push hl
+  xor a
+  ld c, a
+  rst memset_tiny
   call lcd_on_blank
 
   ; Write to video memory (expect lots of invalid
-  ld hl, $9F00
+  pop hl
   call write_in_all_modes
   ld hl, $FE80
   call write_in_all_modes
@@ -435,9 +453,8 @@ coin_vram_blocked_writes:
   call write_in_all_modes_readback
 ;  ld [debughex+1], a
   ; On Game Boy, Super Game Boy, and Game Boy pocket, the (invalid)
-  ; writes to OAM mess up the previous valid writes.  This looks
-  ; like it could be the OAM bug.  Until I understand the OAM bug
-  ; in more detail, I'll disregard the affected writes for now.
+  ; writes to OAM mess up the previous valid writes due to the OAM
+  ; bug.  Disregard the affected writes.
   and %00111111  ; disregard writes affected by OAM bug
   cp %00111100  ; OAM: modes 2 and 3 blocked
   jr nz, .local_failed
@@ -689,12 +706,31 @@ add_a_daa_eq_b_no_h:
   jp nz, test_failed
   ret
 
-coin_no16:
+coin_div_stops_apu:
   jr .start
-  db "Coin #16",10
-  db "Always pass for now",0
+  db "DIV stops APU sequencer",10
+  db "Length counter doesn't end",10
+  db "note if writing DIV at >1 kHz",0
 .start:
-  or a
+  call init_silent_apu
+  ; Control arm was in "APU length & envelope 00" from stage 1
+  lb bc, $80, $7C  ; experiment arm: length counter
+  call play_pulse1_envb_lenc
+  ldh [rDIV], a
+  ld bc,65536-24576
+  .loop:
+    inc c  ; If I inc c only once, the test fails.
+    inc c  ; Apparently I need to keep it UNDER 1024 cycles per write
+    jr nz, .loop
+    ldh [rDIV], a
+    ld a, [rNR52]  ; bit 1 becomes 0 when it stops
+    rra
+    ccf  ; carry set if it has stopped
+    ret c
+    inc b
+    jr nz, .loop
+  ld a, c  ; APU off!
+  ld [rNR52], a
   ret
 
 coin_apu_off_clear:
@@ -709,7 +745,7 @@ coin_apu_off_clear:
   ldh [rNR52], a
   ld c, apu_or_mask_values_end-apu_or_mask_values
   ld hl, rNR10
-  call memset_tiny
+  rst memset_tiny
   call set_wave_ram_signature
 
   ; Turn off the PPU and OR mask must be read back
@@ -717,7 +753,7 @@ coin_apu_off_clear:
   ldh [rNR52], a
   call pass_if_apu_equals_or_mask
   ret c
-  call compare_wave_ram_signature  ; bgb fails here
+  call compare_wave_ram_signature
   ret c
 
   ; Turn the APU on and see if it still reads 0

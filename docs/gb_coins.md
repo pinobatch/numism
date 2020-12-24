@@ -20,7 +20,7 @@ of a 32K ROM.  I may have to use the DTE codec that I used for
 
 Coin list
 ---------
-All this is preliminary:
+A preliminary list for stages 1 and 2 is complete.
 
 1. `add hl` flags
 2. `add sp` flags
@@ -39,12 +39,44 @@ All this is preliminary:
 13. `di halt inc d halt inc e` double-increments only E (halt bug)
 14. `di halt inc d halt inc e` calls no handler (VBA halt bug)
 15. `ld a, 5 add a daa` does not produce half carry
-16. 
+16. Writing DIV every 1000 cycles or faster keeps APU length counter
+    from expiring (suggested by LIJI)
 17. APU off clears readable registers
 18. NR52 bits 6-0 are read-only
 19. `push bc pop af push af pop de` sets DE=BC&$FFF0
 20. `inc hl` in mode 2 corrupts OAM only on DMG
-21. GBC palette can be written and read back during vblank only on
-    GBC
-22. Wave RAM locked while playing: reads return $FF or the byte at
-    the play position (the Demotronic test)
+
+Unranked
+
+- GBC palette can be written and read back during vblank only on GBC
+- Wave RAM locked while playing: reads return $FF or the byte at
+  the play position (the Demotronic test/Blargg dmg_sound 09)
+- Joypad interrupt works at all
+- Joypad interrupt happens at different LY values (Telling LYs?)
+- Asserting P14/P15 while holding a button causes joypad interrupt
+  (suggested by Daid)
+- Approximate mode 3 duration with 0 and 10 sprites
+- Whether disabling sprites in LCDC changes mode 3 duration
+  (model specific?)
+- Something something mid-scanline WX changes (suggested by LIJI)
+- Enabling hblank and OAM in STAT causes one interrupt, not two
+- Writing anything to STAT during mode 3 outside LYC causes an
+  immediate extra interrupt only on DMG
+  (suggested by organharvester)
+
+Results
+-------
+
+Emulator     | Stage 1 | Stage 2
+------------ | ------: | ------:
+sameboy      |  10/10  |  10/10
+bgb          |  10/10  |   9/10
+mgba         |  10/10  |   9/10
+gambattehawk |  10/10  |   9/10
+gambatte     |  10/10  |   9/10
+vba-m        |  10/10  |   8/10
+goomba       |   5/10  |   5/10
+kigb         |   3/10  |   6/10
+no$gmb       |   0/10  |   7/10
+vba          |   6/10  |   1/10
+rew.         |   2/10  |   2/10

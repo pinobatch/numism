@@ -251,7 +251,7 @@ show_stages::
   ld [hl+], a
   inc a
   ld c, 16
-  call memset_tiny
+  rst memset_tiny
   inc a
   ld [hl+], a
 

@@ -272,6 +272,9 @@ VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
 KiGB is the first time I saw a Blargg ROM crash a GB emulator, and
 I'm not sure how much is a KiGB bug and how much a Wine bug.
 
+09 "Wave read while on" happens to be the same thing that the
+"NO BOY! NO DEMO! screen in _Demotronic_ demo by Megaboys tests.
+
 ### Halt bug
 
 Like 65816 and unlike Z80, SM83 has a `halt` instruction that works
@@ -442,9 +445,29 @@ NO$GMB, KiGB, rew., Goomba, VBA, VBA-M, BGB, mGBA, Gambatte, and
 BizHawk Gambatte all fail in Game Boy mode.  Among tested emulators,
 only SameBoy passes.
 
-Mode 3 duration
----------------
-This is the first test not directly inspired by a Blargg test.
+Numism original tests
+---------------------
+After I covered enough of Blargg's test space to thoroughly dunk on
+NO$GMB, VBA, and rew., I decided to branch out and cover aspects
+not directly inspired by a Blargg test.
+
+### Palettes
+
+BGP, OBP0, and OBP1 ($FF47 through $FF49) map pixel values to shades
+in DMG mode.  All 8 bits of all three registers are readable and
+writable in all PPU modes, even though the PPU never uses bits 1-0
+of OBP0 and OBP1.  (Ability of unused memory to hold values is like
+DMG OAM and differs from the APU and NES OAM.)
+```
+INST 707E71000000, BC: 00E4, HL: FF47
+; disassembles to
+ld [hl], b  ; write value
+ld a, [hl]  ; read it back
+ld [hl], c  ; restore value
+```
+This turned out not usable as a test because no emulator fails it.
+
+### Mode 3 duration
 
 During each scanline, the PPU iterates through three different modes:
 mode 2 (scanning OAM to find sprites overlapping that scanline),
@@ -473,16 +496,17 @@ mode 2 on that line to the start of the following mode 0.
 
 - High-tier emulators match the Game Boy exactly.  
   42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
-- Mid-tier emulators show some sort of variance between 0 and
-  10 sprites.  
+- Mid-tier (or "M-tier") emulators show some sort of variance between
+  0 and 10 sprites.  
   42 to 67 (VBA-M), 42 to 57 (mGBA)
 - Low-tier emulators show constant duration.  
   42 (rew.), 47 (VBA), 48 (KiGB)
 - Two emulators don't get the hint, not firing the second interrupt.  
   1 (NO$GMB, Goomba)
 
-NO$GMB behavior is especially hard to characterize because it has a
-[Heisenbug]: it differs based on whether step debugging is active.
+NO$GMB interrupt behavior is especially hard to characterize
+because it has a [Heisenbug]: it differs based on whether
+step debugging is active.
 
 Say IF is $12, IE is $01, and I write $02 to IE.  In BGB, this write
 immediately goes through, and I can see the step debugger jump into
@@ -504,27 +528,22 @@ ld [$FF00+C], a  ; write to IF
 
 [Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug
 
-Palettes
---------
-BGP, OBP0, and OBP1 ($FF47 through $FF49) map pixel values to shades
-in DMG mode.  All 8 bits of all three registers are readable and
-writable in all PPU modes, even though the PPU never uses bits 1-0
-of OBP0 and OBP1.  (This differs from the APU.)
-```
-INST 707E71000000, BC: 00E4, HL: FF47
-; disassembles to
-ld [hl], b  ; write value
-ld a, [hl]  ; read it back
-ld [hl], c  ; restore value
-```
-This is not usable as a test because no emulator fails it.
+### Clocking APU via DIV
+
+The APU's sequencer controls the speed of sweep, envelope, and
+length counter.  It receives a 512 Hz clock from DIV.  So I wrote a
+coin that writes to DIV roughly every 660 cycles to keep DIV from
+reaching high enough to clock the APU's sequencer.  As expected,
+the usual suspects (VBA, Goomba, KiGB, rew., NO$GMB) all fail.  It's
+also my first coin that distinguishes VBA-M (fail) from mGBA (pass).
 
 Other tests
 -----------
 Things I can think off the top of my head to make exercisers for:
 
+- Possibility of speeding up the APU sequencer by writing DIV at a
+  period just longer than 1024 cycles
 - DIV and TIMA sync at all TAC rates
-- In which modes OAM and VRAM can be read and written
 - Values read and written to GBC palette ports in DMG and DMG-on-GBC,
   and DMG palette ports in GBC mode
 - What is DMG Sound _trying_ to test, and what is NO$GMB failing?
