@@ -63,6 +63,11 @@ Emulicious) get right can rank near the end.
 
 ### Ease of testing
 
+Three classes of behaviors cannot be tested in this sort of
+framework: behaviors not visible to the CPU, behaviors of potentially
+hardware-damaging "killer pokes," and behaviors not testable in a
+single ROM image.
+
 All tested behaviors must be visible to the CPU.  It cannot measure
 video output (such as palettes, priority, pixel response time, and
 LCD desyncs) and audio output (such as noise LFSR lockup, as few
@@ -74,9 +79,11 @@ Most tests should finish within a few frames.  Longer tests should
 be used sparingly, as the player will grow tired of overuse of
 time-wasting game mechanics to give time for the test to complete.
 
-The test is one ROM, as if one game was released.  Testing variant
-cartridge hardware behavior, such as mappers on 8-bit systems, may
-not be practical unless the test is worked as a game and its sequel.
+Several consoles use a variety of "mappers," or configurations of
+support hardware on each cartridge's circuit board.  With very few
+exceptions (such as _R.C. Pro-Am_ for NES), a single game released
+in a region uses a single mapper.  Thus without enough content to
+make multiple games, we can test only one mapper's behavior.
 
 Stage by stage
 --------------
