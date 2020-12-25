@@ -657,7 +657,7 @@ hblank_put_a::
 
 ;;
 ; Waits for mode 0 or 1, then writes characters B and C to [DE]
-; HL unchanged
+; BCHL unchanged
 hblank_put_bc::
   ldh a, [rSTAT]
   bit 1, a

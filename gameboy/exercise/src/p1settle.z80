@@ -1,0 +1,200 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+SECTION UNION "hTestState", HRAM
+p14_reading: ds 6
+p15_reading: ds 6
+curnibble: ds 1
+; bit 0 = 1 to assert P14 then P15; 1 to assert P15 then P14
+doing_p14_first: ds 1
+
+section "p1settle_test", ROM0
+
+p1settle_test::
+
+  call lcd_off
+  ld hl, p1settle_labels
+  call cls_draw_labels
+  xor a
+  ldh [doing_p14_first], a
+  ld [oam_used], a
+  call lcd_clear_oam
+  call run_dma
+
+  ld a, %11100100
+  ldh [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  ldh [rLCDC], a
+.forever:
+  call wait_vblank_irq
+  call twonibbles
+
+  ; Display what's first
+  ld b, " "
+  ldxy de, 0, 1
+  ldh a, [doing_p14_first]
+  rra
+  sbc a  ; $00: P15 first; $FF: P14 first
+  and $27^$24
+  xor $24
+  ld c, a
+  call hblank_put_bc
+  ld e, 32+5
+  ld a, $27^$24
+  xor c
+  ld c, a
+  call hblank_put_bc
+
+  ld c, low(p14_reading)
+  ld hl, p14_labels
+  ldxy de, 1, 2
+  call display_onenibble
+  ld c, low(p15_reading)
+  ld hl, p15_labels
+  ldxy de, 6, 2
+  call display_onenibble
+
+  ; Read the controller again the conventional way
+  call read_pad
+  ldh a, [new_keys]
+  ld b, a
+  bit PADB_RIGHT,b
+  jr z, .not_right
+    ldh a, [doing_p14_first]
+    xor 1
+    ldh [doing_p14_first], a
+  .not_right:
+
+  ; Press Select and only Select to exit
+  ldh a, [cur_keys]
+  cp PADF_SELECT
+  jr nz, .forever
+  cp b
+  jr nz, .forever
+  jp inst_test
+
+
+; Reading the controller
+
+twonibbles:
+  ldh a, [doing_p14_first]
+  rra     ; C = 1 to do P14 first
+  sbc a   ; A = $FF to do P14 first
+  and low(p15_reading^p14_reading)
+  xor low(p15_reading)
+  call onenibble
+  ldh a, [curnibble]
+  xor low(p15_reading^p14_reading)
+  call onenibble
+  ld a, $30
+  ldh [rP1], a
+  ret
+
+onenibble:
+  ldh [curnibble], a
+  cp low(p15_reading)
+  ld a, $20
+  jr nz, .is_p14
+    rrca
+  .is_p14:
+  ld hl, rP1
+  ld [hl], a
+  ld a, [hl]
+  ld b, [hl]
+  ld c, [hl]
+  ld d, [hl]
+  ld e, [hl]
+  ld h, [hl]
+
+  ; Write them out!
+  push hl
+  ld hl, curnibble  ; p15_reading
+  ld l, [hl]
+  ld [hl+], a
+  ld a, b
+  ld [hl+], a
+  ld a, c
+  ld [hl+], a
+  ld a, d
+  ld [hl+], a
+  ld a, e
+  ld [hl+], a
+  pop de
+  ld [hl], d
+  ret
+
+;;
+; @param C either p14_reading or p15_reading
+; @param HL labels
+; @param DE top left destination address in VRAM
+display_onenibble:
+  ld b, 6
+  .rowloop:
+    push bc
+    push hl  ; labels
+    ld a, [$FF00+c]  ; get one nibble reading
+    call .twobits
+    call .twobits
+    push af
+    ld a, 32-4
+    add e
+    ld e, a
+    pop af
+    pop hl
+    pop bc
+    inc c
+    dec b
+    jr nz, .rowloop
+  ret
+
+.twobits:
+  ld b, [hl]  ; Load labels
+  inc hl
+  ld c, [hl]
+  inc hl
+
+  rra         ; Hide labels of unpressed buttons
+  jr nc, .pressed0
+    ld b, ":"
+  .pressed0:
+  rra
+  jr nc, .pressed1
+    ld c, ":"
+  .pressed1:
+
+  push af     ; Write the labels
+  call hblank_put_bc
+  pop af
+  ret
+    
+p14_labels: db "RLUD"
+p15_labels: db "ABSR"
+
+p1settle_labels:
+  dwxy 2, 1
+  db "P14  P15 EACH ROW",$FF
+  dwxy 11, 2
+  db "IS 2 US",$FF
+  dwxy 11, 3
+  db "OF DELAY",$FF
+  dwxy 11, 4
+  db "FROM",$FF
+  dwxy 11, 5
+  db "SETTING",$FF
+  dwxy 11, 6
+  db "SELECT",$FF
+  dwxy 11, 7
+  db "LINES TO",$FF
+  dwxy 11, 8
+  db "READING",$FF
+  dwxy 11, 9
+  db "BUTTONS",$FF
+  
+  dwxy 1, 14
+  db "RIGHT:CHOOSE HALF",$FF
+  dwxy 3, 15
+  db "TO READ FIRST",$FF
+  dwxy 1, 16
+  db "SEL:P1 SETTLING",$FF
+  db $00
+

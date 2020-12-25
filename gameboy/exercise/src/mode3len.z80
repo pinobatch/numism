@@ -48,7 +48,7 @@ mode3len_test::
   ldh a, [new_keys]
   bit PADB_SELECT, a
   jr z, .forever
-  jp inst_test
+  jp p1settle_test
 
 ; the UI ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -124,3 +124,18 @@ how many sprites are on the line and where they are positioned.
 * Left, Right: Choose a sprite
 * A + Control Pad: Move that sprite
 
+P1 settling time visualizer
+---------------------------
+The Game Boy's controller is read as a 2-by-4-key matrix.  Half of it
+is the Control Pad, and the other half is the A, B, Select, and Start
+Buttons.  After the CPU activates half the controller, it takes a few
+microseconds for the bit lines to settle.
+
+![Screenshot of P1 settling time test](../../docs/gb_exerciser_p1settle.png)
+
+This visualizer shows 6 consecutive reads, two microseconds apart,
+showing how long it takes before the lines settle.
+
+- Right: Toggle whether the P14 line (for the Control Pad) or the
+  P15 line (for the buttons) is asserted first
+- Select by itself: Continue to next test
