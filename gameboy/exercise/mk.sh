@@ -13,7 +13,7 @@ set -e
 title=exercise
 inttitle='EXERCISE'
 objlist='header init pads ppuclear bcd inst sound daa mode3len p1settle'
-onebitlist='Crash_dump_uncial'
+onebitlist='font_uncial font_ISSOtm font_Wasted font_Quizshow font_LIJI'
 
 for filename in $onebitlist; do
   rgbgfx -d 1 -o "obj/gb/$filename.1b" "tilesets/$filename.png"

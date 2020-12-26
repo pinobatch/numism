@@ -12,6 +12,7 @@ RUNTYPE_AUTO equ 2
 NUM_RUNTYPES equ 3
 
 NUM_ABOVE_REGPAIRS equ 2
+NUM_BELOW_REGPAIRS equ 1
 NUM_REGPAIRS equ 6
 
 ; Interrupts ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -53,6 +54,7 @@ SECTION "hCommonState", HRAM
 a_pressed_by_self:: ds 1
 cursor_x:: ds 1
 cursor_y:: ds 1
+cur_font: ds 1
 
 SECTION UNION "hTestState", HRAM
 inst:        ds inst_length
@@ -75,6 +77,7 @@ result_sp: ds 2
 result_if: ds 1
 result_ie: ds 1
 sp_save: ds 2
+font_dirty: ds 1
 
 SECTION "main", ROM0
 
@@ -84,6 +87,7 @@ main::
   xor a
   ldh [rIF],a
   ldh [nmis],a
+  ldh [cur_font], a
   ei
 
 ; JMP endpoint
@@ -91,18 +95,6 @@ inst_test::
   ; Load CHR
   call lcd_off
   call run_dma
-  ld de, font_1b
-  ld bc, (-320) & $FFFF
-  ld hl, CHRRAM0
-  .loop
-    ld a, [de]
-    inc de
-    ld [hl+], a
-    ld [hl+], a
-    inc c
-    jr nz, .loop
-    inc b
-    jr nz, .loop
 
   ld hl, inst_labels
   call cls_draw_labels
@@ -118,6 +110,7 @@ inst_test::
   call memset_tiny
   dec a
   ldh [last_int], a
+  ldh [font_dirty], a
   ld a, $D0
   ldh [input_sp+1], a
   ld a, $80
@@ -149,6 +142,7 @@ forever:
 
   call wait_vblank_irq
   call run_dma
+  call check_reload_font
 
   if WITH_DEBUGHEX
     ldxy de, 0, 17
@@ -258,6 +252,8 @@ inst_labels:
   db "IEIF", $FF
   dwxy 2, 10
   db "LAST INT", $FF
+  dwxy 1, 12
+  db "FONT:",$FF
   dwxy 1, 15
   db "A DIR:CHANGE DIGIT",$FF
   dwxy 1, 16
@@ -360,8 +356,16 @@ draw_cursor:
   ld hl, oam_used
   ld l, [hl]
 
+  ldh a, [cursor_x]
+  ld c, a
+
   ldh a, [cursor_y]
-  cp 2
+  cp NUM_ABOVE_REGPAIRS+NUM_REGPAIRS
+  jr c, .not_below_regpairs
+    add 2
+    ld c, 0
+  .not_below_regpairs:
+  cp NUM_ABOVE_REGPAIRS
   ccf    ; CF=1 if >= 2 else 0
   adc 3  ; 3, 4, 6, 7, 8, 9, 10, 11
   add a  ; taking into account 8 visible and 16 invisible margin
@@ -371,7 +375,7 @@ draw_cursor:
 
   ldh a, [cursor_y]
   cp 1
-  ldh a, [cursor_x]
+  ld a, c
   jr nz, .not_line_1
     xor a
   .not_line_1:
@@ -436,6 +440,22 @@ move_left_right_limit_c::
     dec a
   .no_cursor_x_clamp:
   ldh [cursor_x], a
+  ret
+
+a_left_right_mod_c::
+  bit PADB_LEFT, b
+  jr z, .not_move_left
+    dec a
+    add c
+  .not_move_left:
+  bit PADB_RIGHT, b
+  jr z, .not_move_right
+    inc a
+  .not_move_right:
+  ; Wrap within 0 through C-1
+  cp c  ; If not greater than C, wrap
+  ret c
+  sub c
   ret
 
 ;;
@@ -525,8 +545,10 @@ handle_input:
 
     ; Don't change any digit if on runtype line
     ldh a, [cursor_y]
+    cp NUM_ABOVE_REGPAIRS+NUM_REGPAIRS
+    jr z, .y_is_font
     cp 1
-    jr z, .y_is_1
+    jr z, .y_is_runtype
 
     ; Begin calculating address of digit to change
     jr c, .changing_inst_digit
@@ -565,37 +587,39 @@ handle_input:
     call draw_result_regs
   .not_release_a_rerun:
 
-  ld c, NUM_ABOVE_REGPAIRS + NUM_REGPAIRS
+  ld c, NUM_ABOVE_REGPAIRS + NUM_REGPAIRS + NUM_BELOW_REGPAIRS
   call move_up_down_limit_c
   .not_up_down:
 
   ; Calculate width of this row
   ldh a, [cursor_y]
   ld c, 12  ; width
+  cp NUM_ABOVE_REGPAIRS+NUM_REGPAIRS
+  jr z, .y_is_font
   cp 1
   jr c, .move_x_in_row_width_c  ; row 0: inst
   ld c, 4
   jr nz, .move_x_in_row_width_c  ; row 2-6: 16-bit regs
-  .y_is_1:
+  .y_is_runtype:
 
     ; Left and Right on row 1 change the runtype, with wrapping
     ldh a, [runtype]
-    ld c, a  ; C: old runtype
-    bit PADB_LEFT, b
-    jr z, .not_prev_runtype
-      add NUM_RUNTYPES - 1  ; Intentionally wrap to cycle backward
-    .not_prev_runtype:
-    bit PADB_RIGHT, b
-    jr z, .not_next_runtype
-      add 1
-    .not_next_runtype:
-    cp NUM_RUNTYPES
-    jr c, .no_runtype_wrap
-      sub NUM_RUNTYPES  ; Wrap around
-    .no_runtype_wrap:
+    ld d, a  ; D: old runtype
+    ld c, NUM_RUNTYPES
+    call a_left_right_mod_c
     ldh [runtype], a
-    cp c
+    cp d
     call nz, draw_runtype  ; Redraw if changed
+    ret
+  .y_is_font:
+    ldh a, [cur_font]
+    ld d, a  ; D: old runtype
+    ld c, NUM_FONTS
+    call a_left_right_mod_c
+    ldh [cur_font], a
+    xor d
+    ret z
+    ldh [font_dirty], a
     ret
 
   .move_x_in_row_width_c:
@@ -670,5 +694,88 @@ hblank_put_bc::
   inc e
   ret
 
-font_1b: incbin "obj/gb/Crash_dump_uncial.1b"
+; Fonts ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;
+; Copy from HL to DE, stopping at terminating $FF
+stpcpy_write:
+  ld [de], a
+  inc hl
+  inc de
+stpcpy:
+  ld a, [hl]
+  cp $FF
+  jr nz, stpcpy_write
+  ret
+
+check_reload_font:
+  ldh a, [font_dirty]
+  or a
+  ret z
+  xor a
+  ldh [font_dirty], a
+
+  ; Write font name, assuming we're in vblank
+  ldh a, [cur_font]
+  add a
+  add a
+  add low(font_ptrs)
+  ld l, a
+  adc high(font_ptrs)
+  sub l
+  ld h, a
+  ld a, [hl+]
+  push hl
+  ld h, [hl]
+  ld l, a
+  ldxy de, 6, 12
+  call stpcpy
+  ld h, d
+  ld l, e
+  ; ld a, $FF
+  ld c, $10
+  call memset_tiny
+
+  ; Begin copying font data in hblanks
+  pop hl
+  inc hl
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a
+  ld de, CHRRAM0
+  ld bc, (-320) & $FFFF
+  .cpfontloop:
+    ld a, [hl+]
+    push bc
+    ld b, a
+    ld c, a
+    call hblank_put_bc
+    dec e
+    inc de  ; hblank_put_bc is normally for hblanking
+    pop bc
+    inc c
+    jr nz, .cpfontloop
+    inc b
+    jr nz, .cpfontloop
+  ret
+
+font_ptrs:
+  dw font_uncial_name, font_uncial
+  dw font_issotm_name, font_issotm
+  dw font_quizshow_name, font_quizshow
+  dw font_wasted_name, font_wasted
+  dw font_liji_name, font_liji
+.end:
+NUM_FONTS equ (font_ptrs.end - font_ptrs) / 4
+
+font_uncial:   incbin "obj/gb/font_uncial.1b"
+font_issotm:   incbin "obj/gb/font_ISSOtm.1b"
+font_quizshow: incbin "obj/gb/font_Quizshow.1b"
+font_wasted:   incbin "obj/gb/font_Wasted.1b"
+font_liji:   incbin "obj/gb/font_LIJI.1b"
+font_uncial_name:   db "UNCIAL", $FF
+font_issotm_name:   db "ISSOTM", $FF
+font_quizshow_name: db "QUIZSHOW", $FF
+font_wasted_name:   db "WASTED", $FF
+font_liji_name:     db "LIJI32", $FF  ; orig. for a Pkmn Crystal hack
 
