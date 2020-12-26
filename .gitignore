@@ -18,6 +18,7 @@ rew.ini
 nes/numism.nes
 nes/map.txt
 reporting/.cache
+reporting/sortshootout.html
 world/.cache
 __pycache__
 
