@@ -28,6 +28,7 @@ TypeError: replace() argument 2 must be str, not None
 """
 
 stylesheet = """
+/* Original stylesheet by Daid */
 table { border-collapse: collapse }
 td, th { border: #333 solid 1px; text-align: center; line-height: 1.5}
 .PASS { background-color: #6e2 }
@@ -38,6 +39,8 @@ th { background:#eee }
 th:first-child { text-align:right; padding-right:4px }
 body { font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif }
 
+/* additions by Pino */
+td>img { vertical-align: text-bottom }
 """
 
 htmlns = {
@@ -114,7 +117,7 @@ def input_emu(prompt, emunames):
         "%4d: %s (%d)" % (i + 1, n, c) for i, (n, c) in enumerate(emunames)
     )
     xprompt = "\n".join((
-        prompt, xprompt, "Enter a number from 1 to %s:" % len(emunames)
+        prompt, xprompt, "Enter a number from 1 to %d: " % len(emunames)
     ))
     while True:
         num = input(xprompt).strip()
@@ -192,11 +195,29 @@ def main(argv=None):
     # [(testname, [(passing, image), ...]), ...]
 
     # Now make our own table based on this
-    title = ("Shootout: %s vs. %s" % (new_emunames[0][0], new_emunames[1][0])
-             if col2ok is not None
-             else "Shootout: %s vs. other emulators" % (new_emunames[0][0])
-             if col1ok is not None
-             else "Game Boy emulator shootout")
+    title, subtitle = "Game Boy emulator shootout", ""
+    if col2ok is not None:
+        # Calculate subtitle for pass/fail differences
+        emu1, emu2 = new_emunames[0][0], new_emunames[1][0]
+        title = "Shootout: %s vs. %s" % (emu1, emu2)
+        pass1not2 = pass2not1 = 0
+        for row in rows:
+            pass1, pass2 = row[1][0][0], row[1][1][0]
+            if pass1 and not pass2: pass1not2 += 1
+            if pass2 and not pass1: pass2not1 += 1
+        pass1not2_pl = "tests" if pass1not2 != 1 else "test"
+        pass2not1_pl = "tests" if pass2not1 != 1 else "test"
+        subtitle = ("%s passes %d %s that %s fails, and %s passes %d %s that %s fails."
+                    % (emu1, pass1not2, pass1not2_pl, emu2,
+                       emu2, pass2not1, pass2not1_pl, emu1))
+    elif col1ok is not None:
+        title = "Shootout: %s vs. other emulators" % (new_emunames[0][0])
+        tests_pl = "tests" if new_emunames[0][1] != 1 else "test"
+        subtitle = ("%s passes %d %s."
+                    % (new_emunames[0][0], new_emunames[0][1], tests_pl))
+        values1 = sum(1 for v in allresults[new_emunames[0][0]].values() if v[0])
+
+    print(subtitle)
     out = [
         """<!DOCTYPE HTML><html><head><meta charset="utf-8"><title>""",
         H(title),
@@ -204,15 +225,13 @@ def main(argv=None):
         stylesheet,
         """</style></head><body><h1>""",
         H(title),
-        """</h1>
-<p>
-Based on a data set by Daid.
+        "</h1>\n<p>", H(subtitle), """
+Based on test ROM results by Daid.
 </p><table id="results"><thead>\n<tr><th>Name of test</th>"""
     ]
 
     out.extend("<th>%s (%d)</th>" % row for row in new_emunames)
     out.append("</tr>\n</thead><tbody>\n")
-    print("".join(out))
     out.extend(format_row(row, new_emunames) for row in rows)
     out.append("</tbody></table></body></html>")
 
