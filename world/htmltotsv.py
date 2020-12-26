@@ -29,8 +29,8 @@ def main(argv=None):
         
     infilename = argv[1]
     outfilename = argv[2] if len(argv) > 2 else '-'
-    body = open(infilename, "r")
-    doc = html5lib.parse(body)
+    with open(infilename, "r", encoding="utf-8") as infp:
+        doc = html5lib.parse(infp)
 
     # Find the table in this document with the most rows, where
     # a "row" is a tr child of a thead/tbody child of a table

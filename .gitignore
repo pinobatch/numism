@@ -3,6 +3,7 @@
 *.gb
 *.nes.deb
 *.ram.nl
+*.cdl
 *.dbg
 *.map
 *.sym
@@ -16,7 +17,7 @@ kigb.cfg
 rew.ini
 nes/numism.nes
 nes/map.txt
-*.cdl
+reporting/.cache
 world/.cache
 __pycache__
 
