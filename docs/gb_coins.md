@@ -71,9 +71,10 @@ Emulator     | Stage 1 | Stage 2
 ------------ | ------: | ------:
 sameboy      |  10/10  |  10/10
 bgb          |  10/10  |   9/10
-mgba         |  10/10  |   9/10
+mesen-s      |  10/10  |   9/10
 gambattehawk |  10/10  |   9/10
 gambatte     |  10/10  |   9/10
+mgba         |  10/10  |   9/10
 vba-m        |  10/10  |   8/10
 goomba       |   5/10  |   5/10
 kigb         |   3/10  |   6/10

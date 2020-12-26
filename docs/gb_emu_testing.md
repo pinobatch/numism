@@ -40,6 +40,12 @@ copyrighted BIOS file, and unlike with the Game Boy Advance BIOS,
 there is no loophole through which to dump the Game Boy Color BIOS
 through the Game Pak slot.
 
+Prerelease versions of the Super NES emulator Mesen-S also support
+Game Boy with an aim toward supporting Super Game Boy.  However,
+Mono 6.12 from Mono Project's repository has regressions that break
+things in Mesen-S as well as the NES emulator Mesen. So I reverted to
+Mono 6.10 from Ubuntu's repository for running Mesen-S and BizHawk.
+
 [VisualBoyAdvance] 1.7.2 for Windows (from before the VBA-M fork)
 requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
 redistributable package, sometimes called [vcredist].
@@ -66,21 +72,25 @@ ROMs by Shay Green (known in the scene as Blargg) that measure
 CPU-visible behaviors.  The tests show the following results in
 NO$GMB 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
 Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
-Gambatte r696, BizHawk 2.5.2 Gambatte, and mGBA 0.9-6554-a2cd8f6cc:
+Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte, and
+mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
-  VBA 6 of 11; rew. 7 of 11; NO$GMB and KiGB 9 of 11; VBA-M, BGB, mGBA, and Goomba pass
+  VBA 6 of 11; rew. 7 of 11; NO$GMB and KiGB 9 of 11;
+  VBA-M, BGB, mGBA, Mesen, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ rew. hangs with 0 of 11; NO$GMB and VBA 0 of 12; Goomba 1 of 12; VBA-M 7 of 12; mGBA 10 of 12; BGB passes
+  KiGB _crashes;_ rew. hangs with 0 of 11; NO$GMB and VBA 0 of 12;
+  Goomba 1 of 12; VBA-M and Mesen-S 7 of 12; mGBA 10 of 12; BGB passes
 - Halt Bug  
   VBA and rew. enter a reset loop; KiGB and Goomba fail; others pass
 - Instr Timing  
-  NO$GMB and KiGB hang; rew. and Goomba fail #255; VBA-M, BGB, and mGBA pass
+  NO$GMB and KiGB hang; rew. and Goomba fail #255; others pass
 - Mem Timing 2  
-  KiGB _crashes;_ VBA, NO$GMB, rew., and Goomba 0 of 3; VBA-M 2 of 3; BGB and mGBA pass
+  KiGB _crashes;_ VBA, NO$GMB, rew., and Goomba 0 of 3; VBA-M 2 of 3;
+  others pass
 - OAM Bug  
   VBA, NO$GMB, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
-  rew., VBA-M, BGB, and mGBA 3 of 8
+  rew., VBA-M, BGB, Mesen, and mGBA 3 of 8
 
 SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
 BizHawk Gambatte are identical to BGB.
@@ -91,7 +101,6 @@ was added.
 
 These emulators have not yet been tested:
 
-- Mesen-S (pending fix of settings not saving in Mono version)
 - GameYob and Lameboy in DeSmuME or MelonDS
 - helloGB
 - TGB Dual
@@ -391,7 +400,7 @@ approach will be needed.
 
 VBA-M fails 3 (01).
 
-TODO: Ask gbdev #emudev which games actually depend on working memory timing
+TODO: Ask gbdev #emudev which games depend most on working memory timing
 
 ### OAM bug
 
@@ -420,7 +429,7 @@ debug clocks after the instruction that turns on the LCD, not 114 as
 expected.  I also noticed that DIV changes greatly when LCD is turned
 back on.  KiGB also fails, and it has no debugger to explain why.
 
-VBA-M, mGBA, and even bgb 1.5.8 all fail 2 (02), 4 (03), 5 (02),
+VBA-M, mGBA, Mesen, and BGB all fail 2 (02), 4 (03), 5 (02),
 7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
 
 To write my own rough OAM bug test, I first needed to prove to myself
@@ -498,13 +507,13 @@ mode 2 on that line to the start of the following mode 0.
   42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
 - Mid-tier (or "M-tier") emulators show some sort of variance between
   0 and 10 sprites.  
-  42 to 67 (VBA-M), 42 to 57 (mGBA)
+  42 to 67 (VBA-M), 42 to 57 (mGBA), 42 to 70 (Mesen-S)
 - Low-tier emulators show constant duration.  
   42 (rew.), 47 (VBA), 48 (KiGB)
 - Two emulators don't get the hint, not firing the second interrupt.  
   1 (NO$GMB, Goomba)
 
-NO$GMB interrupt behavior is especially hard to characterize
+NO$GMB interrupt behavior is deviously hard to characterize
 because it has a [Heisenbug]: it differs based on whether
 step debugging is active.
 
@@ -513,8 +522,8 @@ immediately goes through, and I can see the step debugger jump into
 the STAT handler.  In NO$GMB, I see the effect of the STAT handler
 when running normally.  If I put a breakpoint before the IE write and
 step through it, the IE and IF in the I/O map change but the handler
-doesn't get called.  Stepping by some amounts even causes the initial
-SP and initial IEIF variables in the exerciser to get corrupted.
+doesn't get called.  Stepping by some amounts even corrupts the
+initial SP and initial IEIF variables in the exerciser.
 ```
 INST FB40000000E2, AF 0200, BC 00FF, IEIF 0112
 ; disassembles to
