@@ -165,12 +165,13 @@ row - a tuple (testname, [(passing, imgsrc), ...])
 
 def main(argv=None):
     mainshootout = load_shootout(".cache/Daid-shootout.html")
-    mgba_extra = load_shootout(".cache/Daid-shootout-mgba.html")
     emunames, testnames, allresults = mainshootout
-    emunames = [x for x in emunames if x[0] != 'mGBA']
-    emunames.extend(mgba_extra[0])
-    allresults.update(mgba_extra[2])
-    del mgba_extra
+
+##    mgba_extra = load_shootout(".cache/Daid-shootout-mgba.html")
+##    emunames = [x for x in emunames if x[0] != 'mGBA']
+##    emunames.extend(mgba_extra[0])
+##    allresults.update(mgba_extra[2])
+##    del mgba_extra
 
     print("Sorting tests based on decreasing pass rate")
     print("Optional: Choose emulators that one or two pass")
