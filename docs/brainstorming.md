@@ -18,9 +18,10 @@ actuator and then standing back up.
 
 ### Movement upgrades
 
-Early on, you can't die.  If you cannot cross an obstacle, you'll
-just stop.  Buying upgrades helps you cross more obstacles and reach
-more coins.
+Early on, your movement is grid-aligned, as in so-called "cinematic"
+platformers, and you can't die.  If you cannot cross an obstacle,
+you'll just stop.  Buying upgrades helps you cross more obstacles
+and reach more coins.
 
 - **Before the first upgrade**  
   Move on ground, crouch, ascend one cell, descend two cells, ascend
@@ -52,6 +53,17 @@ The title screen has "Start" and "Continue" option.  "Continue" looks
 for fake coins and lets you choose to start at any section with no
 fake coins or the first section with at least one fake coin, having
 all coins and upgrades from previous sections.
+
+### Tropes in use
+
+The concept of collecting coins in the game world and turning them in
+for mobility upgrades that allow reaching more coins is reminiscent
+of 1990s collectathon platformers.
+
+- [Gotta Catch Them All](https://allthetropes.org/wiki/Gotta_Catch_Them_All)
+- [Cash Gate](https://allthetropes.org/wiki/Cash_Gate)
+- [You Must Be This Tall to Enter](https://allthetropes.org/wiki/You_Must_Be_This_Tall_to_Enter)
+- [Invisible Grid](https://allthetropes.org/wiki/Invisible_Grid)
 
 The tests
 ---------
