@@ -7,7 +7,7 @@ include "src/global.inc"
 ; passes.
 
 COINS_PER_STAGE equ 10
-NUM_STAGES equ 2
+NUM_STAGES equ 3
 WITH_DEBUGHEX equ 0
 
 section "passbits", WRAM0, ALIGN[2]

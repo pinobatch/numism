@@ -45,12 +45,15 @@ A preliminary list for stages 1 and 2 is complete.
 18. NR52 bits 6-0 are read-only
 19. `push bc pop af push af pop de` sets DE=BC&$FFF0
 20. `inc hl` in mode 2 corrupts OAM only on DMG
+21. Wave RAM can't be read back during a wave note (cf. Demotronic
+    "NO BOY" and Blargg dmg_sound 09)
+22. Alternating `ei di` calls no handler (VBA-M regression vs. VBA)
+23. STAT=LYC+hblank+OAM causes halt in hblank on line LYC-1 to extend
+    into hblank on LYC+1
 
 Unranked
 
 - GBC palette can be written and read back during vblank only on GBC
-- Wave RAM locked while playing: reads return $FF or the byte at
-  the play position (the Demotronic test/Blargg dmg_sound 09)
 - Joypad interrupt works at all
 - Joypad interrupt happens at different LY values (Telling LYs?)
 - Asserting P14/P15 while holding a button causes joypad interrupt
@@ -61,23 +64,26 @@ Unranked
 - Something something mid-scanline WX changes (suggested by LIJI)
 - Enabling hblank and OAM in STAT causes one interrupt, not two
 - Writing anything to STAT during mode 3 outside LYC causes an
-  immediate extra interrupt only on DMG
-  (suggested by organharvester)
+  immediate extra interrupt only on DMG (suggested by organharvester)
 
 Results
 -------
+We do not list results for no$gmb past stage 2 because stage 3 is
+where divergence between GB and GBC becomes more noticeable.
 
-Emulator     | Stage 1 | Stage 2
------------- | ------: | ------:
-sameboy      |  10/10  |  10/10
-bgb          |  10/10  |   9/10
-mesen-s      |  10/10  |   9/10
-gambattehawk |  10/10  |   9/10
-gambatte     |  10/10  |   9/10
-mgba         |  10/10  |   9/10
-vba-m        |  10/10  |   8/10
-goomba       |   5/10  |   5/10
-kigb         |   3/10  |   6/10
-no$gmb       |   0/10  |   7/10
-vba          |   6/10  |   1/10
-rew.         |   2/10  |   2/10
+Emulator     | Stage 1 | Stage 2 | Stage 3
+------------ | ------: | ------: | ------:
+emulicious   |  10/10  |  10/10  |   3/3
+sameboy      |  10/10  |  10/10  |   3/3
+bgb          |  10/10  |   9/10  |   3/3
+mesen-s      |  10/10  |   9/10  |   2/3
+gambattehawk |  10/10  |   9/10  |   3/3
+gambatte     |  10/10  |   9/10  |   3/3
+mgba         |  10/10  |   9/10  |   3/3
+vba-m        |  10/10  |   8/10  |   0/3
+goomba       |   5/10  |   5/10  |   0/3
+kigb         |   3/10  |   6/10  |   2/3
+no$gmb       |   0/10  |   7/10  |**$**/3
+vba          |   6/10  |   1/10  |   1/3
+rew.         |   2/10  |   2/10  |   1/3
+
