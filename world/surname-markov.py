@@ -21,8 +21,8 @@ I use the Britain and America data sets (uk.txt and us.txt).
 import sys
 from collections import defaultdict, Counter
 from math import log2
-import heapq
 from heapq import heappush, heappop
+import csv
 
 # First run one of these
 #     sort(ls): fully sort ls in O(n*log(n)) time
@@ -95,6 +95,9 @@ def sur(model, letters, ctxsize=CTXSIZE):
             # Endings are important for flavor.  If the context
             # can end a name, add ending bits.
             if None not in allnexts: continue
+
+            # One out of every endingamt names ends with this context
+            # so estimate how many bits of surprisal that represents
             endingamt = endingdenom / model['$'][context]
             endingbits = int(round(1000 * log2(endingamt)))
             yield bits + endingbits, word, ''
@@ -113,8 +116,9 @@ def sur(model, letters, ctxsize=CTXSIZE):
                   % (len(heap), word, lettersleft, bits, repr(nexts)))
         lettersleft = Counter(lettersleft)
         for k, freq in nexts:
+            # If this context is allowed to end a name, emit the
+            # name with the remaining letter as a middle initial
             if k is None:
-                # Handle middle initial
                 mi = "".join(lettersleft.elements())
                 endingamt = endingdenom / model['$'][context]
                 endingbits = int(round(1000 * log2(endingamt)))
@@ -129,20 +133,22 @@ def sur(model, letters, ctxsize=CTXSIZE):
             lettersleft[k] += 1
             heappush(heap, (newprio, newbits, word + k, newletters))
 
-def sur_given(model, word, given, notendswith=None):
-    # At one point, the model was a bit too permissive as it ran out
-    # of options near the end of a name, producing a lot of names
-    # not fitting the desired aesthetic.  The endingdenom mechanism
+def sur_given(model, word, given, notendswith=None, tracename=None):
+    # At one point, the model was a bit too permissive as it ran
+    # out of options near the end of a name, producing a lot of
+    # names not fitting the desired aesthetic for ending in
+    # "ong", "ebo", "ngo", and the like.  The endingdenom mechanism
     # mostly solved this.  Let the caller reject suffixes anyway.
     if notendswith:
         notendswith = tuple(set(s.lower() for s in notendswith))
     else:
         notendswith = tuple()
+    tracename = tracename.lower() if tracename else None
 
     lettersleft = Counter(rm_nonletters(sorted(word)))
     for c in rm_nonletters(given):
         if lettersleft[c] <= 0:
-            print("can't remove %s from %s" % (word, given))
+##            print("can't remove %s from %s" % (word, given))
             return
         lettersleft[c] -= 1
     lettersleft = ''.join(lettersleft.elements())
@@ -152,20 +158,24 @@ def sur_given(model, word, given, notendswith=None):
     mi_penalty = 5000
     for bits, last, mi in sur(model, lettersleft):
         if last.endswith(notendswith): continue
-
-        # The name Mindy Beageonton (Bee-jin-tun) was found manually
-        # and is a benchmark
-##        if last == 'beageonton':
-##            print("special name has %d.%03d bits"
-##                  % (bits // 1000, bits % 1000))
-
         parts = [given]
         if mi:
             parts.append(mi.upper() + ".")
             bits += mi_penalty
-        parts.append(last[0].upper() + last[1:])
-        lines.append((bits, " ".join(parts)))
+        lastcap = last[0].upper() + last[1:]
+        parts.append(lastcap)
+        parts = " ".join(parts)
+
+        # The name Mindy Beageonton (Bee-jin-tun) was found manually
+        # and is a benchmark of how well the algorithm fits the
+        # desired aesthetic.  Pass tracename="beageonton" to activate
+        if last == tracename:
+            print("special name %s has %d.%03d bits"
+                  % (parts, bits // 1000, bits % 1000))
+
+        lines.append((bits, parts))
         if len(lines) % 10000 == 0: print(len(lines))
+
     lines.sort()
     del lines[200:]
     print("\n".join(
@@ -173,26 +183,46 @@ def sur_given(model, word, given, notendswith=None):
         for i, (bits, name) in enumerate(lines)
     ))
 
-def sur_multigiven(model, word, givens, notendswith=None):
+def sur_multigiven(model, word, givens, **kwargs):
     for given in givens:
-        sur_given(model, word, given, notendswith=notendswith)
+        sur_given(model, word, given, **kwargs)
+
+def find_mindy(surmodel):
+    sur_multigiven(surmodel, "nintendogameboy",
+                   ["Mindy", "Amy", "Amie", "Toni"],
+                   tracename="Beageonton")
+    sur_multigiven(surmodel, "familycomputer",
+                   ["Emily", "Amy", "Amie"],
+                   tracename="MacProut")
+
+othergivens = """
+Tess Tessa 
+""".split()
 
 def main():
     with open(".cache/surnames-uk.txt", "r") as infp:
         surnames = list(infp)
     with open(".cache/surnames-us.txt", "r") as infp:
         surnames.extend(infp)
-    surmodel = makemarkov(surnames)
 
-    notendswith = [
-        # "ong", "ebo", "ngo"
-    ]
-    sur_multigiven(surmodel, "nintendogameboy",
-                   ["Mindy", "Amy", "Amie", "Toni"],
-                   notendswith=notendswith)
-    sur_multigiven(surmodel, "familycomputer",
-                   ["Emily", "Amy", "Amie"],
-                   notendswith=notendswith)
+    givens = set(othergivens)
+    for filename in [".cache/names1920s.tsv"]:
+        with open(filename, "r", newline="") as infp:
+            reader = csv.reader(infp, "excel-tab")
+            headings = next(reader)
+            colid = headings.index("female name")
+            givens.update(row[colid] for row in reader)
+    givens = sorted(givens)
+        
+    surmodel = makemarkov(surnames)
+    find_mindy(surmodel)
+
+    # This produces gems like
+    # Mary Messetts, Tess Strammey, and Tessa Symmert
+    sur_multigiven(surmodel, "mastersystem", givens)
+    # Tried "segagamegear" but too many G's for the givens I have.
+    # Even the boy's name "Greg" gives less-than-natural results
+
 
 if __name__=='__main__':
     main()
