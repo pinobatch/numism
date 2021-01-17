@@ -56,7 +56,7 @@ def main(argv=None):
     # Write them out in Pino's favorite format for tabular data since
     # he started working at a radio control car and tabletop game
     # shop in 2007: tab-separated.
-    outfp = (open(outfilename, "w", newline='') if outfilename != ''
+    outfp = (open(outfilename, "w", newline='') if outfilename != '-'
              else sys.stdout if 'idlelib' in sys.modules
              else io.TextIOWrapper(sys.stdout.buffer, newline=""))
     writer = csv.writer(outfp, "excel-tab")
