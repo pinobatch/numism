@@ -6,13 +6,13 @@ Emulators under test
 When starting out, I'd like the emulators to be evenly spaced on the
 accuracy front.
 
-First I plan to test Mesen, FCEUX, no$nes, and PocketNES.
-Other emulators I'd like to test include
-NESticle, loopyNES, NESten, rew., RockNES, and PuNES.
+I've tested Mesen (Sour final), FCEUX 2.3.0 (New PPU), No$nes 1.2,
+and PocketNES 2013-07-01.  Other emulators I'd like to test include
+NESticle, loopyNES, NESten, rew., RockNES, and puNES.
 
 PocketNES v7a and later require an extended 48-byte header before
 the iNES header.  ROM builders are expected to follow this format
-described in the [PocketNES FAQ].
+described in the [PocketNES FAQ], for which I wrote [my own builder].
 
 - 32 bytes: ROM title (NUL terminated)
 - 4 bytes: ROM size (iNES header + PRG ROM + CHR ROM)
@@ -28,6 +28,7 @@ described in the [PocketNES FAQ].
 - 8192*c bytes: CHR ROM
 
 [PocketNES FAQ]: https://web.archive.org/web/20131102194638/http://pocketnes.org/faq.html
+[my own builder]: ../nes/tools/pnesbuild.py
 
 Blargg's tests
 --------------
@@ -75,6 +76,28 @@ the preceding tests.
 
 * Pass: Mesen
 * Fail: FCEUX, No$nes, PocketNES (all #3: LDA abs,x)
+* Source code not included in zip; cpow's repo has [cpu_dummy_reads.s]
+
+Though I don't have an NES exerciser yet, and I estimate that
+instructions under test will be less dense than on Game Boy,
+I can offer conjectures to be tested when I do build an exerciser.
+No$nes fails to perform the dummy read with $2102 then $2002:
+```
+jsr wait_vbl_no_ack
+ldx #$22
+lda $20E0,x  ; read $2002 then $2102 twice, first D7=1 then D7=0
+bmi @test_failed
+```
+FCEUX fails to perform the dummy read with $3F02 then $4002:
+```
+jsr wait_vbl_no_ack
+ldx #$22
+lda $3FE0,x  ; read $3F02 then $4002, once with D7=1 once open bus
+lda $2002    ; Second read D7=0
+bpl @test_failed
+```
+A test for this must take care not to assume facts not in evidence,
+such as NESticle's failure to acknowledge NMI at $2002.
 
 `cpu_interrupts_v2`
 
@@ -90,7 +113,7 @@ the preceding tests.
 
 * Mesen: 2/2
 * FCEUX: 1/2  
-  `1-instr_timing`: Instructions E2 and BB have  wrong cycle counts
+  `1-instr_timing`: Instructions E2 and BB have wrong cycle counts
 * PocketNES: 0/2  
   The tests report many instructions as taking 0 cycles, which I
   attribute to speed hacks that let games run on a sub-20 MHz CPU.
