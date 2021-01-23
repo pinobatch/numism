@@ -71,9 +71,11 @@ incompatible with historic Windows.
   elsewhere, one emulator developer has often complained about
   GitHub's use of TLS 1.2 and forced redirection to HTTPS.
 
-Thus prior to the official announcement, I feel comfortable building
+Prior to the official announcement, I feel comfortable building
 Numism on GitHub and discussing it on Discord and Element.
-I'm willing to consider other venues.
+I'm willing to consider other venues.  I may need to be more
+careful now that commit messages are citing Numism by name,
+such as [commit 87466ead27] of Gusboy.
 
 `IT'S A SECRET TO EVERYBODY.`  (That's [Moblin] for "Let's keep it
 between us, OK?")
@@ -87,4 +89,5 @@ between us, OK?")
 [RetroZilla Suite]: https://rn10950.github.io/RetroZillaWeb/
 [Pat07's question]: https://support.mozilla.org/en-US/questions/1262427
 [nesdev BBS #263685]: https://forums.nesdev.com/viewtopic.php?p=263685#p263685
+[commit 87466ead27]: https://github.com/Guspaz/Gusboy/commit/87466ead27677ddabe7e42822aa71425a53b6c3a
 [Moblin]: https://zeldauniverse.net/2020/08/18/zeldas-study-its-a-secret-to-nobody/

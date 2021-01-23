@@ -65,6 +65,13 @@ of 1990s collectathon platformers.
 - [You Must Be This Tall to Enter](https://allthetropes.org/wiki/You_Must_Be_This_Tall_to_Enter)
 - [Invisible Grid](https://allthetropes.org/wiki/Invisible_Grid)
 
+### Art style inspirations
+
+A little bit of Alice, a little bit of Cirno...
+
+* [A Princess in Fairyland](https://opengameart.org/content/a-princess-in-fairyland), an OpenGameArt.org collection by OptimusDu
+
+
 The tests
 ---------
 Flip the coin over, and Numism is a test ROM.  Each coin represents
