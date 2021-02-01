@@ -15,13 +15,13 @@ that make up a stage and displays their results.  I set out during
 this sprint to fill the majority of stages 1 and 2 with coins, and
 with 19 out of 20 complete, I believe I succeeded.
 
-1. 
-2. 
+1. GB: Make instruction timer
+2. NES: Design title and continue screens
 3. 
 4. 
 5. 
 6. 
-7. Make instruction timer
+7. 
 8. 
 9. 
 10. 
@@ -31,7 +31,7 @@ with 19 out of 20 complete, I believe I succeeded.
 Cels
 ----
 Animate the character to the point where I can start teasing things
-on Twitter.
+on Twitter.  This is blocked on reference video for rotoscoping.
 
 1. Walk
 2. Sudden stop

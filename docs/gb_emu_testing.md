@@ -512,6 +512,8 @@ mode 2 on that line to the start of the following mode 0.
   42 (rew.), 47 (VBA), 48 (KiGB)
 - Two emulators don't get the hint, not firing the second interrupt.  
   1 (NO$GMB, Goomba)
+- One emulator tested later didn't support STAT interrupts at all.  
+  Hang at `halt` (Geebly as of commit 36519c7a37, 2021-01-31)
 
 NO$GMB interrupt behavior is deviously hard to characterize
 because it has a [Heisenbug]: it differs based on whether
