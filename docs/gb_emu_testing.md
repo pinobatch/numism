@@ -548,6 +548,28 @@ reaching high enough to clock the APU's sequencer.  As expected,
 the usual suspects (VBA, Goomba, KiGB, rew., NO$GMB) all fail.  It's
 also my first coin that distinguishes VBA-M (fail) from mGBA (pass).
 
+### Echo RAM
+
+Echo RAM at $E000-$FDFF is a mirror of most of WRAM at $C000-$DFFF.
+Some mappers incompletely decode SRAM at $A000 using only A13, not
+both A13 and A14.  On these cartridges, writes to echo RAM go to both
+WRAM and SRAM, and reads from echo RAM produce a bus conflict as both
+memories put different values on the data bus.  For this reason,
+Nintendo required licensed games to avoid reading or writing
+echo RAM.  Yet in practice, it's safe on cartridges that completely
+decode SRAM or lack SRAM entirely.
+
+This exerciser shows that VBA 1.7 doesn't support echo RAM at all.
+```
+INST 70124E000000, AF 6900, BC A500, DE EFFF, HL CFFF
+; disassembles to
+ld [hl], b  ; Write to WRAM
+ld [de], a  ; Overwrite WRAM via echo RAM
+ld c, [hl]  ; Read WRAM
+```
+In BGB, it produces `accessing echo RAM` and ends up with C=69.
+VBA gives C=A5, indicating that the WRAM write didn't take.
+
 Other tests
 -----------
 Things I can think off the top of my head to make exercisers for:

@@ -50,6 +50,7 @@ A preliminary list for stages 1 and 2 is complete.
 22. Alternating `ei di` calls no handler (VBA-M regression vs. VBA)
 23. STAT=LYC+hblank+OAM causes halt in hblank on line LYC-1 to extend
     into hblank on LYC+1
+24. Writes to echo RAM ($E000-$FDFF) affect corresponding WRAM byte
 
 Unranked
 

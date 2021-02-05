@@ -1,18 +1,47 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
+; wCoinTmp must be below $DE00 to be mirrored into echo RAM.
+; Thus I put it in WRAM0, not WRAMX.
+section "COINSWRAM", WRAM0
+wCoinTmp: ds 1
+
 section "COINS", ROM0, ALIGN[2]
 
 coin_list::
   ; stage 1: things no$gmb fails
-  dw coin_add_hl_flags, coin_add_sp_flags, coin_apu_off_ignore_writes, coin_apu_or_mask, coin_apu_sweep_status
-  dw coin_apu_len_env00_status, coin_div_increases, coin_lyc_to_hint, coin_start_timer, coin_vram_blocked_writes
+  dw coin_add_hl_flags
+  dw coin_add_sp_flags
+  dw coin_apu_off_ignore_writes
+  dw coin_apu_or_mask
+  dw coin_apu_sweep_status
+  dw coin_apu_len_env00_status
+  dw coin_div_increases
+  dw coin_lyc_to_hint
+  dw coin_start_timer
+  dw coin_vram_blocked_writes
   ; stage 2: things vba fails
-  dw coin_ei_if_write, coin_di_halt_sets_if, coin_di_halt_2inc, coin_di_halt_no_handler, coin_daa_no_h
-  dw coin_div_stops_apu, coin_apu_off_clear, coin_apu_status_ro, coin_push_af_low_4, coin_oam_bug
+  dw coin_ei_if_write
+  dw coin_di_halt_sets_if
+  dw coin_di_halt_2inc
+  dw coin_di_halt_no_handler
+  dw coin_daa_no_h
+  dw coin_div_stops_apu
+  dw coin_apu_off_clear
+  dw coin_apu_status_ro
+  dw coin_push_af_low_4
+  dw coin_oam_bug
   ; stage 3: begin dmg/gbc differences; things vba-m fails
-  dw coin_wave_ram_locked, coin_ei_di, coin_stat_blocking, coin_no_24, coin_no_25
-  dw coin_no_26, coin_no_27, coin_wave_ram_retrigger, coin_gbc_palette_readback, coin_stat_write_ff
+  dw coin_wave_ram_locked
+  dw coin_ei_di
+  dw coin_stat_blocking
+  dw coin_echo_ram_write
+  dw coin_no_25
+  dw coin_no_26
+  dw coin_no_27
+  dw coin_wave_ram_retrigger
+  dw coin_gbc_palette_readback
+  dw coin_stat_write_ff
 
 
 ; Controls whether tests using init_silent_apu are audible.
@@ -1070,12 +1099,22 @@ set_stat_c_in_mode_3:
   ldh [rSTAT], a
   ret
 
-
-coin_no_24:
+coin_echo_ram_write:
   jr .start
-  db "Always pass for now",0
+  db "Echo RAM writes to WRAM",10
+  db "Value written to E000-FDFF",10
+  db "is read from corresponding",10
+  db "C000-DDFF",0
 .start:
-  or a
+  ld hl, wCoinTmp
+  ld de, wCoinTmp+$2000  ; echo RAM
+  ld a, $69  ; nice
+  ld b, $A5
+  ld [hl], b  ; Write to WRAM
+  ld [de], a  ; Overwrite WRAM via echo RAM
+  xor [hl]    ; Read WRAM
+  ret z
+  scf
   ret
 
 coin_no_25:
@@ -1109,6 +1148,7 @@ coin_wave_ram_retrigger:
   db "unlocking and relocking wave",10
   db "RAM corrupts it on B&W only",0
 .start:
+  call init_silent_apu
   or a
   ret
 
@@ -1127,6 +1167,76 @@ coin_stat_write_ff:
   db "Writing 0 to FF41 during",10
   db "mode 0, 1, 2, or LY=LYC",10
   db "fires interrupt on B&W only",0
+.start:
+  or a
+  ret
+
+coin_no_31:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_32:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_33:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_34:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_35:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_36:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_37:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_38:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_39:
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_40:
+  jr .start
+  db "Always pass for now",0
 .start:
   or a
   ret
