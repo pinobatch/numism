@@ -17,6 +17,7 @@ kigb.cfg
 rew.ini
 nes/numism.nes
 nes/map.txt
+nes/obj/nes/*.s
 reporting/.cache
 reporting/sortshootout.html
 world/.cache

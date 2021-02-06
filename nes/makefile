@@ -10,14 +10,15 @@
 #
 
 # These are used in the title of the NES program and the zip file.
-title = numism
-version = wip
+title := numism
+version := wip
 
 # Space-separated list of assembly language files that make up the
 # PRG ROM.  If it gets too long for one line, you can add a backslash
 # (the \ character) at the end of the line and continue on the next.
-objlist = main init bg \
-pads ppuclear unrom chrram bankcalltable
+objlist := popslide64 init unrom bankcalltable \
+  main continue \
+  pads ppuclear chrram nstripe vwf_draw vwf7
 
 AS65 = ca65
 LD65 = ld65
@@ -30,6 +31,9 @@ imgdir = tilesets
 EMU := fceux
 DEBUGEMU := ~/.wine/drive_c/Program\ Files\ \(x86\)/FCEUX/fceux.exe
 # other options for EMU are start (Windows) or xdg--open (Linux)
+
+# disable built-in rules
+.SUFFIXES:
 
 # Occasionally, you need to make "build tools", or programs that run
 # on a PC that convert, compress, or otherwise translate PC data
@@ -92,14 +96,15 @@ objlisto = $(foreach o,$(objlist),$(objdir)/$(o).o)
 map.txt $(title).nes: unrom512kbit.cfg $(objlisto)
 	$(LD65) -o $(title).nes -m map.txt -C $^
 
-$(objdir)/%.o: $(srcdir)/%.s $(srcdir)/nes.inc $(srcdir)/global.inc $(srcdir)/mmc1.inc
+$(objdir)/%.o: $(srcdir)/%.s \
+  $(srcdir)/nes.inc $(srcdir)/global.inc $(srcdir)/mmc1.inc $(srcdir)/popslide.inc
 	$(AS65) $(CFLAGS65) $< -o $@
 
 $(objdir)/%.o: $(objdir)/%.s
 	$(AS65) $(CFLAGS65) $< -o $@
 
 # Files that depend on .incbin'd files
-$(objdir)/chrram.o: $(objdir)/bggfx.chr $(objdir)/spritegfx.chr
+$(objdir)/chrram.o: $(objdir)/continuetiles.chr
 
 # This is an example of how to call a lookup table generator at
 # build time.  mktables.py itself is not included because the demo
@@ -108,7 +113,7 @@ $(objdir)/chrram.o: $(objdir)/bggfx.chr $(objdir)/spritegfx.chr
 $(objdir)/ntscPeriods.s: tools/mktables.py
 	$< period $@
 
-# Rules for CHR RAM
+# Rules for CHR data
 
 $(objdir)/%.chr: $(imgdir)/%.png
 	$(PY) tools/pilbmp2nes.py $< $@
@@ -116,4 +121,5 @@ $(objdir)/%.chr: $(imgdir)/%.png
 $(objdir)/%16.chr: $(imgdir)/%.png
 	$(PY) tools/pilbmp2nes.py -H 16 $< $@
 
-
+$(objdir)/vwf7.s: $(imgdir)/vwf7_cp240p.png
+	$(PY) tools/vwfbuild.py $< $@

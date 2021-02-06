@@ -7,7 +7,10 @@
 ; main.s
 .global OAM
 .global main, nmi_handler, irq_handler
-.globalzp cur_keys, new_keys, oam_used
+.globalzp cur_keys, new_keys, oam_used, nmis
+
+; continue.s
+.global continue_main
 
 ; bg.s
 .global draw_bg
@@ -21,7 +24,11 @@
 ; ppuclear.s
 .global ppu_clear_nt, ppu_clear_oam, ppu_screen_on
 
+; vwf_draw.s
+.global clearLineImg, vwfPutTile, vwfPuts, invertTiles
+.global copyLineImg_helpscreen
+
 ; bankcall ids
-.globalzp draw_player_sprite, load_chr_ram
+.globalzp load_continue_chr
 
 .endif

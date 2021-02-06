@@ -56,52 +56,16 @@ new_keys:      .res 2
 
   ; While in forced blank we have full access to VRAM.
   ; Copy CHR data to CHR RAM.
-  ldx #load_chr_ram
+  ldx #load_continue_chr
   jsr bankcall
 
-  ; Then load the nametable (background map).
-  jsr draw_bg
-
-forever:
-
-  ; Game logic
-  jsr read_pads
-
-  ; The first entry in OAM (indices 0-3) is "sprite 0".  In games
-  ; with a scrolling playfield and a still status bar, it's used to
-  ; help split the screen.  This demo doesn't use scrolling, but
-  ; yours might, so I'm marking the first entry used anyway.  
-  ldx #4
-  stx oam_used
-  ; adds to oam_used
-;  ldx #draw_player_sprite
-;  jsr bankcall
-  ldx oam_used
-  jsr ppu_clear_oam
+  jsr continue_main
 
 
-  ; Good; we have the full screen ready.  Wait for a vertical blank
-  ; and set the scroll registers to display it.
-  lda nmis
-vw3:
-  cmp nmis
-  beq vw3
-  
-  ; Copy the display list from main RAM to the PPU
   lda #0
-  sta OAMADDR
-  lda #>OAM
-  sta OAM_DMA
-  
-  ; Turn the screen on
-  ldx #0
-  ldy #0
-  lda #VBLANK_NMI|BG_0000|OBJ_1000
-  sec
-  jsr ppu_screen_on
-  jmp forever
-
-; And that's all there is to it.
+  sta PPUMASK
+  :
+    jmp :-
 .endproc
 
 .proc load_main_palette

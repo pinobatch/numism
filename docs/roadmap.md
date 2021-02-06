@@ -31,7 +31,8 @@ with 19 out of 20 complete, I believe I succeeded.
 Cels
 ----
 Animate the character to the point where I can start teasing things
-on Twitter.  This is blocked on reference video for rotoscoping.
+on Twitter.  This is blocked on reference video for rotoscoping,
+which in turn is blocked on weather.
 
 1. Walk
 2. Sudden stop

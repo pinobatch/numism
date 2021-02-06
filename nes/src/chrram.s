@@ -9,27 +9,29 @@
 ;
 .include "nes.inc"
 .include "mmc1.inc"
-.export load_chr_ram_far
+.export load_continue_chr_far
 
 .segment "BANK01"
-template_chr:
-  .incbin "obj/nes/bggfx.chr"
-;  .incbin "obj/nes/spritegfx.chr"
+continuetiles_chr:
+  .incbin "obj/nes/continuetiles.chr"
+
+.proc load_continue_chr_far
+  ldy #<continuetiles_chr
+  lda #>continuetiles_chr
+  ldx #>1024  ; X counts the remaining length of CHR in 256-byte units
+  ; fall through
+.endproc
 
 ;;
 ; Loads 8192 bytes of uncompressed data into CHR RAM.
-.proc load_chr_ram_far
-srclo = 0
-srchi = 1
-
-  lda #<template_chr
-  sta srclo
-  lda #>template_chr
+.proc load_chr_cb
+srclo = $00
+srchi = $01
+  sty srclo
   sta srchi
   ldy #0
   sty PPUADDR  ; set starting location in CHR RAM to $0000
   sty PPUADDR
-  ldx #>1536  ; X counts the remaining length of CHR in 256-byte units
 loop:
   lda (srclo),y
   sta PPUDATA

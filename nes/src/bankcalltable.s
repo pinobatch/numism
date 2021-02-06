@@ -15,6 +15,5 @@
 ; which bank the method is in,
 ; and the entry point within the bank.
 bankcall_table:
-;  bankcall_entry draw_player_sprite,    draw_player_sprite_far
-  bankcall_entry load_chr_ram,          load_chr_ram_far
+  bankcall_entry load_continue_chr,          load_continue_chr_far
 

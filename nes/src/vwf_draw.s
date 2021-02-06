@@ -25,6 +25,7 @@
 lineImgBuf = $0100
 lineImgBufLen = 128
 FONT_HT = 8
+MIN_CODEUNIT = $20
 
 srcStr = $00
 horzPos = $04
@@ -34,7 +35,7 @@ shiftContinuation = $08
 leftMask = $0A
 rightMask = $0B
 
-.segment "LIBCODE"
+.segment "CODE"
 ;;
 ; Clears the line image buffer.
 ; Does not modify Y or zero page.
@@ -52,7 +53,7 @@ rightMask = $0B
 
 .macro getTileAddr
   sec
-  sbc #' '
+  sbc #MIN_CODEUNIT
   ; Find source address
   asl a     ; 7 6543 210-
   adc #$80  ; 6 -543 2107
@@ -135,7 +136,7 @@ isBlankByte:
   .assert >shiftslide = >dontshift, error, "shiftslide crosses page boundary"
 
 .pushseg
-.segment "LIBDATA"
+.segment "RODATA"
 leftMasks:
   .repeat 8, I
     .byte $FF >> I
@@ -218,8 +219,11 @@ loop:
   ldy #0
   lda (srcStr),y
   beq done0
-  cmp #32
+  cmp #MIN_CODEUNIT
   bcc doneNewline
+  .if ::MIN_CODEUNIT <> ' '
+    cmp #' '
+  .endif
   beq isSpace
   ldx horzPos
   jsr vwfPutTile
@@ -228,8 +232,8 @@ isSpace:
   lda (srcStr),y
   inc srcStr
   bne :+
-  inc srcStr+1
-:
+    inc srcStr+1
+  :
   tax
   lda vwfChrWidths-32,x
   clc
