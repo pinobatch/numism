@@ -12,6 +12,9 @@
 ; continue.s
 .global continue_main
 
+; coinss
+.global coin_names, coin_routines
+
 ; bg.s
 .global draw_bg
 

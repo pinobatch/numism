@@ -2,6 +2,27 @@
 .include "global.inc"
 .include "popslide.inc"
 
+; VRAM map
+;
+; 00-37 UI tiles from continuetiles.png
+
+TILE_BORDER = $00
+TILE_BLANK = $01
+TILE_TLCORNER = $02
+TILE_HBAR = $03
+TILE_TRCORNER = $04
+TILE_COINSPIN = $10
+TILE_CHECKMARK= $15
+TILE_LARROW = $20
+TILE_RARROW = $21
+TILE_VBAR = $22
+TILE_BLCORNER = $23
+TILE_BRCORNER = $24
+TILE_OKSYMBOL = $30
+TILE_NGSYMBOL = $33
+TILE_LARROW_DISABLED = $36
+TILE_RARROW_DISABLED = $37
+
 .code
 
 .proc continue_main

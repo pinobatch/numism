@@ -17,7 +17,7 @@ version := wip
 # PRG ROM.  If it gets too long for one line, you can add a backslash
 # (the \ character) at the end of the line and continue on the next.
 objlist := popslide64 init unrom bankcalltable \
-  main continue \
+  main continue coins \
   pads ppuclear chrram nstripe vwf_draw vwf7
 
 AS65 = ca65
