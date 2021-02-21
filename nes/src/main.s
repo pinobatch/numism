@@ -19,6 +19,8 @@ nmis:          .res 1
 oam_used:      .res 1  ; starts at 0
 cur_keys:      .res 2
 new_keys:      .res 2
+das_keys:      .res 2
+das_timer:     .res 2
 
 .segment "CODE"
 ;;

@@ -373,7 +373,6 @@ xor1 = $07
       beq done
       and #3
       bne tileloop
-    sta $4444
     jmp packetloop
   done:
   sty popslide_used
@@ -384,11 +383,73 @@ xor1 = $07
 ;;
 ; Copies a rendered line of text to CHR RAM, packing 2 8x8 pixel
 ; tiles into each plane.
-; Plane 0 contains tiles 0, 1, 4, 5, 8, 9, 12, and 13.
-; Plane 1 contains tiles 2, 3, 6, 7, 10, 11, 14, and 15.
-; in:  AAYY = destination address ($0000-$1F80)
+; Plane 0 contains tiles 0-7 and plane 1 contains tiles 8-15.
+; in:  C:AA = destination tile number
 .proc nstripe_1bpp_from_lineImg
-  ; TODO
+vramdst = $00
+srcpos = $02
+tilecount = $03
+  ldy popslide_used
+  ; layout
+  ; 0-1 address
+  ; 2 length
+  ; 3-10 tile 0
+  ; 11-18 tile 8
+  ; 19-26 tile 1
+  ; 27-32 tile 9
+  ; 67-68 address+64
+  ; 69 length
+  ; 70-77 tile 4
+  ; 78-85 tile 12
+
+  rol a
+  rol a
+  rol a
+  rol a
+  pha
+  and #$F0
+  sta popslide_buf+1,y
+  ora #$40
+  sta popslide_buf+68,y
+  pla
+  rol a
+  and #$1F
+  sta popslide_buf+0,y
+  sta popslide_buf+67,y
+  lda #$3F
+  sta popslide_buf+2,y
+  sta popslide_buf+69,y
+  tya
+  clc
+  adc #67*2
+  sta popslide_used
+  sty $4444
+  ldx #0
+
+  loop:
+    lda lineImgBuf+0,x
+    eor #$FF
+    sta popslide_buf+3,y  ; tile x+0
+    lda lineImgBuf+32,x
+    eor #$FF
+    sta popslide_buf+70,y  ; tile x+4
+    lda lineImgBuf+64,x
+    eor #$FF
+    sta popslide_buf+11,y  ; tile x+8
+    lda lineImgBuf+96,x
+    eor #$FF
+    sta popslide_buf+78,y  ; tile x+8
+    inx
+    iny
+    txa
+    and #$07
+    bne loop
+    tya
+    clc
+    adc #8
+    tay
+    cpx #32
+    bcc loop
   rts
 .endproc
 

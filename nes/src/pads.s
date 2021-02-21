@@ -21,7 +21,7 @@ JOY2      = $4017
 
 ; turn USE_DAS on to enable autorepeat support
 .ifndef USE_DAS
-USE_DAS = 0
+USE_DAS = 1
 .endif
 
 ; time until autorepeat starts making keypresses
