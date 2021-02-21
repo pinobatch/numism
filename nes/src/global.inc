@@ -29,7 +29,7 @@
 
 ; vwf_draw.s
 .global clearLineImg, vwfPutTile, vwfPuts, invertTiles
-.global copyLineImg_helpscreen
+.global nstripe_2bpp_from_lineImg
 
 ; bankcall ids
 .globalzp load_continue_chr
