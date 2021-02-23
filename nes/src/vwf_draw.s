@@ -423,7 +423,6 @@ tilecount = $03
   clc
   adc #67*2
   sta popslide_used
-  sty $4444
   ldx #0
 
   loop:

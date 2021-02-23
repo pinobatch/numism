@@ -8,6 +8,7 @@
 
 NUM_STAGES = 3
 COINS_PER_STAGE = 10
+COIN_DESC_LINES = 4
 STAGE_SEL_POS = $2000+11+32*5
 
 TILE_BORDER = $00
@@ -40,7 +41,11 @@ TILE_STAGE_LABEL = $4C
 .bss
 cur_stage: .res 1
 titles_draw_progress: .res 1
+desc_draw_progress: .res 1
 cursor_y: .res 1
+want_desc_open: .res 1
+desc_y: .res 1
+desc_text_ptr: .res 2
 
 .code
 
@@ -49,6 +54,9 @@ cursor_y: .res 1
   sta cur_stage
   lda #0
   sta cursor_y
+  sta want_desc_open
+  lda #$FF
+  sta desc_y
 
   jsr popslide_init
   lda #VBLANK_NMI
@@ -60,9 +68,8 @@ cursor_y: .res 1
   lda #$01
   jsr ppu_clear_nt
 
-  ; TODO: Up and Down to pick a coin
-  ; TODO: Checkmarks for passing or not
   ; TODO: A and B to hide or show coin description
+  ; TODO: Checkmarks for passing or not
   ; TODO: OK or NG in coin description
 
   ldx #>continue_stripes
@@ -134,6 +141,17 @@ loop:
   jsr autorepeat
 
   lda new_keys
+  asl a
+  bcc notA
+    lda #1
+    sta want_desc_open
+  notA:
+  bpl notB
+    lda #0
+    sta want_desc_open
+  notB:
+
+  lda new_keys
   lsr a
   bcc notRight
     lda cur_stage
@@ -173,11 +191,17 @@ loop:
   ; Draw cursor sprite
   lda #$FF
   sta OAM+0
-  lda cursor_y
-  asl a
-  asl a
-  asl a
-  adc #87
+  lda desc_y
+  bmi desc_y_is_hidden
+    lda #$FF
+    bne have_arrow_y
+  desc_y_is_hidden:
+    lda cursor_y
+    asl a
+    asl a
+    asl a
+    adc #87
+  have_arrow_y:
   sta OAM+4
   lda #TILE_RARROW
   sta OAM+5
@@ -204,7 +228,7 @@ loop:
   jsr ppu_screen_on
 
   lda new_keys
-  and #KEY_B
+  and #KEY_START
   bne :+
     jmp loop
   :
@@ -217,6 +241,7 @@ STAGE_ARROWS_POS = $2000+7+32*10
   ; Draw digit used for x1-x9
   lda #0
   sta titles_draw_progress
+  sta desc_draw_progress
   jsr clearLineImg
   lda cur_stage
   beq is_stage1
@@ -285,23 +310,23 @@ rowid = $00
   rowloop:
     stx rowid
     ldx popslide_used
-    txa
-    clc
-    adc #21+3
-    sta popslide_used
     lda rowid
-    clc
-    adc #6
-    sec
-    ror a
-    sta popslide_buf,x
-    lda #6<<3
-    ror a
-    lsr popslide_buf,x
-    ror a
-    lsr popslide_buf,x
-    ror a
-    sta popslide_buf+1,x
+    jsr calc_row_vram_address
+
+    ; if this row is one of the blank rows below the last coin name,
+    ; draw it as blank
+    lda rowid
+    cmp #COINS_PER_STAGE
+    bcc row_is_real
+    cmp #COINS_PER_STAGE+COIN_DESC_LINES+1
+    bcs done
+    lda #(21-1)|NSTRIPE_RUN
+    sta popslide_buf+2,x
+    lda #TILE_BLANK
+    sta popslide_buf+3,x
+    lda #4
+    bne have_packetlen
+  row_is_real:
     lda #21-1
     sta popslide_buf+2,x
     lda #TILE_BLANK
@@ -319,15 +344,19 @@ rowid = $00
     lda #TILE_STAGE_TENS0/2
     rol a
     sta popslide_buf+4,x
-    txa
-    clc
-    adc #6
     lda rowid
     jsr txtrow_part
+
+    lda #21+3
+  have_packetlen:
+    clc
+    adc popslide_used
+    sta popslide_used
     ldx rowid
     inx
     dec rowsleft
     bne rowloop
+  done:
   rts
 .endproc
 
@@ -352,25 +381,61 @@ bail1:
   rts
 .endproc
 
-.proc draw_one_coin_title
-  ; if a title remains to be drawn, and the buffer is empty, draw one
-  ldx popslide_used
-  cpx #POPSLIDE_SLACK+1
-  bcs txtrow_part::bail1
-  lda titles_draw_progress
-  cmp #COINS_PER_STAGE
-  bcs txtrow_part::bail1
-  jsr clearLineImg
+;;
+; Gets a pointer to the name and description of coin cur_stage*10+A.
+; @param A Y position
+; @param cur_stage which stage
+; @return AY pointer to coin name; X = (cur_stage*10+A)*2;
+; $00 trashed
+.proc get_coin_title_ptr
+  sta $00
   lda cur_stage
   asl a
   asl a
   adc cur_stage
   asl a
-  adc titles_draw_progress
+  adc $00
   asl a  ; A = stage * 20 + row * 2
   tax
   ldy coin_names+0,x
   lda coin_names+1,x
+  rts
+.endproc
+
+.proc draw_one_coin_title
+  ; Draw only if the buffer is empty enough
+  ldx popslide_used
+  cpx #POPSLIDE_SLACK+1
+  bcs txtrow_part::bail1
+
+  ; Priority before drawing the titles to CHR RAM is erasing an
+  ; unwanted description from the tilemap.  A description is
+  ; "unwanted" if it is on screen (desc_y bit 7 clear) and either the
+  ; user wants to close it or it's on a row other than the cursor's.
+  lda desc_y
+  bmi dont_erase_desc
+  ldy want_desc_open
+  beq yes_erase_desc
+  cmp cursor_y
+  beq dont_erase_desc
+  yes_erase_desc:
+    sta $4444
+    tax  ; X = old desc_y
+    ldy #$FF
+    sty desc_y
+    iny
+    sty desc_draw_progress  ; Restart description drawing
+    ldy #COIN_DESC_LINES+2
+    jmp draw_coin_title_map
+  dont_erase_desc:
+
+  ; if a title remains to be drawn, and the buffer is empty, draw one
+  lda titles_draw_progress
+  cmp #COINS_PER_STAGE
+  bcs draw_description_step
+  jsr clearLineImg
+  lda titles_draw_progress
+  jsr get_coin_title_ptr
   ldx #2
   jsr vwfPuts
 
@@ -381,6 +446,136 @@ bail1:
   ora #$80
   inc titles_draw_progress
   jmp nstripe_1bpp_from_lineImg
+.endproc
+
+.proc draw_description_step
+  lda want_desc_open
+  beq txtrow_part::bail1
+  ; By now we know the user wants the description open.
+  ; Steps:
+  ; 0 draw empty frame
+  ; 1-4 draw one line of text
+  ; 5 draw into frame
+  ldx popslide_used
+  ldy desc_draw_progress
+  beq :+
+    jmp not_step0
+  :
+    ; Packet layout
+    ; 0 left column
+    ; 9 right column
+    ; 18 hbar at TR border
+    ; 22, 26, 30, 34 interior
+    ; 38 bottom border
+    txa
+    clc
+    adc #22
+    sta popslide_used
+    sta $4444
+    ; Calculate starting address of first 4 packets
+    lda cursor_y
+    sta desc_y
+    jsr calc_row_vram_address
+    lda popslide_buf+1,x
+    clc
+    adc #19
+    sta popslide_buf+19,x
+    clc
+    adc #1
+    sta popslide_buf+10,x
+    clc
+    adc #13
+    sta popslide_buf+23,x
+    lda popslide_buf+0,x
+    sta popslide_buf+9,x
+    sta popslide_buf+18,x
+    adc #0
+    sta popslide_buf+22,x
+
+    ; Write 
+    lda #(6-1)|NSTRIPE_DOWN
+    sta popslide_buf+2,x
+    sta popslide_buf+11,x
+    lda #0
+    sta popslide_buf+20,x
+    lda #TILE_HBAR
+    sta popslide_buf+21,x
+    lda #TILE_TLCORNER
+    sta popslide_buf+3,x
+    lda #TILE_BLCORNER
+    sta popslide_buf+8,x
+    lda #TILE_TRCORNER
+    sta popslide_buf+12,x
+    lda #TILE_BRCORNER
+    sta popslide_buf+17,x
+    ldy #4
+    lda #TILE_VBAR
+    :
+      sta popslide_buf+4,x
+      sta popslide_buf+13,x
+      inx
+      dey
+      bne :-
+
+    ; Next packet's address is in place.
+    ldy #COIN_DESC_LINES
+    ldx popslide_used
+    frameinteriorloop:
+      lda popslide_buf+1,x
+      clc
+      adc #32
+      sta popslide_buf+5,x
+      lda popslide_buf+0,x
+      adc #0
+      sta popslide_buf+4,x
+      lda #(19-1)|NSTRIPE_RUN
+      sta popslide_buf+2,x
+      tya
+      beq :+
+        lda #TILE_HBAR^TILE_BLANK
+      :
+      eor #TILE_HBAR
+      sta popslide_buf+3,x
+      inx
+      inx
+      inx
+      inx
+      dey
+      bpl frameinteriorloop
+    stx popslide_used
+    
+    ; TODO: Draw center and bottom
+    ; TODO: Look up coin name and fast-forward to coin description
+    inc desc_draw_progress
+  bail1:
+    rts
+  not_step0:
+  cpy #COIN_DESC_LINES+1
+  bcc is_description_line
+  bne bail1
+    ; Finish the job by writing the tilemap showing the window
+    rts
+  is_description_line:
+
+  rts
+.endproc
+  
+
+.proc calc_row_vram_address
+  ; calculate VRAM address of row
+  clc
+  adc #6
+  sec
+  ror a
+  sta popslide_buf,x
+  lda #6<<3
+  ror a
+  lsr popslide_buf,x
+  ror a
+  lsr popslide_buf,x
+  ror a
+  sta popslide_buf+1,x
+  rts
 .endproc
 
 .rodata
