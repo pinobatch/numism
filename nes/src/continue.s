@@ -68,7 +68,6 @@ desc_text_ptr: .res 2
   lda #$01
   jsr ppu_clear_nt
 
-  ; TODO: A and B to hide or show coin description
   ; TODO: Checkmarks for passing or not
   ; TODO: OK or NG in coin description
 
@@ -191,11 +190,8 @@ loop:
   ; Draw cursor sprite
   lda #$FF
   sta OAM+0
-  lda desc_y
-  bmi desc_y_is_hidden
-    lda #$FF
-    bne have_arrow_y
-  desc_y_is_hidden:
+  ldy want_desc_open
+  bne have_arrow_y
     lda cursor_y
     asl a
     asl a
@@ -345,6 +341,10 @@ rowid = $00
     rol a
     sta popslide_buf+4,x
     lda rowid
+    inx
+    inx
+    inx
+    inx
     jsr txtrow_part
 
     lda #21+3
@@ -361,17 +361,20 @@ rowid = $00
 .endproc
 
 ;;
-; Writes the tiles for 1bpp row A to popslide buf + X + 7
+; Writes the tiles for 1bpp row A to popslide buf + X + 3
+; and advances X by 8
 .proc txtrow_part
   asl a
   asl a
   asl a
   ora #$80
   tay
+.endproc
+.proc txtrow_part_tiley
   loop:
     tya
-    sta popslide_buf+7,x
-    sta popslide_buf+15,x
+    sta popslide_buf+3,x
+    sta popslide_buf+11,x
     inx
     iny
     tya
@@ -406,7 +409,7 @@ bail1:
   ; Draw only if the buffer is empty enough
   ldx popslide_used
   cpx #POPSLIDE_SLACK+1
-  bcs txtrow_part::bail1
+  bcs txtrow_part_tiley::bail1
 
   ; Priority before drawing the titles to CHR RAM is erasing an
   ; unwanted description from the tilemap.  A description is
@@ -419,7 +422,6 @@ bail1:
   cmp cursor_y
   beq dont_erase_desc
   yes_erase_desc:
-    sta $4444
     tax  ; X = old desc_y
     ldy #$FF
     sty desc_y
@@ -450,114 +452,102 @@ bail1:
 
 .proc draw_description_step
   lda want_desc_open
-  beq txtrow_part::bail1
+  beq txtrow_part_tiley::bail1
   ; By now we know the user wants the description open.
   ; Steps:
   ; 0 draw empty frame
   ; 1-4 draw one line of text
   ; 5 draw into frame
-  ldx popslide_used
   ldy desc_draw_progress
-  beq :+
-    jmp not_step0
-  :
-    ; Packet layout
-    ; 0 left column
-    ; 9 right column
-    ; 18 hbar at TR border
-    ; 22, 26, 30, 34 interior
-    ; 38 bottom border
-    txa
-    clc
-    adc #22
-    sta popslide_used
-    sta $4444
-    ; Calculate starting address of first 4 packets
+  bne not_step0
     lda cursor_y
     sta desc_y
     jsr calc_row_vram_address
     lda popslide_buf+1,x
-    clc
-    adc #19
-    sta popslide_buf+19,x
-    clc
-    adc #1
-    sta popslide_buf+10,x
-    clc
-    adc #13
-    sta popslide_buf+23,x
+    sta nstripe_left
     lda popslide_buf+0,x
-    sta popslide_buf+9,x
-    sta popslide_buf+18,x
-    adc #0
-    sta popslide_buf+22,x
+    ora #$40
+    tay
+    ldx #>erase_border_stripes
+    lda #<erase_border_stripes
+    jsr nstripe_append_yhi
 
-    ; Write 
-    lda #(6-1)|NSTRIPE_DOWN
-    sta popslide_buf+2,x
-    sta popslide_buf+11,x
-    lda #0
-    sta popslide_buf+20,x
-    lda #TILE_HBAR
-    sta popslide_buf+21,x
-    lda #TILE_TLCORNER
-    sta popslide_buf+3,x
-    lda #TILE_BLCORNER
-    sta popslide_buf+8,x
-    lda #TILE_TRCORNER
-    sta popslide_buf+12,x
-    lda #TILE_BRCORNER
-    sta popslide_buf+17,x
-    ldy #4
-    lda #TILE_VBAR
+    ; Look up coin name and fast-forward to coin description
+    lda desc_y
+    jsr get_coin_title_ptr
+    sta 1
+    sty 0
+    ldy #0
     :
-      sta popslide_buf+4,x
-      sta popslide_buf+13,x
-      inx
-      dey
+      lda (0),y
+      cmp #$10
+      bcc found_ctrlchar
+      iny
       bne :-
-
-    ; Next packet's address is in place.
-    ldy #COIN_DESC_LINES
-    ldx popslide_used
-    frameinteriorloop:
-      lda popslide_buf+1,x
-      clc
-      adc #32
-      sta popslide_buf+5,x
-      lda popslide_buf+0,x
-      adc #0
-      sta popslide_buf+4,x
-      lda #(19-1)|NSTRIPE_RUN
-      sta popslide_buf+2,x
-      tya
-      beq :+
-        lda #TILE_HBAR^TILE_BLANK
-      :
-      eor #TILE_HBAR
-      sta popslide_buf+3,x
-      inx
-      inx
-      inx
-      inx
-      dey
-      bpl frameinteriorloop
-    stx popslide_used
-    
-    ; TODO: Draw center and bottom
-    ; TODO: Look up coin name and fast-forward to coin description
+    found_ctrlchar:
+    cmp #1  ; set up carry to skip a newline but not a NUL terminator
+    tya
+    adc 0
+    sta desc_text_ptr
+    lda 1
+    adc #0
+    sta desc_text_ptr+1
     inc desc_draw_progress
   bail1:
     rts
   not_step0:
+
+  ldx popslide_used
   cpy #COIN_DESC_LINES+1
   bcc is_description_line
   bne bail1
-    ; Finish the job by writing the tilemap showing the window
+    sta $4444
+    ; Write the tilemap for the coin description text
+    ldy desc_y
+    iny
+    tya
+    jsr calc_row_vram_address
+    lda popslide_buf+1,x
+    clc
+    adc #4
+    sta popslide_buf+1,x
+    ldy #$80 + COINS_PER_STAGE * 8
+    tmloop:
+      clc
+      lda popslide_buf+1,x
+      adc #32
+      sta popslide_buf+20,x
+      lda popslide_buf+0,x
+      adc #0
+      sta popslide_buf+19,x
+      lda #16-1
+      sta popslide_buf+2,x
+      jsr txtrow_part_tiley
+      clc
+      txa
+      adc #16+3-8
+      tax
+      cpy #$80 + (COINS_PER_STAGE+COIN_DESC_LINES)*8
+      bne tmloop
+    stx popslide_used
+    inc desc_draw_progress
     rts
   is_description_line:
-
-  rts
+  ; Write the text
+  jsr clearLineImg
+  ldx #2
+  lda desc_text_ptr+1
+  ldy desc_text_ptr
+  jsr vwfPuts
+  sta desc_text_ptr+1
+  sty desc_text_ptr
+  lda desc_draw_progress
+  inc desc_draw_progress
+  asl a
+  asl a
+  asl a
+  adc #$80 + (COINS_PER_STAGE - 1) * 8
+  jmp nstripe_1bpp_from_lineImg
 .endproc
   
 
@@ -620,6 +610,25 @@ continue_stripes:
   .byte $4C,$4D,$4E,$4F
 
   ; 73 left. What else fits?
+  .byte $FF
+
+erase_border_stripes:
+  .dbyt 0+32*0
+  .byte (6-1)|NSTRIPE_DOWN
+  .byte TILE_TLCORNER,TILE_VBAR,TILE_VBAR,TILE_VBAR,TILE_VBAR,TILE_BLCORNER
+  .dbyt 20+32*0
+  .byte (6-1)|NSTRIPE_DOWN
+  .byte TILE_TRCORNER,TILE_VBAR,TILE_VBAR,TILE_VBAR,TILE_VBAR,TILE_BRCORNER
+  .dbyt 19+32*0
+  .byte 1-1
+  .byte TILE_HBAR
+  .repeat COIN_DESC_LINES, I
+    .dbyt 1+32*(I+1)
+    .byte (19-1)|NSTRIPE_RUN
+    .byte TILE_BLANK
+  .endrepeat
+  .dbyt 1+32*(COIN_DESC_LINES+1)
+  .byte (19-1)|NSTRIPE_RUN, TILE_HBAR
   .byte $FF
 
 word_Stage:

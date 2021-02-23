@@ -46,21 +46,28 @@ coin_routines:
 
 coin_name01:
   .byte "Coin #1",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Every adventure has",10
+  .byte "a beginning.",34,0
 coin_01:
   clc
   rts
 
 coin_name02:
   .byte "Coin #2",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Was that nocash",10
+  .byte "or NoPass?",34,0
 coin_02:
   clc
   rts
 
 coin_name03:
   .byte "Coin #3",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Old MacDonald had a farm,",10
+  .byte "CLI SEI CLI SEI...",10
+  .byte "oh wait, that's not it",34,0
 coin_03:
   clc
   rts

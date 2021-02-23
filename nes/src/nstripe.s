@@ -30,6 +30,7 @@
 ; Converts a column-major rectangle of tiles to an N-Stripe.
 ; @param nstripe_left, nstripe_top, nstripe_width, nstripe_height in tiles
 ; @param nstripe_srclo start of data in column-major order
+.if 0
 .proc nstripe_draw_rect
 nstripe_toplo = $06
 htleft = $07
@@ -84,7 +85,7 @@ htleft = $07
   ror popslide_buf,x
   rts
 .endproc
-
+.endif
 
 .proc append_engine
 bytesleft = nstripe_height
@@ -93,7 +94,19 @@ bytesleft = nstripe_height
 stripeloop:
   iny
   bit nstripe_top
-  bmi normal_top
+  bmi normal_top  ; $80-$FF
+  bvc const_vmaddhi_top  ; $00-$3F
+    clc
+    pha
+    lda (nstripe_srclo),y
+    iny
+    adc nstripe_left
+    sta popslide_buf+1,x
+    pla
+    adc nstripe_top
+    sta popslide_buf,x
+    jmp address_written
+  const_vmaddhi_top:
     ; A is low byte; nstripe_top is high byte
     sta popslide_buf+1,x
     lda nstripe_top
@@ -145,7 +158,8 @@ stripesdone:
 ; Appends a set of stripes to the update buffer.
 ; @param XXAA pointer to the stripe
 ; @param Y $00-$3F high byte of each destination address in
-; video memory; $80+: stripes contain 2-byte destinations
+; video memory; $40-$7F add Y*$100+nstripe_left to each
+; destination address; $80+: stripes contain 2-byte destinations
 .proc nstripe_append_yhi
   sty nstripe_top
 .endproc
@@ -154,7 +168,8 @@ stripesdone:
 ; Appends a set of stripes to the update buffer.
 ; @param XXAA pointer to the stripe
 ; @param nstripe_top $00-$3F high byte of each destination address in
-; video memory; $80+: stripes contain 2-byte destinations
+; video memory; $40-$7F add nstripe_top*$100+nstripe_left to each
+; destination address; $80+: stripes contain 2-byte destinations
 .proc nstripe_append_tophi
   stx nstripe_srchi
   sta nstripe_srclo
@@ -164,7 +179,8 @@ stripesdone:
 ; Appends a set of stripes to the update buffer.
 ; @param nstripe_src pointer to the stripe
 ; @param nstripe_top $00-$3F high byte of each destination address in
-; video memory; $80+: stripes contain 2-byte destinations
+; video memory; $40-$7F add nstripe_top*$100+nstripe_left to each
+; destination address; $80+: stripes contain 2-byte destinations
 .proc nstripe_append_src
   ldy #0
   ldx popslide_used
@@ -176,6 +192,7 @@ _nstripe_append = nstripe_append
 
 ; Additions for literals
 
+.if 0
 ;;
 ; Appends a 128-byte literal to the update buffer as two packets.
 ; @param A high byte of destination address in VRAM
@@ -232,4 +249,4 @@ _nstripe_append = nstripe_append
     bpl copyloop
   rts
 .endproc
-
+.endif
