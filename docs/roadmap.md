@@ -16,8 +16,8 @@ this sprint to fill the majority of stages 1 and 2 with coins, and
 with 19 out of 20 complete, I believe I succeeded.
 
 1. GB: Make instruction timer
-2. NES: Design title and continue screens
-3. 
+2. NES: Design title screen
+3. NES: fill passbits by actually running tests associated with coins
 4. 
 5. 
 6. 

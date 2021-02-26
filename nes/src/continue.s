@@ -10,6 +10,7 @@ NUM_STAGES = 3
 COINS_PER_STAGE = 10
 COIN_DESC_LINES = 4
 STAGE_SEL_POS = $2000+11+32*5
+CHECKMARK_POS = $2000+9+32*6
 
 TILE_BORDER = $00
 TILE_BLANK = $01
@@ -39,6 +40,7 @@ TILE_STAGE_LABEL = $4C
 ; 4C-4F: "Stage"
 
 .bss
+passbits: .res 2 * NUM_STAGES
 cur_stage: .res 1
 titles_draw_progress: .res 1
 desc_draw_progress: .res 1
@@ -50,6 +52,15 @@ desc_text_ptr: .res 2
 .code
 
 .proc continue_main
+  ; Fill passbits with fake data
+  lda #0
+  ldy #NUM_STAGES*2-1
+  :
+    tya
+    sta passbits,y
+    dey
+    bne :-
+
   lda #0
   sta cur_stage
   lda #0
@@ -67,9 +78,6 @@ desc_text_ptr: .res 2
   tay
   lda #$01
   jsr ppu_clear_nt
-
-  ; TODO: Checkmarks for passing or not
-  ; TODO: OK or NG in coin description
 
   ldx #>continue_stripes
   lda #<continue_stripes
@@ -118,7 +126,7 @@ desc_text_ptr: .res 2
   jsr draw_stage_number
   jsr popslide_terminate_blit
 
-  ; Write
+  ; Write names of coins
   ldx #0
   ldy #COINS_PER_STAGE/2
   jsr draw_coin_title_map
@@ -205,7 +213,52 @@ loop:
   sta OAM+6
   lda #48
   sta OAM+7
+
+  ; Draw OK/NG sprite
   ldx #8
+  lda desc_draw_progress
+  cmp #COIN_DESC_LINES+2
+  bcc no_ok_ng_sprite
+    lda desc_y
+    sta $00
+    jsr get_one_passbit
+    lda #TILE_OKSYMBOL
+    bcc :+
+      lda #TILE_NGSYMBOL
+    :
+    sta $01
+    lda #0  ; attribute
+    rol a
+    sta $02
+    lda desc_y
+    asl a
+    asl a
+    asl a
+    adc #95
+    sta $00
+    lda #56
+    sta $03
+    ldy #3
+    :
+      lda $00
+      sta OAM,x
+      inx
+      lda $01
+      inc $01
+      sta OAM,x
+      inx
+      lda $02
+      sta OAM,x
+      inx
+      lda $03
+      sta OAM,x
+      inx
+      clc
+      adc #8
+      sta $03
+      dey
+      bne :-
+  no_ok_ng_sprite:
   jsr ppu_clear_oam
 
   lda nmis
@@ -238,6 +291,13 @@ STAGE_ARROWS_POS = $2000+7+32*10
   lda #0
   sta titles_draw_progress
   sta desc_draw_progress
+
+  ; If the description is on screen, request hiding it
+  lda desc_y
+  bmi :+
+    ora #$40
+    sta desc_y
+  :
   jsr clearLineImg
   lda cur_stage
   beq is_stage1
@@ -294,9 +354,69 @@ STAGE_ARROWS_POS = $2000+7+32*10
     lda #TILE_RARROW_DISABLED
   :
   sta popslide_buf+5,x
+
+fails0 = $00
+fails1 = $01
+  ; Draw all checkmarks for this stage
+  lda cur_stage
+  asl a
+  tay
+  lda passbits+0,y
+  sta fails0
+  lda passbits+1,y
+  sta fails1
+  ldx popslide_used
+  txa
+  clc
+  adc #COINS_PER_STAGE+3
+  sta popslide_used
+  lda #>CHECKMARK_POS
+  sta popslide_buf+0,x
+  lda #<CHECKMARK_POS
+  sta popslide_buf+1,x
+  lda #(COINS_PER_STAGE-1)|NSTRIPE_DOWN
+  sta popslide_buf+2,x
+  ldy #COINS_PER_STAGE
+  markloop:
+    lsr fails1
+    ror fails0
+    lda #TILE_CHECKMARK
+    bcc :+
+      lda #TILE_BLANK
+    :
+    sta popslide_buf+3,x
+    inx
+    dey
+    bne markloop
   rts
 .endproc
- 
+
+
+;;
+; Returns whether one test failed.
+; @param cur_stage stage to load
+; @param $00 y position within stage
+; @return carry clear for pass or set for fail
+.proc get_one_passbit
+rowid = $00
+  lda rowid
+  cmp #8
+  lda cur_stage
+  rol a
+  tay
+  lda passbits,y
+  pha
+  lda rowid
+  and #$07
+  tay
+  pla
+  :
+    lsr a
+    dey
+    bpl :-
+  rts
+.endproc
+
 ;;
 ; Draw tilemap data for Y coin titles, each 21 bytes, starting at X
 .proc draw_coin_title_map
@@ -328,7 +448,13 @@ rowid = $00
     lda #TILE_BLANK
     sta popslide_buf+3,x
     sta popslide_buf+23,x
+
+    ; Load test status into carry
+    jsr get_one_passbit
     lda #TILE_CHECKMARK
+    bcc :+
+      lda #TILE_BLANK
+    :
     sta popslide_buf+6,x
     lda rowid
     cmp #9
@@ -422,6 +548,7 @@ bail1:
   cmp cursor_y
   beq dont_erase_desc
   yes_erase_desc:
+    and #$0F
     tax  ; X = old desc_y
     ldy #$FF
     sty desc_y
@@ -501,7 +628,6 @@ bail1:
   cpy #COIN_DESC_LINES+1
   bcc is_description_line
   bne bail1
-    sta $4444
     ; Write the tilemap for the coin description text
     ldy desc_y
     iny
@@ -569,13 +695,25 @@ bail1:
 .endproc
 
 .rodata
+
+; DEBUG: 16x14-tile 1bpp area highlighted in pale blue shades
+.if 1
+  P0SHADE = $3C
+  P1SHADE = $32
+.else
+  P0SHADE = $20
+  P1SHADE = $20
+.endif
+
 continue_stripes:
   ; Palette
-  .dbyt $3F00
-  .byte 32-1
+  .dbyt $3F01
+  .byte 31-1
   ; DEBUG: 16x14-tile 1bpp area highlighted in pale blue shades
-  .byte $0F,$1A,$2A,$20, $0F,$00,$10,$20, $0F,$3C,$0F,$3C, $0F,$0F,$32,$32
-  .byte $0F,$1A,$10,$20, $0F,$00,$10,$20, $0F,$00,$10,$20, $0F,$00,$10,$20
+  .byte     $1A,$2A,$20, $0F,$00,$10,$20
+  .byte $0F,P0SHADE,$0F,P0SHADE, $0F,$0F,P1SHADE,P1SHADE
+  .byte $0F,$1A,$2A,$20, $0F,$16,$26,$20
+  .byte $0F,$00,$10,$20, $0F,$00,$10,$20
 
   ; Attribute map, with 1bpp area
   .dbyt $23C8

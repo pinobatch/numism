@@ -11,8 +11,9 @@
 
 ; continue.s
 .global continue_main
+.globalzp NUM_STAGES, COINS_PER_STAGE
 
-; coinss
+; coins.s
 .global coin_names, coin_routines
 
 ; bg.s
