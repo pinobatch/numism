@@ -51,6 +51,50 @@ desc_text_ptr: .res 2
 
 .code
 
+.proc run_stage
+  asl a
+  sta cur_stage
+  tax  ; cur_stage = X = stage * 2
+  asl a
+  asl a
+  adc cur_stage
+  asl a  ; A = stage * 20
+  sta desc_y
+  lda #1 << (COINS_PER_STAGE - 9)
+  sta passbits+1,x
+  lda #0
+  sta passbits+0,x
+
+  loop:
+    jsr run_one_test
+    ldx cur_stage
+    lda passbits+1,x
+    bcc :+
+      ora #1 << (COINS_PER_STAGE - 7)
+    :
+    lsr a
+    sta passbits+1,x
+    ror passbits+0,x
+    bcc loop
+  lsr cur_stage
+  rts
+
+run_one_test:
+  ldx desc_y
+  lda coin_routines,x
+  sta $00
+  inx
+  lda coin_routines,x
+  sta $01
+  inx
+  stx desc_y
+  lda #VBLANK_NMI
+  sta PPUCTRL
+  lda #0
+  sta PPUMASK
+  jmp ($0000)
+.endproc
+
 .proc continue_main
   ; Fill passbits with fake data
   lda #0
@@ -60,6 +104,12 @@ desc_text_ptr: .res 2
     sta passbits,y
     dey
     bne :-
+  lda #0
+  jsr run_stage
+  lda #1
+  jsr run_stage
+  lda #2
+  jsr run_stage
 
   lda #0
   sta cur_stage

@@ -44,13 +44,23 @@ coin_routines:
   .addr coin_29
   .addr coin_30
 
+wait_vblank:
+  lda nmis
+  :
+    cmp nmis
+    beq :-
+  rts
+
 coin_name01:
-  .byte "Coin #1",10
-  .byte "Always pass for now",10
-  .byte 34,"Every adventure has",10
-  .byte "a beginning.",34,0
+  .byte "$2002 dummy read acks NMI",10
+  .byte "ldx #$22 lda $20E0,x",10
+  .byte "acknowledges NMI then",10
+  .byte "reads bit 7 clear",0
 coin_01:
-  clc
+  jsr wait_vblank
+  ldx #$22
+  lda $20E0,x  ; read $2002 then $2102 twice, first D7=1 then D7=0
+  asl a        ; bit 7 clear: pass; bit 7 set: fail
   rts
 
 coin_name02:
