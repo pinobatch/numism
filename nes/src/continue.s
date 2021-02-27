@@ -1,3 +1,6 @@
+; To run Numism:
+; wine '../emulators/NO$NES.EXE' `winepath -w numism.nes`
+
 .include "nes.inc"
 .include "global.inc"
 .include "popslide.inc"
@@ -70,7 +73,7 @@ desc_text_ptr: .res 2
     ldx cur_stage
     lda passbits+1,x
     bcc :+
-      ora #1 << (COINS_PER_STAGE - 7)
+      ora #1 << (COINS_PER_STAGE - 8)
     :
     lsr a
     sta passbits+1,x
@@ -92,6 +95,7 @@ run_one_test:
   sta PPUCTRL
   lda #0
   sta PPUMASK
+  sei
   jmp ($0000)
 .endproc
 

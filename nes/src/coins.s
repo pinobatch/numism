@@ -64,12 +64,32 @@ coin_01:
   rts
 
 coin_name02:
-  .byte "Coin #2",10
-  .byte "Always pass for now",10
-  .byte 34,"Was that nocash",10
-  .byte "or NoPass?",34,0
+  .byte "APU frame counter status",10
+  .byte "Within 1/60 s after $4017=0,",10
+  .byte "$4015 D6 becomes 1",0
 coin_02:
-  clc
+  ldy #0  ; suppress vblank interrupt
+  sty PPUCTRL
+
+  bit $4015  ; acknowledge irq
+  sec
+  bit $4015  ; if $4015 didn't ack it's fail
+  bvs @earlyout
+
+  sty $4017  ; reset the frame counter; enable frame IRQ
+  ; wait long enough to get a length count
+  ; 14915 APU cycles * 2/1284 iteration per APU cycle = 23.23
+  ldx #32
+  @loop:
+    dey
+    bne @loop
+    dex
+    bne @loop
+  lda $4015  ; 7: DMC IRQ status; 6: APU status
+  eor #$40   ; 1 is pass here; convert to 0 pass
+  asl a
+  asl a
+@earlyout:
   rts
 
 coin_name03:
@@ -126,7 +146,9 @@ coin_09:
 
 coin_name10:
   .byte "Coin #10",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Was that nocash",10
+  .byte "or NoPass?",34,0
 coin_10:
   clc
   rts

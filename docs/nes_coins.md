@@ -11,7 +11,7 @@ See [What makes a good coin?] for what I'm aiming at and
 
 I estimate that the uncompressed descriptions of each stage's
 coins total 800 bytes.  All stages could add up to several
-ilobytes of ROM.  I may have to use the DTE codec that I used for
+kilobytes of ROM.  I may have to use the DTE codec that I used for
 [240p Test Suite].
 
 [What makes a good coin?]: ./good_coin.md
@@ -22,9 +22,10 @@ Coin list
 ---------
 A preliminary list for stages 1 and 2 is complete.
 
-1. Reading $20E0,X with X=$22 does dummy read from $2002 then
-   reads $2102 bit 7 false
-2. 
+1. Reading $20E0,X with X=$22 does dummy read from $2002 (PPU status)
+   then reads $2102 bit 7 false
+2. Writing $00 to $4017 (APU length counter) sets bit 6 of $4015
+   (APU status) 1/60 second later
 3. 
 4. 
 5. 
@@ -43,4 +44,8 @@ A preliminary list for stages 1 and 2 is complete.
 18. 
 19. 
 20. 
+
+### Unsorted
+
+* None
 
