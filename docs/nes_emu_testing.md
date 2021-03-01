@@ -129,6 +129,15 @@ such as NESticle's failure to acknowledge NMI at $2002.
   Failed `02-branch_wrap` (#2), `03-dummy_reads` (#3),
   `04-dummy_reads_apu` (#2)
 
+Like the No$gmb debugger, the No$nes debugger has a [heisenbug]
+(behavior difference arising while a behavior is under test).
+If I run `02-branch_wrap.nes` normally, it fails.  If I set a
+breakpoint at $E820 (the start of the body of the test) and step
+through the branches around $FF and $01, the test passes.
+This debugger is worth no cash.
+
+[Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug
+
 ### APU
 
 `apu_test`

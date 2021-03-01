@@ -47,5 +47,13 @@ A preliminary list for stages 1 and 2 is complete.
 
 ### Unsorted
 
-* None
-
+* Branch wrapping across $0000 and $FFFF
+* Playing a short note on pulse 1 should have $4015 D0 go 1 then 0
+* Playing a short sample should have $4015 D4 go 1 then 0
+* Sprite 0 when Y=$FF
+* Sprite 0 when X=$00 and left 8 pixels are disabled
+* 9 sprites high on screen, disable rendering during those, 9 more
+  sprites low on screen
+* Timing of when $2002 bits get cleared
+* DPCM causing $2007 double reads should be stage 3+ because it's
+  an NTSC/PAL difference

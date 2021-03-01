@@ -16,6 +16,7 @@ OAM = $0200
 
 .segment "ZEROPAGE"
 nmis:          .res 1
+last_4015:     .res 1  ; $4015 at last IRQ
 oam_used:      .res 1  ; starts at 0
 cur_keys:      .res 2
 new_keys:      .res 2
@@ -44,6 +45,14 @@ das_timer:     .res 2
 ; designed for gapless playback of sampled sounds but can also be
 ; (ab)used as a crude timer for a scroll split (e.g. status bar).
 .proc irq_handler
+  pha
+  lda $4015  ; Reading acknowledges APU Frame IRQ $4015 (bit 6)
+  sta last_4015
+  bpl :+
+    lda #$0F
+    sta $4015  ; Writing acknowledges DMC IRQ
+  :
+  pla
   rti
 .endproc
 
