@@ -10,6 +10,12 @@ I've tested Mesen (Sour final), FCEUX 2.3.0 (New PPU), No$nes 1.2,
 and PocketNES 2013-07-01.  Other emulators I'd like to test include
 NESticle, loopyNES, NESten, rew., RockNES, and puNES.
 
+Unlike No$gmb, No$nes takes a ROM on the command line.  However,
+the ROM path must be an absolute path with backslashes:
+```
+wine path/to/NO\$NES.EXE `winepath -w path/to/numism.nes`
+```
+
 PocketNES v7a and later require an extended 48-byte header before
 the iNES header.  ROM builders are expected to follow this format
 described in the [PocketNES FAQ], for which I wrote [my own builder].

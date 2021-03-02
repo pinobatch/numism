@@ -18,8 +18,17 @@ Installing emulators
 I'm operating under the principle of "no cash."  This means no paid
 operating systems nor paid emulators.  Thus I'm running tests on
 Ubuntu, a GNU/Linux distribution.  I test emulators made for
-Windows, such as NO$GMB, BGB, rew., and the last version of KiGB,
+Windows, such as No$gmb, BGB, rew., and the last version of KiGB,
 in Wine 5.0.2.
+
+For three emulators (No$gmb, rew., and BizHawk), I have not been able
+to get them to take a ROM on the command line.  Only `File > Open...`
+(however labeled) works.
+
+In a chat on 2021-03-01, BGB developer Beware provided a couple tips:
+
+- (From game display) Esc, F5: Open VRAM viewer
+- (From debugger) Shift+F9, Esc: Temporarily disable exceptions
 
 I use KiGB for Windows because KiGB for Linux is three versions back.
 KiGB saves key bindings and other settings in the current working
@@ -35,10 +44,10 @@ file for classic [Gambatte] needs a change before it will build:
 
 I use the [BizHawk] version of [Gambatte-Speedrun] in order to use
 the replacement BIOS file from SameBoy.  Upstream Gambatte-Speedrun
-rejects BIOS files that are not bit-identical to Nintendo's
-copyrighted BIOS file, and unlike with the Game Boy Advance BIOS,
-there is no loophole through which to dump the Game Boy Color BIOS
-through the Game Pak slot.
+rejects boot ROM files that are not bit-identical to Nintendo's
+copyrighted boot ROM, and unlike with the Game Boy Advance BIOS,
+there is no known loophole through which to dump the Game Boy Color
+boot ROM through the Game Pak slot.
 
 Prerelease versions of the Super NES emulator Mesen-S also support
 Game Boy with an aim toward supporting Super Game Boy.  However,
@@ -70,26 +79,26 @@ Results of Blargg's emulator tests
 [TASVideos GB Accuracy Tests] lists a set of Game Boy emulator test
 ROMs by Shay Green (known in the scene as Blargg) that measure
 CPU-visible behaviors.  The tests show the following results in
-NO$GMB 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
+No$gmb 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
 Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
 Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte, and
 mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
-  VBA 6 of 11; rew. 7 of 11; NO$GMB and KiGB 9 of 11;
+  VBA 6 of 11; rew. 7 of 11; No$gmb and KiGB 9 of 11;
   VBA-M, BGB, mGBA, Mesen, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ rew. hangs with 0 of 11; NO$GMB and VBA 0 of 12;
+  KiGB _crashes;_ rew. hangs with 0 of 11; No$gmb and VBA 0 of 12;
   Goomba 1 of 12; VBA-M and Mesen-S 7 of 12; mGBA 10 of 12; BGB passes
 - Halt Bug  
   VBA and rew. enter a reset loop; KiGB and Goomba fail; others pass
 - Instr Timing  
-  NO$GMB and KiGB hang; rew. and Goomba fail #255; others pass
+  No$gmb and KiGB hang; rew. and Goomba fail #255; others pass
 - Mem Timing 2  
-  KiGB _crashes;_ VBA, NO$GMB, rew., and Goomba 0 of 3; VBA-M 2 of 3;
+  KiGB _crashes;_ VBA, No$gmb, rew., and Goomba 0 of 3; VBA-M 2 of 3;
   others pass
 - OAM Bug  
-  VBA, NO$GMB, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
+  VBA, No$gmb, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
   rew., VBA-M, BGB, Mesen, and mGBA 3 of 8
 
 SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
@@ -112,7 +121,7 @@ Some notes from research into behavior differences follow:
 
 ### CPU instructions
 
-Blargg's CPU instructions test shows that both NO$GMB and KiGB
+Blargg's CPU instructions test shows that both No$gmb and KiGB
 produce incorrect flags for two categories of instructions:
 `op sp, hl` (adding an 8-bit signed value to SP) and `op rp` (adding
 a 16-bit register pair to HL).  Rather than giving details of what
@@ -122,16 +131,16 @@ following instructions into the exerciser to make a quick spot check:
 
 - 19: `add hl, de`
     - GB: Z unchanged, N = 0, HC = carry from bits 11 and 15 of HL + DE
-    - NO$GMB and KiGB: N and H unchanged
+    - No$gmb and KiGB: N and H unchanged
 - 29: `add hl, hl`
     - GB: Z unchanged, N = 0, HC = bits 11 and 15 of HL
-    - NO$GMB and KiGB: N and H unchanged
+    - No$gmb and KiGB: N and H unchanged
 - E8 rr: `add sp, rel`
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
-    - NO$GMB and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
+    - No$gmb and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
 - F8 rr: `ld hl, sp+rel`
     - GB: Z = N = 0, HC = carry from bits 3 and 7 of (SP & $FF) + rr
-    - NO$GMB and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
+    - No$gmb and KiGB: C = carry from bit 15 of SP + sext8to16(rr)
 
 ```
 INST 971900000000, AF 0000, HL 8800, DE 7800
@@ -150,12 +159,12 @@ pop bc     ; C bit 4 shows carry for D000+FFFE
 add sp, -2 ; F bit 4 shows carry for CFFE+FFFE
 ```
 
-If SP points outside HRAM, the carry from E8 and F8 in NO$GMB
+If SP points outside HRAM, the carry from E8 and F8 in No$gmb
 and KiGB practically always equals bit 7 of the relative value.
 
-If it's any comfort, NO$GMB and KiGB do better than VBA and TGB Dual.
+If it's any comfort, No$gmb and KiGB do better than VBA and TGB Dual.
 They at least pass Blargg's `daa` test for all values of AF.
-VBA, by contrast, fails the same two as NO$GMB and KiGB plus these:
+VBA, by contrast, fails the same two as No$gmb and KiGB plus these:
 
 - 01-special `pop af` Failed #5
 - 02-interrupts `halt` Failed #5
@@ -214,7 +223,7 @@ on AF states that result from adding or subtracting two valid
 BCD bytes.  Incorrect results come from pathological AF states,
 such as carry with A >= $40.  Leave them for level 3 or later.
 
-Like NO$GMB, rew. fails `add sp` and `ld hl, sp+`.  More worrying
+Like No$gmb, rew. fails `add sp` and `ld hl, sp+`.  More worrying
 is the failure on basic interrupt functionality.  It fails the
 first test in "02-interrupts", which triggers an interrupt through
 a write to IF.  It operates similarly to the following exerciser:
@@ -238,7 +247,7 @@ honoring writes to IF at all.
 
 ### DMG sound
 
-NO$GMB and VBA fail all tests because they don't mask write-only bits
+No$gmb and VBA fail all tests because they don't mask write-only bits
 when reading back values from audio registers and honor writes while
 the APU is off.  Still curious what differences are most impactful.
 
@@ -253,27 +262,27 @@ ld [$FF00+C], a  ; Turn on APU
 ldh a, [$FF11]   ; Audio regs are FF10-FF25
 ```
 The resulting OR mask pattern matched that in Blargg's test,
-of which NO$GMB observes only the last byte:
+of which No$gmb observes only the last byte:
 ```
 803F00FFBF FF3F00FFBF 7FFF9FFFBF FFFF0000BF 000070
 ```
 
-Game Boy, VBA-M, mGBA, and NO$GMB all make most sound registers
+Game Boy, VBA-M, mGBA, and No$gmb all make most sound registers
 readable, clear sound registers to 0 when the APU is turned off, and
-read NR52 unused bits 6-4 as 1.  Unlike the others, NO$GMB and VBA
+read NR52 unused bits 6-4 as 1.  Unlike the others, No$gmb and VBA
 honor writes to other registers while the APU is off and don't hide
 lengths, periods, or other unused bits from being read back.  In
-fact, NO$GMB and VBA allow reading out the pitch as sweep updates it.
+fact, No$gmb and VBA allow reading out the pitch as sweep updates it.
 VBA doesn't mask NR52 unused bits; the last written value persists
 until a note-on sets it or the length counter or sweep clears it.
 Nor does VBA clear registers when the APU is turned off.
 
-Game Boy, VBA-M, mGBA, and NO$GMB all reflect channel status in NR52
+Game Boy, VBA-M, mGBA, and No$gmb all reflect channel status in NR52
 bits 3-0, which turn off when its length counter (NRx1) expires or
 wave RAM is unlocked (NR30), and don't turn off when output volume
-fades to 0.  Unlike the others, NO$GMB and VBA leave the status bit
+fades to 0.  Unlike the others, No$gmb and VBA leave the status bit
 on when pulse or noise envelope starting value (NRx2) is less than 8.
-NO$GMB doesn't even clear status when the sweep decreases pulse 1's
+No$gmb doesn't even clear status when the sweep decreases pulse 1's
 period to its ultrasonic minimum.
 
 VBA-M passes dmg_sound 1 through 7 and fails 8 (01), 9 (01), 10 (01),
@@ -303,7 +312,7 @@ halt
 inc e  ; This runs twice because an interrupt is still pending
 ; ei   ; Change last byte to FB to see queued interrupts get handled
 ```
-Because NO$GMB and most others behave like a Game Boy, stage 1 does
+Because No$gmb and most others behave like a Game Boy, stage 1 does
 not test `halt`.  Because KiGB and Goomba differ, stage 2 tests it so
 that later tests relying on more precise timing can use `di halt`.
 
@@ -339,11 +348,11 @@ Blargg's test finishes in half a second on Game Boy, VBA-M, and mGBA.
 It begins with an 11-cycle loop in `start_timer` ($C2D6) that tries
 to synchronize to the 4-cycle phase by writing 0 to TIMA and reading
 it 3 cycles later, trying again if it incremented.  On a Game Boy,
-this succeeds within four tries.  On NO$GMB, it always increments
+this succeeds within four tries.  On No$gmb, it always increments
 and thus gets stuck, and the test has no timeout for this.
 
-DIV in NO$GMB counts _backwards,_ which would interfere with games'
-random number generators.  This gives FF on NO$GMB and 01 elsewhere:
+DIV in No$gmb counts _backwards,_ which would interfere with games'
+random number generators.  This gives FF on No$gmb and 01 elsewhere:
 ```
 INST 7E4F7E9128FC, HL=FF04
 ; disassembles to
@@ -379,7 +388,7 @@ inc de       ; burn a couple cycles
 ld b, [hl]   ; read TIMA 4 cycles after DIV
 ```
 A (DIV) and B (TIMA) should be the same on most presses, with B one
-higher on a small fraction.  Everything but NO$GMB gets this right.
+higher on a small fraction.  Everything but No$gmb gets this right.
 
 TODO: Ask gbdev #emudev which games depend on working timers
 
@@ -395,7 +404,7 @@ TIMA as the address to determine on which cycle the access occurs.
 Based on how TIMA reacts, it determines whether the access occurred
 before or after the increment.
 
-Because it relies on correct timers, which NO$GMB lacks, a different
+Because it relies on correct timers, which No$gmb lacks, a different
 approach will be needed.
 
 VBA-M fails 3 (01).
@@ -421,8 +430,8 @@ My guess at the mechanism is that the incrementer puts the value on
 the internal address bus without RD or WR, and the OAM controller
 isn't equipped to ignore being decoded without RD or WR.
 
-NO$GMB and KiGB fail the LCD sync test for timing consistency, making
-the other tests invalid.  Running the test in NO$GMB's debugger shows
+No$gmb and KiGB fail the LCD sync test for timing consistency, making
+the other tests invalid.  Running the test in No$gmb's debugger shows
 the emulator is incompatible with the method that Blargg's test uses
 to synchronize to the start of frame at $C0BF.  LY advanced 109
 debug clocks after the instruction that turns on the LCD, not 114 as
@@ -450,14 +459,14 @@ My test performs the following steps:
 3. Read back OAM.  On GBC, fail on difference; otherwise fail on
    no difference.
 
-NO$GMB, KiGB, rew., Goomba, VBA, VBA-M, BGB, mGBA, Gambatte, and
+No$gmb, KiGB, rew., Goomba, VBA, VBA-M, BGB, mGBA, Gambatte, and
 BizHawk Gambatte all fail in Game Boy mode.  Among tested emulators,
 only SameBoy passes.
 
 Numism original tests
 ---------------------
 After I covered enough of Blargg's test space to thoroughly dunk on
-NO$GMB, VBA, and rew., I decided to branch out and cover aspects
+No$gmb, VBA, and rew., I decided to branch out and cover aspects
 not directly inspired by a Blargg test.
 
 ### Palettes
@@ -511,17 +520,17 @@ mode 2 on that line to the start of the following mode 0.
 - Low-tier emulators show constant duration.  
   42 (rew.), 47 (VBA), 48 (KiGB)
 - Two emulators don't get the hint, not firing the second interrupt.  
-  1 (NO$GMB, Goomba)
+  1 (No$gmb, Goomba)
 - One emulator tested later didn't support STAT interrupts at all.  
   Hang at `halt` (Geebly as of commit 36519c7a37, 2021-01-31)
 
-NO$GMB interrupt behavior is deviously hard to characterize
+No$gmb interrupt behavior is deviously hard to characterize
 because it has a [Heisenbug]: it differs based on whether
 step debugging is active.
 
 Say IF is $12, IE is $01, and I write $02 to IE.  In BGB, this write
 immediately goes through, and I can see the step debugger jump into
-the STAT handler.  In NO$GMB, I see the effect of the STAT handler
+the STAT handler.  In No$gmb, I see the effect of the STAT handler
 when running normally.  If I put a breakpoint before the IE write and
 step through it, the IE and IF in the I/O map change but the handler
 doesn't get called.  Stepping by some amounts even corrupts the
@@ -545,7 +554,7 @@ The APU's sequencer controls the speed of sweep, envelope, and
 length counter.  It receives a 512 Hz clock from DIV.  So I wrote a
 coin that writes to DIV roughly every 660 cycles to keep DIV from
 reaching high enough to clock the APU's sequencer.  As expected,
-the usual suspects (VBA, Goomba, KiGB, rew., NO$GMB) all fail.  It's
+the usual suspects (VBA, Goomba, KiGB, rew., No$gmb) all fail.  It's
 also my first coin that distinguishes VBA-M (fail) from mGBA (pass).
 
 ### Echo RAM
@@ -579,5 +588,5 @@ Things I can think off the top of my head to make exercisers for:
 - DIV and TIMA sync at all TAC rates
 - Values read and written to GBC palette ports in DMG and DMG-on-GBC,
   and DMG palette ports in GBC mode
-- What is DMG Sound _trying_ to test, and what is NO$GMB failing?
+- What is DMG Sound _trying_ to test, and what is No$gmb failing?
 
