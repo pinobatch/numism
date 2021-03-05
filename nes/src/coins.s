@@ -1,6 +1,6 @@
 .include "nes.inc"
 .include "global.inc"
-
+.import bccwrap_forward  ; from unrom.s
 
 coin_names:
   .addr coin_name01, coin_name02, coin_name03, coin_name04, coin_name05
@@ -103,10 +103,36 @@ coin_03:
   rts
 
 coin_name04:
-  .byte "Coin #4",10
-  .byte "Always pass for now",0
+  .byte "Branch wrapping",10
+  .byte "bcc from $FFxx to $00xx or",10
+  .byte "vice versa wraps mod $10000",10
+  .byte "(thanks blargg)",0
 coin_04:
+  ; Adapted from blargg's 02-branch_wrap.nes
+  ; Load INX INX RTS RTS STP to $0000-$0002
+  lda #$E8
+  sta $00
+  sta $01  ; BCC $10001 branches HERE
+  lda #$60
+  sta $02
+  sta $03  ; 2021-03-05: no$nes overshoots when debugger disabled
+  lda #$02
+  sta $04  ; STP to drive the point home to no$nes users
+  ldx #0
   clc
+  jsr bccwrap_forward  ; if correct, X should be 1
+  dex
+  bne pass_if_x_zero
+
+  ; Load BCC $FFE3 to $0000-$0001
+  lda #$90
+  sta $00
+  lda #$E1
+  sta $01
+  jsr $0000
+  dex
+pass_if_x_zero:
+  cpx #1
   rts
 
 coin_name05:

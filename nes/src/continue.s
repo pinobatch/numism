@@ -82,6 +82,7 @@ desc_text_ptr: .res 2
   lsr cur_stage
   rts
 
+; Each test is run with IRQ and rendering disabled and NMI enabled.
 run_one_test:
   ldx desc_y
   lda coin_routines,x
@@ -93,7 +94,7 @@ run_one_test:
   stx desc_y
   lda #VBLANK_NMI
   sta PPUCTRL
-  lda #0
+  asl a
   sta PPUMASK
   sei
   jmp ($0000)
@@ -790,6 +791,7 @@ continue_stripes:
   ; Logo
   .dbyt $2000+7+32*1
   .byte 18-1
+  ;     N           U           M               I   S           M
   .byte $08,$16,$0B,$05,$06,$07,$08,$09,$0A,$0B,$0C,$0D,$0E,$0F,$08,$09,$0A,$0B
   .dbyt $2000+7+32*2
   .byte 18-1

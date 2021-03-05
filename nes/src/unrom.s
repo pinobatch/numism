@@ -11,6 +11,8 @@
 .include "mmc1.inc"  ; implements a subset of the same interface
 .import nmi_handler, reset_handler, irq_handler, bankcall_table
 
+.export bccwrap_forward, bccwrap_inxrts
+
 .segment "INESHDR"
   .byt "NES",$1A  ; magic signature
   .byt 4          ; size of PRG ROM in 16384 byte units
@@ -20,33 +22,21 @@
   
 .segment "ZEROPAGE"
 lastPRGBank: .res 1
-lastBankMode: .res 1
 bankcallsaveA: .res 1
 
-; Each bank has 16384 bytes: 16368 for you to use as you wish and
-; 16 for a piece of code that puts the mapper in a predictable state.
-; This code needs to be repeated in all the banks because we don't
-; necessarily know which bank is switched in at power-on or reset.
-;
-; On most discrete logic mappers (AOROM 7, BNROM 34, GNROM 66, and
-; Crazy Climber UNROM 180), writing a value with bits 5-0 true
-; (that is, $3F, $7F, $BF, $FF) switches in the last PRG bank, but
-; it has to be written to a ROM address that has the same value.
-.macro resetstub_in segname
-.segment segname
-.scope
-resetstub_entry:
-  sei
-  ldx #$FF
-  txs
-  stx $FFF2  ; Writing $80-$FF anywhere in $8000-$FFFF resets MMC1
-  jmp reset_handler
-  .addr nmi_handler, resetstub_entry, irq_handler
-.endscope
-.endmacro
+; Reserve $FFE0-$FFFF of the fixed bank for things needed by
+; obscure tests
+.segment "FFE0"
+bccwrap_forward:
+  bcc *+$21
+  inx
+bccwrap_inxrts:
+  inx
+  rts
 
-.segment "CODE"
-resetstub_in "STUB15"
+  ; The vectors
+  .res bccwrap_forward+$1A-*
+  .addr nmi_handler, reset_handler, irq_handler
 
 .segment "CODE"
 ;;
@@ -56,11 +46,6 @@ resetstub_in "STUB15"
   sta lastPRGBank
   tay
   sta identity16,y
-  rts
-.endproc
-
-; No-op
-.proc setMMC1BankMode
   rts
 .endproc
 

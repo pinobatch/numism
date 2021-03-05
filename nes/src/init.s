@@ -62,12 +62,6 @@ clear_zp:
   ; Set up PRG RAM
   ; Copy initial high scores, bankswitching trampolines, etc. to RAM
   ; Set up your sound engine
-  
-  lda #%01110
-  ;        ^^ Vertical mirroring (horizontal arrangement of nametables)
-  ;      ^^   Fixed $C000
-  ;     ^     8 KiB bank switching
-  jsr setMMC1BankMode
 
 vwait2:
   bit PPUSTATUS  ; After the second vblank, we know the PPU has

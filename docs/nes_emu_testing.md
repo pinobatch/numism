@@ -10,11 +10,17 @@ I've tested Mesen (Sour final), FCEUX 2.3.0 (New PPU), No$nes 1.2,
 and PocketNES 2013-07-01.  Other emulators I'd like to test include
 NESticle, loopyNES, NESten, rew., RockNES, and puNES.
 
-Unlike No$gmb, No$nes takes a ROM on the command line.  However,
-the ROM path must be an absolute path with backslashes:
+Unlike No$gmb, No$nes takes a ROM path on the command line.
+It must be an absolute path with backslashes.  Save this as
+`~/.local/bin/nones`, edit it to correspond to the path on your
+system, and make it executable (`chmod +x ~/.local/bin/nones`).
 ```
-wine path/to/NO\$NES.EXE `winepath -w path/to/numism.nes`
+#!/bin/sh
+wine '/path/to/NO$NES.EXE' $(winepath -w $1)
 ```
+
+As with Mesen-S, Mesen is run in Mono 6.10 to avoid a regression that
+breaks preferences dialogs.
 
 PocketNES v7a and later require an extended 48-byte header before
 the iNES header.  ROM builders are expected to follow this format
@@ -139,8 +145,10 @@ Like the No$gmb debugger, the No$nes debugger has a [heisenbug]
 (behavior difference arising while a behavior is under test).
 If I run `02-branch_wrap.nes` normally, it fails.  If I set a
 breakpoint at $E820 (the start of the body of the test) and step
-through the branches around $FF and $01, the test passes.
+through the branches around $FFFF and $0000, the test passes.
 This debugger is worth no cash.
+
+(Further testing showed that a forward branch overshoots by 2 bytes.)
 
 [Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug
 

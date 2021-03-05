@@ -27,7 +27,7 @@ A preliminary list for stages 1 and 2 is complete.
 2. Writing $00 to $4017 (APU length counter) sets bit 6 of $4015
    (APU status) 1/60 second later
 3. 
-4. 
+4. Branching between $FFxx and $00xx wraps correctly
 5. 
 6. 
 7. 
