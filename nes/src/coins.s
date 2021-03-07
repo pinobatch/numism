@@ -140,22 +140,44 @@ coin_name05:
   .byte "Sprite at Y=$FF does not",10
   .byte "trigger sprite 0 hit",0
 coin_05:
-  ldx #$20     ; Write $00 to top of first nametable
-  lda #$00
-  jsr ppuwr64  ; Write solid tile to pattern table
-  lda #$FF
-  jsr ppuwr64  ; Clear OAM
+  lda #3
+  jsr load_s0tiles
+
+  ; place sprite 0 at Y=$FF
+  lda #3
+  sta OAM+0
+  sta OAM+1
+  sta OAM+2
+  lda #$FF  ; Comment this out temporarily to make good emulators fail
+  sta OAM+3
+  jsr does_s0_hit
+  cmp #$40
+  rts
+
+;;
+; Loads the sprite 0 tiles, clears the tilemap to value A,
+; and sets Y of sprite 1-63 to 240.
+load_s0tiles:
+  ldy #0
+  ldx #$20
+  jsr ppu_clear_nt
+  stx PPUADDR
+  stx PPUADDR
+  lda #$F0
   ldx #4
   :
     sta OAM,x
     inx
     bne :-
-  sta OAM+0
-  lda #$80
-  sta OAM+3
-;  stx OAM+0  ; uncomment this to make emulators fail temporarily
-  stx OAM+1
-  stx OAM+2
+  lda #>s0tiles_chr
+  ldy #<s0tiles_chr
+  ldx #8
+  jmp unpb53_xtiles_ay
+
+;;
+; Waits for vblank, sets scroll (0, 0), pushes OAM
+; No hit: A = $00, ZF = 1; hit: A = $40; ZF = 0
+does_s0_hit:
   jsr wait_vblank
   bit PPUSTATUS
   lda #0
@@ -168,42 +190,55 @@ coin_05:
   sta PPUCTRL
   lda #BG_ON|OBJ_ON
   sta PPUMASK
-  ; wait out sprite 0 to avoid false alarma
+  ; wait out sprite 0 to avoid false alarms
   :
     bit PPUSTATUS
     bvs :-
-  ; wait for vblank (pass) or sprite 0 (fail) whatever comes first
-  lda nmis
-  :
-    bit PPUSTATUS
-    bvs @fail
-    cmp nmis
-    beq :-
-  clc
-  rts
-@fail:
-  sec
+  jsr wait_vblank
+  lda PPUSTATUS
+  and #$40
   rts
 
-;;
-; Writes 64 bytes of value A to PPU address X*$100
-; leaving X=0, AY unchanged
-ppuwr64:
-  stx PPUADDR
-  ldx #$00
-  stx PPUADDR
-  ldx #64
-  :
-    sta PPUDATA
-    dex
-    bne :-
-  rts
+s0tiles_chr:
+  .incbin "obj/nes/s0tiles.chr.pb53"
 
 coin_name06:
-  .byte "Coin #6",10
-  .byte "Always pass for now",0
+  .byte "Sprite 0 flipping",10
+  .byte "Flipped sprite still triggers",10
+  .byte "sprite 0 hit",0
 coin_06:
-  clc
+  jsr load_s0tiles
+  ; Place a solid block at (128, 120) on the tilemap ($21F0)
+  lda #$21
+  sta PPUADDR
+  lda #$F0
+  sta PPUADDR
+  ldx #$03
+  stx PPUDATA
+
+  ; and a sprite at (121, 113) such that its lower right pixel
+  ; is within the solid block
+  inx
+  stx OAM+1
+  lda #121
+  sta OAM+3
+  lda #112
+  sta OAM+0
+
+  ; 07 unflipped, 06 Hflipped, 05 Vflipped, and 04 HVflipped
+  ; should all hit
+  lda #$C0
+  @loop:
+    sta OAM+2
+    jsr does_s0_hit
+    sec
+    beq @bail
+    inc OAM+1  ; go to next tile
+    ; No$nes also fails if this is changed to dec OAM+1
+    lda OAM+2
+    sbc #$40
+    bcs @loop
+  @bail:
   rts
 
 coin_name07:

@@ -26,7 +26,6 @@ continuetiles_chr:
   ldx #64
   sty ciSrc+0
   sta ciSrc+1
-  sta $4444
   jsr unpb53_xtiles
   jmp bankrts
 .endproc

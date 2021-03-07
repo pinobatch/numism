@@ -77,6 +77,9 @@ Overall results show PocketNES slightly edging out FCEUX.
 
 ### CPU
 
+Many interrupt tests fail on No$nes because the emulator doesn't
+implement the APU frame IRQ.
+
 `branch_timing_tests` contains `1.Branch_Basics`,
 `2.Backward_Branch`, and `3.Forward_Branch`.  Each depends on
 the preceding tests.
@@ -176,7 +179,7 @@ This debugger is worth no cash.
 * No$nes: 0/11  
   $03, $F8 $FF $1E $02, $02, $02, $03, $03, $02, $04, $02, $03, $02
 
-Things only no$nes gets wrong: length counter table and changing
+Things only No$nes gets wrong: length counter table and changing
 between with and without length counter.
 
 `dmc_dma_during_read4` contains five tests.  Three have a pass or

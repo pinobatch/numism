@@ -33,7 +33,7 @@
 .global nstripe_2bpp_from_lineImg, nstripe_1bpp_from_lineImg
 
 ; unpb53.s
-.global unpb53_xtiles
+.global unpb53_xtiles, unpb53_xtiles_ay
 
 ; bankcall ids
 .globalzp load_continue_chr

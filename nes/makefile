@@ -106,13 +106,14 @@ $(objdir)/%.o: $(objdir)/%.s
 
 # Files that depend on .incbin'd files
 $(objdir)/chrram.o: $(objdir)/continuetiles.chr.pb53
+$(objdir)/coins.o: $(objdir)/s0tiles.chr.pb53
 
 # This is an example of how to call a lookup table generator at
 # build time.  mktables.py itself is not included because the demo
 # has no music engine, but it's available online at
 # http://wiki.nesdev.com/w/index.php/APU_period_table
 $(objdir)/ntscPeriods.s: tools/mktables.py
-	$< period $@
+	$(PY) $< period $@
 
 # Rules for CHR data
 

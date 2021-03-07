@@ -8,7 +8,7 @@
 ; code copies.  This file is offered as-is, without any warranty.
 ;
 .include "nes.inc"
-.export unpb53_some, unpb53_xtiles
+.export unpb53_some, unpb53_xtiles, unpb53_xtiles_ay
 .export PB53_outbuf
 .exportzp ciSrc, ciDst, ciBufStart, ciBufEnd
 .importzp nmis
@@ -153,12 +153,14 @@ noNewByte:
 .endproc
 
 unpb53_tiles_left = $0002
-
+.proc unpb53_xtiles_ay
+  sty ciSrc
+  sta ciSrc+1
+.endproc
 .proc unpb53_xtiles
   stx unpb53_tiles_left
 .endproc
 .proc unpb53_tiles
-  stx $4444
   ldx #0
   stx ciBufStart
   ldx #16

@@ -30,7 +30,7 @@ A preliminary list for stages 1 and 2 is complete.
 4. Branching between $FFxx and $00xx wraps correctly
 5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
    hit
-6. 
+6. Sprite 0 hit triggers in all four flip states
 7. 
 8. 
 9. 
