@@ -39,6 +39,14 @@ described in the [PocketNES FAQ], for which I wrote [my own builder].
 - 16384*p bytes: PRG ROM
 - 8192*c bytes: CHR ROM
 
+Likewise, save this as `~/.local/bin/pnes` and make it executable:
+```
+#!/bin/sh
+set -e
+/path/to/numism/nes/tools/pnesbuild.py /path/to/pocketnes.gba "$1" -o "$1.gba"
+mgba-qt "$1.gba"
+```
+
 [PocketNES FAQ]: https://web.archive.org/web/20131102194638/http://pocketnes.org/faq.html
 [my own builder]: ../nes/tools/pnesbuild.py
 

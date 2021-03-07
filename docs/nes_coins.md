@@ -20,14 +20,16 @@ kilobytes of ROM.  I may have to use the DTE codec that I used for
 
 Coin list
 ---------
-A preliminary list for stages 1 and 2 is complete.
+Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 
 1. Reading $20E0,X with X=$22 does dummy read from $2002 (PPU status)
    then reads $2102 bit 7 false
 2. Writing $00 to $4017 (APU length counter) sets bit 6 of $4015
    (APU status) 1/60 second later
-3. 
-4. Branching between $FFxx and $00xx wraps correctly
+3. Note on pulse 1 sets $4015 bit 0; length counter expiry clears it
+4. Branching between $FFxx and $00xx wraps correctly  
+   (Half of this coin freezes in PocketNES; the other half crashes
+   No$nes.  Further testing may be needed.)
 5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
    hit
 6. Sprite 0 hit triggers in all four flip states
@@ -48,13 +50,9 @@ A preliminary list for stages 1 and 2 is complete.
 
 ### Unsorted
 
-* Branch wrapping across $0000 and $FFFF
-* Playing a short note on pulse 1 should have $4015 D0 go 1 then 0
 * Playing a short sample should have $4015 D4 go 1 then 0
-* Sprite 0 when Y=$FF
 * Sprite 0 when X=$00 and left 8 pixels are disabled
 * 9 sprites high on screen, disable rendering during those, 9 more
   sprites low on screen
-* Timing of when $2002 bits get cleared
 * DPCM causing $2007 double reads should be stage 3+ because it's
   an NTSC/PAL difference

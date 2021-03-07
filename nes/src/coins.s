@@ -2,21 +2,29 @@
 .include "global.inc"
 .import bccwrap_forward  ; from unrom.s
 
+; With 0, No$nes crashes.  With 1, PocketNES freezes.
+BREAK_POCKETNES = 1
+
 coin_names:
-  .addr coin_name01, coin_name02, coin_name03, coin_name04, coin_name05
-  .addr coin_name06, coin_name07, coin_name08, coin_name09, coin_name10
+  .addr coin_name_stat_ack
+  .addr coin_name_apufc_status
+  .addr coin_name_apulc_status
+  .addr coin_name_branch_wrap
+  .addr coin_name_s0_y255
+  .addr coin_name_s0_flip
+  .addr coin_name07, coin_name08, coin_name09, coin_name10
   .addr coin_name11, coin_name12, coin_name13, coin_name14, coin_name15
   .addr coin_name16, coin_name17, coin_name18, coin_name19, coin_name20
   .addr coin_name21, coin_name22, coin_name23, coin_name24, coin_name25
   .addr coin_name26, coin_name27, coin_name28, coin_name29, coin_name30
 
 coin_routines:
-  .addr coin_01
-  .addr coin_02
-  .addr coin_03
-  .addr coin_04
-  .addr coin_05
-  .addr coin_06
+  .addr coin_stat_ack
+  .addr coin_apufc_status
+  .addr coin_apulc_status
+  .addr coin_branch_wrap
+  .addr coin_s0_y255
+  .addr coin_s0_flip
   .addr coin_07
   .addr coin_08
   .addr coin_09
@@ -44,137 +52,13 @@ coin_routines:
   .addr coin_29
   .addr coin_30
 
+; Common routines ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 wait_vblank:
   lda nmis
   :
     cmp nmis
     beq :-
-  rts
-
-coin_name01:
-  .byte "$2002 dummy read acks NMI",10
-  .byte "ldx #$22 lda $20E0,x",10
-  .byte "acknowledges NMI then",10
-  .byte "reads bit 7 clear",0
-coin_01:
-  jsr wait_vblank
-  ldx #$22
-  lda $20E0,x  ; read $2002 then $2102 twice, first D7=1 then D7=0
-  asl a        ; bit 7 clear: pass; bit 7 set: fail
-  rts
-
-coin_name02:
-  .byte "APU frame counter status",10
-  .byte "Within 1/60 s after $4017=0,",10
-  .byte "$4015 D6 becomes 1",0
-coin_02:
-  ldy #0  ; suppress vblank interrupt
-  sty PPUCTRL
-
-  bit $4015  ; acknowledge irq
-  sec
-  bit $4015  ; if $4015 didn't ack it's fail
-  bvs @earlyout
-
-  sty $4017  ; reset the frame counter; enable frame IRQ
-  ; wait long enough to get a length count
-  ; 14915 APU cycles * 2/1284 iteration per APU cycle = 23.23
-  ldx #32
-  @loop:
-    dey
-    bne @loop
-    dex
-    bne @loop
-  lda $4015  ; 7: DMC IRQ status; 6: APU status
-  eor #$40   ; 1 is pass here; convert to 0 pass
-  asl a
-  asl a
-@earlyout:
-  rts
-
-coin_name03:
-  .byte "APU length counter status",10
-  .byte "Within 0.1 s after $4017=$19,",10
-  .byte "$4015 bit 0 goes 1 then 0",0
-coin_03:
-  lda #$40
-  sta $4017
-  lda #$0F
-  sta $4015
-  lda #$90  ; length counter not suppressed, silent software envelope
-  sta $4000
-  lda #$08
-  sta $4001
-  lda #$19
-  sta $4003  ; set length 2/120 s
-  lda $4015
-  eor #$01
-  lsr a
-  bcs @have_c  ; after note, pulse 1 length ctr status becomes true
-  ldx #54  ; 1789773 / (256*13*10) rounded up
-  ldy #0
-  @loop:
-    lda $4015
-    lsr a
-    bcc @have_c
-    iny
-    bne @loop
-    .assert >* = >@loop, error, "APU LC coin crosses bank boundary"
-    dex
-    bne @loop
-@have_c:
-  rts
-
-coin_name04:
-  .byte "Branch wrapping",10
-  .byte "bcc from $FFxx to $00xx or",10
-  .byte "vice versa wraps mod $10000",10
-  .byte "(thanks blargg)",0
-coin_04:
-  ; Adapted from blargg's 02-branch_wrap.nes
-  ; Load INX INX RTS RTS STP to $0000-$0002
-  lda #$E8
-  sta $00
-  sta $01  ; BCC $10001 branches HERE
-  lda #$60
-  sta $02
-  sta $03  ; 2021-03-05: no$nes overshoots when debugger disabled
-  lda #$02
-  sta $04  ; STP to drive the point home to no$nes users
-  ldx #0
-  clc
-  jsr bccwrap_forward  ; if correct, X should be 1
-  dex
-  bne pass_if_x_zero
-
-  ; Load BCC $FFE3 to $0000-$0001
-  lda #$90
-  sta $00
-  lda #$E1
-  sta $01
-  jsr $0000
-  dex
-pass_if_x_zero:
-  cpx #1
-  rts
-
-coin_name05:
-  .byte "Hidden sprite is hidden",10
-  .byte "Sprite at Y=$FF does not",10
-  .byte "trigger sprite 0 hit",0
-coin_05:
-  lda #3
-  jsr load_s0tiles
-
-  ; place sprite 0 at Y=$FF
-  lda #3
-  sta OAM+0
-  sta OAM+1
-  sta OAM+2
-  lda #$FF  ; Comment this out temporarily to make good emulators fail
-  sta OAM+3
-  jsr does_s0_hit
-  cmp #$40
   rts
 
 ;;
@@ -227,11 +111,143 @@ does_s0_hit:
 s0tiles_chr:
   .incbin "obj/nes/s0tiles.chr.pb53"
 
-coin_name06:
+; Coins 1-10 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Intended to catch No$nes
+
+coin_name_stat_ack:
+  .byte "$2002 dummy read acks NMI",10
+  .byte "ldx #$22 lda $20E0,x",10
+  .byte "acknowledges NMI then",10
+  .byte "reads bit 7 clear",0
+coin_stat_ack:
+  jsr wait_vblank
+  ldx #$22
+  lda $20E0,x  ; read $2002 then $2102 twice, first D7=1 then D7=0
+  asl a        ; bit 7 clear: pass; bit 7 set: fail
+  rts
+
+coin_name_apufc_status:
+  .byte "APU frame counter status",10
+  .byte "Within 1/60 s after $4017=0,",10
+  .byte "$4015 D6 becomes 1",0
+coin_apufc_status:
+  ldy #0  ; suppress vblank interrupt
+  sty PPUCTRL
+
+  bit $4015  ; acknowledge irq
+  sec
+  bit $4015  ; if $4015 didn't ack it's fail
+  bvs @earlyout
+
+  sty $4017  ; reset the frame counter; enable frame IRQ
+  ; wait long enough to get a length count
+  ; 14915 APU cycles * 2/1284 iteration per APU cycle = 23.23
+  ldx #32
+  @loop:
+    dey
+    bne @loop
+    dex
+    bne @loop
+  lda $4015  ; 7: DMC IRQ status; 6: APU status
+  eor #$40   ; 1 is pass here; convert to 0 pass
+  asl a
+  asl a
+@earlyout:
+  rts
+
+coin_name_apulc_status:
+  .byte "APU length counter status",10
+  .byte "Within 0.1 s after $4017=$19,",10
+  .byte "$4015 bit 0 goes 1 then 0",0
+coin_apulc_status:
+  lda #$40
+  sta $4017
+  lda #$0F
+  sta $4015
+  lda #$90  ; length counter not suppressed, silent software envelope
+  sta $4000
+  lda #$08
+  sta $4001
+  lda #$19
+  sta $4003  ; set length 2/120 s
+  lda $4015
+  eor #$01
+  lsr a
+  bcs @have_c  ; after note, pulse 1 length ctr status becomes true
+  ldx #54  ; 1789773 / (256*13*10) rounded up
+  ldy #0
+  @loop:
+    lda $4015
+    lsr a
+    bcc @have_c
+    iny
+    bne @loop
+    .assert >* = >@loop, error, "APU LC coin crosses bank boundary"
+    dex
+    bne @loop
+@have_c:
+  rts
+
+coin_name_branch_wrap:
+  .byte "Branch wrapping",10
+  .byte "bcc from $FFxx to $00xx or",10
+  .byte "vice versa wraps mod $10000",10
+  .byte "(thanks blargg)",0
+coin_branch_wrap:
+  ; Adapted from blargg's 02-branch_wrap.nes
+  ; Load INX INX RTS RTS STP to $0000-$0002
+  clc
+  ; The forward test freezes PocketNES
+.if ::BREAK_POCKETNES
+  lda #$E8
+  sta $00
+  sta $01  ; BCC $10001 branches HERE
+  lda #$60
+  sta $02
+  sta $03  ; 2021-03-05: no$nes overshoots when debugger disabled
+  lda #$02
+  sta $04  ; STP to drive the point home to no$nes users
+  ldx #0
+  jsr bccwrap_forward  ; if correct, X should be 1
+  dex
+  bne pass_if_x_zero
+.endif
+  ; Load BCC $FFE3 to $0000-$0001
+  ; The backward test segfaults No$nes
+  lda #$90
+  sta $00
+  lda #$E1
+  sta $01
+  jsr $0000
+  dex
+pass_if_x_zero:
+  cpx #1
+  rts
+
+coin_name_s0_y255:
+  .byte "Hidden sprite is hidden",10
+  .byte "Sprite at Y=$FF does not",10
+  .byte "trigger sprite 0 hit",0
+coin_s0_y255:
+  lda #3
+  jsr load_s0tiles
+
+  ; place sprite 0 at Y=$FF
+  lda #3
+  sta OAM+0
+  sta OAM+1
+  sta OAM+2
+  lda #$FF  ; Comment this out temporarily to make good emulators fail
+  sta OAM+3
+  jsr does_s0_hit
+  cmp #$40
+  rts
+
+coin_name_s0_flip:
   .byte "Sprite 0 flipping",10
   .byte "Flipped sprite still triggers",10
   .byte "sprite 0 hit",0
-coin_06:
+coin_s0_flip:
   jsr load_s0tiles
   ; Place a solid block at (128, 120) on the tilemap ($21F0)
   lda #$21
@@ -268,10 +284,7 @@ coin_06:
 
 coin_name07:
   .byte "Coin #7",10
-  .byte "Always pass for now",10
-  .byte 34,"Old MacDonald had a farm,",10
-  .byte "CLI SEI CLI SEI...",10
-  .byte "oh wait, that's not it",34,0
+  .byte "Always pass for now",0
 coin_07:
   clc
   rts
@@ -285,7 +298,10 @@ coin_08:
 
 coin_name09:
   .byte "Coin #9",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Old MacDonald had a farm,",10
+  .byte "CLI SEI CLI SEI...",10
+  .byte "oh wait, that's not it",34,0
 coin_09:
   clc
   rts
@@ -368,6 +384,9 @@ coin_name20:
 coin_20:
   clc
   rts
+
+; Coins 21-30 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Now it's starting to get tricky
 
 coin_name21:
   .byte "Coin #21",10
