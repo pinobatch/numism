@@ -93,13 +93,36 @@ coin_02:
   rts
 
 coin_name03:
-  .byte "Coin #3",10
-  .byte "Always pass for now",10
-  .byte 34,"Old MacDonald had a farm,",10
-  .byte "CLI SEI CLI SEI...",10
-  .byte "oh wait, that's not it",34,0
+  .byte "APU length counter status",10
+  .byte "Within 0.1 s after $4017=$19,",10
+  .byte "$4015 bit 0 goes 1 then 0",0
 coin_03:
-  clc
+  lda #$40
+  sta $4017
+  lda #$0F
+  sta $4015
+  lda #$90  ; length counter not suppressed, silent software envelope
+  sta $4000
+  lda #$08
+  sta $4001
+  lda #$19
+  sta $4003  ; set length 2/120 s
+  lda $4015
+  eor #$01
+  lsr a
+  bcs @have_c  ; after note, pulse 1 length ctr status becomes true
+  ldx #54  ; 1789773 / (256*13*10) rounded up
+  ldy #0
+  @loop:
+    lda $4015
+    lsr a
+    bcc @have_c
+    iny
+    bne @loop
+    .assert >* = >@loop, error, "APU LC coin crosses bank boundary"
+    dex
+    bne @loop
+@have_c:
   rts
 
 coin_name04:
@@ -174,22 +197,24 @@ load_s0tiles:
   ldx #8
   jmp unpb53_xtiles_ay
 
+s0_present:
+  jsr wait_vblank
+  bit PPUSTATUS
+  ldx #0
+  ldy #0
+  stx OAMADDR
+  lda #>OAM
+  sta OAM_DMA
+  lda #VBLANK_NMI|OBJ_0000|BG_0000
+  sec
+  jmp ppu_screen_on
+
 ;;
 ; Waits for vblank, sets scroll (0, 0), pushes OAM
 ; No hit: A = $00, ZF = 1; hit: A = $40; ZF = 0
 does_s0_hit:
-  jsr wait_vblank
-  bit PPUSTATUS
-  lda #0
-  sta PPUSCROLL
-  sta PPUSCROLL
-  sta OAMADDR
-  lda #>OAM
-  sta OAM_DMA
-  lda #VBLANK_NMI|OBJ_0000|BG_0000
-  sta PPUCTRL
-  lda #BG_ON|OBJ_ON
-  sta PPUMASK
+  jsr s0_present
+
   ; wait out sprite 0 to avoid false alarms
   :
     bit PPUSTATUS
@@ -243,7 +268,10 @@ coin_06:
 
 coin_name07:
   .byte "Coin #7",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Old MacDonald had a farm,",10
+  .byte "CLI SEI CLI SEI...",10
+  .byte "oh wait, that's not it",34,0
 coin_07:
   clc
   rts
