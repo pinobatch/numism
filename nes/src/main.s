@@ -65,13 +65,7 @@ das_timer:     .res 2
   ; blank (not vblank), it'll be visible as a rainbow streak.
   jsr load_main_palette
 
-  ; While in forced blank we have full access to VRAM.
-  ; Copy CHR data to CHR RAM.
-  ldx #load_continue_chr
-  jsr bankcall
-
   jsr continue_main
-
 
   lda #0
   sta PPUMASK

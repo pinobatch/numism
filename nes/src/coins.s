@@ -136,10 +136,68 @@ pass_if_x_zero:
   rts
 
 coin_name05:
-  .byte "Coin #5",10
-  .byte "Always pass for now",0
+  .byte "Hidden sprite is hidden",10
+  .byte "Sprite at Y=$FF does not",10
+  .byte "trigger sprite 0 hit",0
 coin_05:
+  sta $4444
+  ldx #$20     ; Write $00 to top of first nametable
+  lda #$00
+  jsr ppuwr64  ; Write solid tile to pattern table
+  lda #$FF
+  jsr ppuwr64  ; Clear OAM
+  ldx #4
+  :
+    sta OAM,x
+    inx
+    bne :-
+  sta OAM+0
+  lda #$80
+  sta OAM+3
+;  stx OAM+0  ; uncomment this to make emulators fail temporarily
+  stx OAM+1
+  stx OAM+2
+  jsr wait_vblank
+  bit PPUSTATUS
+  lda #0
+  sta PPUSCROLL
+  sta PPUSCROLL
+  sta OAMADDR
+  lda #>OAM
+  sta OAM_DMA
+  lda #VBLANK_NMI|OBJ_0000|BG_0000
+  sta PPUCTRL
+  lda #BG_ON|OBJ_ON
+  sta PPUMASK
+  ; wait out sprite 0 to avoid false alarma
+  :
+    bit PPUSTATUS
+    bvs :-
+  ; wait for vblank (pass) or sprite 0 (fail) whatever comes first
+  lda nmis
+  :
+    bit PPUSTATUS
+    bvs @fail
+    cmp nmis
+    beq :-
   clc
+  rts
+@fail:
+  sec
+  rts
+
+;;
+; Writes 64 bytes of value A to PPU address X*$100
+; leaving X=0, AY unchanged
+ppuwr64:
+  stx PPUADDR
+  ldx #$00
+  stx PPUADDR
+  ldx #64
+  :
+    sta PPUDATA
+    dex
+    bne :-
   rts
 
 coin_name06:

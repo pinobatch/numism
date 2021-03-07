@@ -28,7 +28,8 @@ A preliminary list for stages 1 and 2 is complete.
    (APU status) 1/60 second later
 3. 
 4. Branching between $FFxx and $00xx wraps correctly
-5. 
+5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
+   hit
 6. 
 7. 
 8. 

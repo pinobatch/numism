@@ -2,6 +2,7 @@
 ; wine '../emulators/NO$NES.EXE' `winepath -w numism.nes`
 
 .include "nes.inc"
+.include "mmc1.inc"
 .include "global.inc"
 .include "popslide.inc"
 
@@ -82,7 +83,8 @@ desc_text_ptr: .res 2
   lsr cur_stage
   rts
 
-; Each test is run with IRQ and rendering disabled and NMI enabled.
+; Each test is run with IRQ and rendering disabled, NMI enabled,
+; and +1 (not +32) VRAM increment
 run_one_test:
   ldx desc_y
   lda coin_routines,x
@@ -115,6 +117,15 @@ run_one_test:
   jsr run_stage
   lda #2
   jsr run_stage
+
+  ; While in forced blank we have full access to VRAM.
+  ; Copy CHR data to CHR RAM.
+  lda #VBLANK_NMI
+  sta PPUCTRL
+  asl a
+  sta PPUMASK
+  ldx #load_continue_chr
+  jsr bankcall
 
   lda #0
   sta cur_stage
