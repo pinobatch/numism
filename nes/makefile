@@ -23,7 +23,7 @@ objlist := popslide64 vwf_draw \
 
 AS65 = ca65
 LD65 = ld65
-CFLAGS65 = 
+CFLAGS65 = -g
 objdir = obj/nes
 srcdir = src
 imgdir = tilesets
@@ -59,7 +59,7 @@ PY:=python3
 endif
 
 # Pseudo-targets
-.PHONY: run debug dist zip clean
+.PHONY: run debug dist zip clean rom
 
 run: $(title).nes
 	$(EMU) $<
@@ -94,8 +94,12 @@ clean:
 
 objlisto = $(foreach o,$(objlist),$(objdir)/$(o).o)
 
-map.txt $(title).nes: unrom512kbit.cfg $(objlisto)
-	$(LD65) -o $(title).nes -m map.txt -C $^
+map.txt $(title).nes $(title).dbg: rom
+rom: unrom512kbit.cfg $(objlisto)
+	$(LD65) -o $(title).nes -m map.txt --dbgfile $(title).dbg -C $^
+
+$(title).sym: $(title).dbg
+	$(PY) tools/dbgtosym.py -o $@ $<
 
 $(objdir)/%.o: $(srcdir)/%.s \
   $(srcdir)/nes.inc $(srcdir)/global.inc $(srcdir)/mmc1.inc $(srcdir)/popslide.inc
