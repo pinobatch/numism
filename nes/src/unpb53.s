@@ -8,20 +8,19 @@
 ; code copies.  This file is offered as-is, without any warranty.
 ;
 .include "nes.inc"
-.export unpb53_some, unpb53_xtiles, unpb53_file_cb, load_sb53_file_cb
-.import unpb53_files, sb53_files
+.export unpb53_some, unpb53_xtiles
 .export PB53_outbuf
 .exportzp ciSrc, ciDst, ciBufStart, ciBufEnd
 .importzp nmis
 
-.segment "ZEROPAGE"
+.zeropage
 ciSrc: .res 2
 ciDst: .res 2
 ciBufStart: .res 1
 ciBufEnd: .res 1
 PB53_outbuf = $0100
 
-.segment "PB53CODE"
+.code
 .proc unpb53_some
 ctrlbyte = 0
 bytesLeft = 1
@@ -159,6 +158,7 @@ unpb53_tiles_left = $0002
   stx unpb53_tiles_left
 .endproc
 .proc unpb53_tiles
+  stx $4444
   ldx #0
   stx ciBufStart
   ldx #16
@@ -178,6 +178,9 @@ copyloop:
 .endproc
 
 ; pb53 files: load individual files ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.if 0
+.export unpb53_file_cb, load_sb53_file_cb
+.import unpb53_files, sb53_files
 
 ;;
 ; Decompresses compressed pb53 file A to PPU address XXYY.
@@ -276,4 +279,4 @@ palloop:
   bcc palloop
   rts
 .endproc
-
+.endif

@@ -32,6 +32,9 @@
 .global clearLineImg, vwfPutTile, vwfPuts, invertTiles
 .global nstripe_2bpp_from_lineImg, nstripe_1bpp_from_lineImg
 
+; unpb53.s
+.global unpb53_xtiles
+
 ; bankcall ids
 .globalzp load_continue_chr
 

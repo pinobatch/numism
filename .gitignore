@@ -11,6 +11,7 @@
 *.2b
 *.1b
 *.pb16
+*.pb53
 *.iur
 *.sav
 kigb.cfg

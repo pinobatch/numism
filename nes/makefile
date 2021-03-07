@@ -19,7 +19,7 @@ version := wip
 objlist := popslide64 vwf_draw \
   init unrom bankcalltable \
   main continue coins \
-  pads ppuclear chrram nstripe vwf7
+  pads ppuclear chrram nstripe vwf7 unpb53
 
 AS65 = ca65
 LD65 = ld65
@@ -88,7 +88,7 @@ $(objdir)/index.txt: makefile
 	echo Files produced by build tools go here > $@
 
 clean:
-	-rm $(objdir)/*.o $(objdir)/*.s $(objdir)/*.chr
+	-rm $(objdir)/*.o $(objdir)/*.s $(objdir)/*.chr $(objdir)/*.pb53
 
 # Rules for PRG ROM
 
@@ -105,7 +105,7 @@ $(objdir)/%.o: $(objdir)/%.s
 	$(AS65) $(CFLAGS65) $< -o $@
 
 # Files that depend on .incbin'd files
-$(objdir)/chrram.o: $(objdir)/continuetiles.chr
+$(objdir)/chrram.o: $(objdir)/continuetiles.chr.pb53
 
 # This is an example of how to call a lookup table generator at
 # build time.  mktables.py itself is not included because the demo
@@ -124,3 +124,6 @@ $(objdir)/%16.chr: $(imgdir)/%.png
 
 $(objdir)/vwf7.s: $(imgdir)/vwf7_cp240p.png
 	$(PY) tools/vwfbuild.py $< $@
+
+$(objdir)/%.pb53: $(objdir)/%
+	$(PY) tools/pb53.py --raw $< $@

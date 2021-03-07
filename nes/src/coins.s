@@ -140,7 +140,6 @@ coin_name05:
   .byte "Sprite at Y=$FF does not",10
   .byte "trigger sprite 0 hit",0
 coin_05:
-  sta $4444
   ldx #$20     ; Write $00 to top of first nametable
   lda #$00
   jsr ppuwr64  ; Write solid tile to pattern table
