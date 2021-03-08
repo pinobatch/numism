@@ -31,7 +31,8 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
    hit
 6. Sprite 0 hit triggers in all four flip states
-7. 
+7. Having nine or more sprites on a scanline turns on the overflow
+   flag ($2002 bit 5), provided rendering is on for that line
 8. 
 9. 
 10. 

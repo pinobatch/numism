@@ -81,7 +81,7 @@ load_s0tiles:
   ldx #8
   jmp unpb53_xtiles_ay
 
-s0_present:
+present_with_oam:
   jsr wait_vblank
   bit PPUSTATUS
   ldx #0
@@ -97,7 +97,7 @@ s0_present:
 ; Waits for vblank, sets scroll (0, 0), pushes OAM
 ; No hit: A = $00, ZF = 1; hit: A = $40; ZF = 0
 does_s0_hit:
-  jsr s0_present
+  jsr present_with_oam
 
   ; wait out sprite 0 to avoid false alarms
   :
@@ -129,7 +129,7 @@ coin_stat_ack:
 coin_name_apufc_status:
   .byte "APU frame counter status",10
   .byte "Within 1/60 s after $4017=0,",10
-  .byte "$4015 D6 becomes 1",0
+  .byte "$4015 bit 6 becomes 1",0
 coin_apufc_status:
   ldy #0  ; suppress vblank interrupt
   sty PPUCTRL
@@ -273,7 +273,7 @@ coin_s0_y255:
 
 coin_name_s0_flip:
   .byte "Sprite 0 flipping",10
-  .byte "Flipped sprite still triggers",10
+  .byte "Flipped sprite triggers",10
   .byte "sprite 0 hit",0
 coin_s0_flip:
   jsr load_s0tiles
@@ -310,11 +310,122 @@ coin_s0_flip:
   @bail:
   rts
 
+;;
+; Checks for 9 sprites
+; @param A $00 for rendering off or $1E for rendering on
+; @return A: Value after top row ($20 for seen or $00 for not);
+; CF true if 9 sprites seen before top row or not seen after
+; bottom row
+two_rows_overflow_kernel:
+  pha
+  ; Wait for no sprite 0, no 9 sprites, no nothing
+  jsr present_with_oam
+  lda #%01100000
+  :
+    bit PPUSTATUS
+    bne :-
+  ; We're in the pre-render line
+  ; Wait 32*105 cycles (just above the first sprite row on PAL)
+  @wait1time = 32*105/5
+  ldy #<-@wait1time
+  ldx #>-@wait1time
+  :
+    iny
+    bne :-
+    inx
+    bne :-
+  .assert >* = >:-, error, "page crossing in two_rows_overflow_kernel"
+  lda PPUSTATUS
+  and #%00100000
+  cmp #1
+  pla  ; Have to get it off the stack
+  bcs @bail
+
+  ; Disable rendering if requested and wait for bottom of sprite row
+  sta PPUMASK
+  @wait2time = (45*341/3-32*105)/5
+  ldy #<-@wait2time
+  ldx #>-@wait2time
+  :
+    iny
+    bne :-
+    inx
+    bne :-
+  .assert >* = >:-, error, "page crossing in two_rows_overflow_kernel"
+  lda PPUSTATUS
+  and #%00100000
+  pha  ; Stack: status below first row
+  lda #BG_ON|OBJ_ON
+  sta PPUMASK
+
+  ; Wait for bottom of sprite row on NTSC
+  @wait3time = (207-45)*341/3/5
+  ldy #<-@wait3time
+  ldx #>-@wait3time
+  :
+    iny
+    bne :-
+    inx
+    bne :-
+  .assert >* = >:-, error, "page crossing in two_rows_overflow_kernel"
+  lda PPUSTATUS
+  and #%00100000
+  eor #%00100000  ; 0 if 9 sprites encountered; 1 if not
+  cmp #1
+  pla             ; $20 if first row seen; $00 if not
+@bail:
+  rts
+
 coin_name07:
-  .byte "Coin #7",10
-  .byte "Always pass for now",0
+  .byte "Sprite overflow coarse time",10
+  .byte "9 or more sprites on a line",10
+  .byte "sets $2002 bit 5, provided",10
+  .byte "rendering is on for that line",0
 coin_07:
-  clc
+  ; Clear all OAM first
+  lda #$F0
+  ldx #0
+  :
+    sta OAM,x
+    inx
+    bne :-
+  ; Put 12 sprites on each of 2 lines.  Using 12 so we don't have
+  ; to worry so much about corruption due to disabling rendering
+  ; outside preroll time (X=320-340).
+  ldx #(12 - 1)*4
+  :
+    lda #32
+    sta OAM+0,x
+    sta OAM+3,x
+    lda #192
+    sta OAM+12*4,x
+    sta OAM+12*4+3,x
+    dex
+    dex
+    dex
+    dex
+    bpl :-
+  ; Ensure that sprite 0 or 9 sprites flag is true
+  ; so that the next frame can detect the end of vblank
+  jsr present_with_oam
+
+  ; The first frame: Ensure 9 sprites detection occurs
+  ; even if BG_ON is false
+  lda #BG_ON
+  jsr two_rows_overflow_kernel
+  bcs @bail
+  eor #%00100000
+  bne @cmp1
+
+  ; The second frame: Ensure turning off rendering before the first
+  ; row and turning it back on after the second causes only the
+  ; second to contribute to rendering
+  lda #0
+  jsr two_rows_overflow_kernel
+  bcs @bail
+@cmp1:
+  cmp #1
+@bail:
   rts
 
 coin_name08:
