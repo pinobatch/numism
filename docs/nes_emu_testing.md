@@ -6,9 +6,10 @@ Emulators under test
 When starting out, I'd like the emulators to be evenly spaced on the
 accuracy front.
 
-I've tested Mesen (Sour final), FCEUX 2.3.0 (New PPU), No$nes 1.2,
-and PocketNES 2013-07-01.  Other emulators I'd like to test include
-NESticle, loopyNES, NESten, rew., RockNES, and puNES.
+I regularly test in Mesen (Sour final), FCEUX 2.3.0 (New PPU),
+No$nes 1.2, and PocketNES 2013-07-01.  Occasionally I'll run
+something in loopyNES 11/21/99 and NESticle x.xx. Other emulators
+I'd like to test include NESten, rew., RockNES, and puNES.
 
 Unlike No$gmb, No$nes takes a ROM path on the command line.
 It must be an absolute path with backslashes.  Save this as
@@ -22,9 +23,41 @@ wine '/path/to/NO$NES.EXE' $(winepath -w $1)
 As with Mesen-S, Mesen is run in Mono 6.10 to avoid a regression that
 breaks preferences dialogs.
 
-PocketNES v7a and later require an extended 48-byte header before
-the iNES header.  ROM builders are expected to follow this format
-described in the [PocketNES FAQ], for which I wrote [my own builder].
+[loopyNES] and [NESticle] are run in DOSBox 0.74-3.  NESticle needs a
+DOS extender; we use [DOS/32A] to replace DOS/4GW.
+
+Save this as `~/.local/bin/lnes`, correct paths, and make it executable:
+```
+#!/bin/sh
+set -e
+cp "$1" /path/to/loopytmp.nes
+cd /path/to
+echo 'loopynes.exe loopytmp.nes' > loopytmp.bat
+dosbox loopytmp.bat
+rm loopytmp.nes loopytmp.bat; true
+```
+
+Save this as `~/.local/bin/nestc`, correct paths, and make it executable:
+```
+#!/bin/sh
+set -e
+cp "$1" /path/to/nestctmp.nes
+cd /path/to
+echo 'dos32a NESTICLE.EXE nestctmp.nes' > nestctmp.bat
+dosbox nestctmp.bat
+rm nestctmp.nes nestctmp.bat; true
+```
+
+Change NESticle timing to hblank cycles 114, frame lines 240, vblank
+lines 22, and virtual fps 60.
+
+Once you click the DOSBox window, such as to operate NESticle's GUI,
+you'll need to press Ctrl+F10 to move the mouse out of the window.
+
+PocketNES began as a Game Boy Advance port of loopyNES.  PocketNES
+v7a and later require an extended 48-byte header before the iNES
+header.  ROM builders are expected to follow this format described
+in the [PocketNES FAQ], for which I wrote [my own builder].
 
 - 32 bytes: ROM title (NUL terminated)
 - 4 bytes: ROM size (iNES header + PRG ROM + CHR ROM)
@@ -39,7 +72,7 @@ described in the [PocketNES FAQ], for which I wrote [my own builder].
 - 16384*p bytes: PRG ROM
 - 8192*c bytes: CHR ROM
 
-Likewise, save this as `~/.local/bin/pnes` and make it executable:
+Save this as `~/.local/bin/pnes`, correct paths, and make it executable:
 ```
 #!/bin/sh
 set -e
@@ -47,6 +80,9 @@ set -e
 mgba-qt "$1.gba"
 ```
 
+[loopyNES]: https://3dscapture.com/NES/
+[NESticle]: https://www.zophar.net/dos/nes/nesticle.html
+[DOS/32A]: https://dos32a.narechk.net/
 [PocketNES FAQ]: https://web.archive.org/web/20131102194638/http://pocketnes.org/faq.html
 [my own builder]: ../nes/tools/pnesbuild.py
 

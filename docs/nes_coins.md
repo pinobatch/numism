@@ -36,12 +36,12 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 8. 
 9. 
 10. 
-11. 
+11. Second $2002 read in vblank has bit 7 false
 12. 
 13. 
 14. Branching between $FFxx and $00xx wraps correctly  
-    (Because of bugs in No$nes and PocketNES that can crash the test,
-    this checks whether coin 4 passed first.)
+    (Because of NESticle, No$nes, and PocketNES behaviors that can
+    crash the test, this checks whether coins 4 and 11 passed first.)
 15. 
 16. 
 17. 

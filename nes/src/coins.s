@@ -10,8 +10,10 @@ coin_names:
   .addr coin_name_branch_bank
   .addr coin_name_s0_y255
   .addr coin_name_s0_flip
-  .addr coin_name07, coin_name08, coin_name09, coin_name10
-  .addr coin_name11, coin_name12, coin_name13
+  .addr coin_name_9sprites_coarse
+  .addr coin_name08, coin_name09, coin_name10
+  .addr coin_name_ack_nmi
+  .addr coin_name12, coin_name13
   .addr coin_name_branch_wrap
   .addr coin_name15
   .addr coin_name16, coin_name17, coin_name18, coin_name19, coin_name20
@@ -25,12 +27,12 @@ coin_routines:
   .addr coin_branch_bank
   .addr coin_s0_y255
   .addr coin_s0_flip
-  .addr coin_07
+  .addr coin_9sprites_coarse
   .addr coin_08
   .addr coin_09
   .addr coin_10
 
-  .addr coin_11
+  .addr coin_ack_nmi
   .addr coin_12
   .addr coin_13
   .addr coin_branch_wrap
@@ -376,12 +378,12 @@ two_rows_overflow_kernel:
 @bail:
   rts
 
-coin_name07:
+coin_name_9sprites_coarse:
   .byte "Sprite overflow coarse time",10
   .byte "9 or more sprites on a line",10
   .byte "sets $2002 bit 5, provided",10
   .byte "rendering is on for that line",0
-coin_07:
+coin_9sprites_coarse:
   ; Clear all OAM first
   lda #$F0
   ldx #0
@@ -454,11 +456,16 @@ coin_10:
   clc
   rts
 
-coin_name11:
-  .byte "Coin #11",10
-  .byte "Always pass for now",0
-coin_11:
-  clc
+coin_name_ack_nmi:
+  .byte "$2002 read acks NMI",10
+  .byte "Second $2002 read in vblank",10
+  .byte "has bit 7 clear",10
+  .byte "(Easier than #1)",0
+coin_ack_nmi:
+  jsr wait_vblank
+  lda PPUSTATUS
+  lda PPUSTATUS
+  asl a
   rts
 
 coin_name12:
@@ -484,6 +491,9 @@ coin_branch_wrap:
   ; Protect the test from PocketNES because PocketNES freezes on
   ; the forward test
   jsr coin_branch_bank
+  bcs @have_c
+  ; Protect the test from NESticle because NESticle freezes too
+  jsr coin_ack_nmi
   bcs @have_c
 
   ; Adapted from blargg's 02-branch_wrap.nes
