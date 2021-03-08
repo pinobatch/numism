@@ -13,20 +13,21 @@ Continue
 "Continue" is a conventional test framework.  It runs the 10 tests
 that make up a stage and displays their results.  I set out during
 this sprint to fill the majority of stages 1 and 2 with coins, and
-with 19 out of 20 complete, I believe I succeeded.
+once I filled 19 out of 20 on Game Boy, I felt ready to proceed to
+the NES.
 
-1. GB: Make instruction timer
-2. NES: Design title screen
-3. NES: fill passbits by actually running tests associated with coins
-4. 
-5. 
-6. 
-7. 
+1. Find 3 more No$nes misbehaviors
+2. Get NESten running
+3. Run Blargg tests in NESticle
+4. Run Blargg tests in loopyNES
+5. Run Blargg tests in NESten
+6. Find 8 misbehaviors in NESticle, loopyNES, and NESten
+7. Turn these misbehaviors into coins
 8. 
 9. 
-10. 
-11. 
-12. 
+10. NES: Design title screen
+11. GB: Make instruction timer
+12. NES: Make instruction timer
 
 Cels
 ----

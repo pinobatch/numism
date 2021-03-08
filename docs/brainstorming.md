@@ -26,16 +26,24 @@ and reach more coins.
 - **Before the first upgrade**  
   Move on ground, crouch, ascend one cell, descend two cells, ascend
   and descend ladders, collect coins, and view fake coins.
-- **Court shoes** sold by (name missing) for 5 coins  
+- **Sneakers** sold by a leporichaun (anthropomorphic rabbit
+  shoemaker in 18th-century clothes) named (name missing) at an
+  outdoor market for 5 coins  
   Cross gaps of one cell, ascend two cells, and descend three cells.
-  Ascend to hills behind you.
-- **Hoop buoy** sold by (name missing) for 5 coins  
+  Ascend to hills behind you.  
+  Once you've paid, you can ask the leporichaun his life story.
+  Dialogue tree options lead to the ministry he was born into, why he
+  left the organization to become a solitary shoemaker, and what he
+  thinks of clurichauns (ex-Easter bunnies who've fallen into
+  alcoholism).
+- **Hoop buoy** sold by a duck named (name missing) for 5 coins  
   Float across the surface of water and ascend one cell from water.
 
 At this point, if you haven't hit any fakes, you'll have collected 30
 coins and spent 10.  This leads into a big change for the game feel.
 
-- **Clapper** sold by a kangaroo dressed as Spirou outside the hotel for 10 coins  
+- **Clapper** sold by Roopert, a kangaroo dressed as Spirou,
+  outside the hotel for 10 coins  
   A boot that covers both feet. After buying it, you are no longer
   as closely bound to the cell grid.  You can grab a bar and swing
   from it, either to get a boost or to emit a tone (I'm still looking

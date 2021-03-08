@@ -28,6 +28,7 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
    (APU status) 1/60 second later
 3. Note on pulse 1 sets $4015 bit 0; length counter expiry clears it
 4. Branching from $BFFx in bank 0 to $C00x in the fixed bank works
+   (mapper dependent)
 5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
    hit
 6. Sprite 0 hit triggers in all four flip states
