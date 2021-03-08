@@ -10,8 +10,10 @@ coin_names:
   .addr coin_name_branch_bank
   .addr coin_name_s0_y255
   .addr coin_name_s0_flip
+  .addr coin_name_dmclc_status
+  .addr coin_name08
   .addr coin_name_9sprites_coarse
-  .addr coin_name08, coin_name09, coin_name10
+  .addr coin_name10
   .addr coin_name_ack_nmi
   .addr coin_name12, coin_name13
   .addr coin_name_branch_wrap
@@ -27,9 +29,9 @@ coin_routines:
   .addr coin_branch_bank
   .addr coin_s0_y255
   .addr coin_s0_flip
-  .addr coin_9sprites_coarse
+  .addr coin_dmclc_status
   .addr coin_08
-  .addr coin_09
+  .addr coin_9sprites_coarse
   .addr coin_10
 
   .addr coin_ack_nmi
@@ -159,7 +161,7 @@ coin_apufc_status:
 
 coin_name_apulc_status:
   .byte "APU length counter status",10
-  .byte "Within 0.1 s after $4017=$19,",10
+  .byte "Within 0.1 s after $4000=$19,",10
   .byte "$4015 bit 0 goes 1 then 0",0
 coin_apulc_status:
   lda #$40
@@ -378,6 +380,51 @@ two_rows_overflow_kernel:
 @bail:
   rts
 
+SILENT_DMC_START = $C000  ; not yet, I'll admit
+coin_name_dmclc_status:
+  .byte "DMC length counter status",10
+  .byte "$4015 bit 4 goes 1 while",10
+  .byte "sample plays then 0 at end",0
+coin_dmclc_status:
+  lda #$0F  ; maximum rate
+  sta $4010
+  lda #(SILENT_DMC_START - $C000)>>6
+  sta $4012
+  lda #17>>4  ; length
+  sta $4013
+  lda #$1F
+  sta $4444
+  sta $4015  ; Start sample
+
+  ; The sample should take 7344 cycles to finish
+  ; of which up to the first 864 may be used for filling the FIFO
+  ldy #0
+  lda #$10  ; DMC status bit
+  @yloop:
+    jsr @knownrts
+    jsr @knownrts
+    bit $4015  ; ensure length counter is on
+    beq @ydone
+    iny
+    bne @yloop
+  @ydone:
+  .assert >@ydone = >@yloop, error, "page crossing in DMC timing loop"
+  tya  ; $80-$FF: pass
+  eor #$80
+  asl a
+@knownrts:
+  rts
+
+coin_name08:
+  .byte "Coin #8",10
+  .byte "Always pass for now",10
+  .byte 34,"Old MacDonald had a farm,",10
+  .byte "CLI SEI CLI SEI...",10
+  .byte "oh wait, that's not it",34,0
+coin_08:
+  clc
+  rts
+
 coin_name_9sprites_coarse:
   .byte "Sprite overflow coarse time",10
   .byte "9 or more sprites on a line",10
@@ -428,23 +475,6 @@ coin_9sprites_coarse:
 @cmp1:
   cmp #1
 @bail:
-  rts
-
-coin_name08:
-  .byte "Coin #8",10
-  .byte "Always pass for now",0
-coin_08:
-  clc
-  rts
-
-coin_name09:
-  .byte "Coin #9",10
-  .byte "Always pass for now",10
-  .byte 34,"Old MacDonald had a farm,",10
-  .byte "CLI SEI CLI SEI...",10
-  .byte "oh wait, that's not it",34,0
-coin_09:
-  clc
   rts
 
 coin_name10:

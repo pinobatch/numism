@@ -32,10 +32,10 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
    hit
 6. Sprite 0 hit triggers in all four flip states
-7. Having nine or more sprites on a scanline turns on the overflow
-   flag ($2002 bit 5), provided rendering is on for that line
+7. DMC sample sets $4015 bit 4; end of sample clears it
 8. 
-9. 
+9. Having nine or more sprites on a scanline turns on the overflow
+   flag ($2002 bit 5), provided rendering is on for that line
 10. 
 11. Second $2002 read in vblank has bit 7 false
 12. 
@@ -50,11 +50,33 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 19. 
 20. 
 
+### Delayed
+
+Prefer pushing to later stage because stage 1 needs more variety:
+
+- Sprite overflow coarse timing 0-8 vs. 54-62
+- Sprite overflow doesn't depend on X=0 vs. X=255
+- Sprite overflow Y=239, but not Y=240 or Y=255
+- Sprite 0 coarse timing X=0 vs. X=254
+- Anything relying on PSG channels' length counter
+- Sprite 0 when X=$00 and left 8 pixels are disabled
+
+Not for stage 1 because games rarely rely on timing margins this
+tight:
+
+- `ppu_vbl_nmi`
+- OAM DMA and DMC DMA interaction
+
+Not for stage 1 because No$nes gets it right:
+
+- `io_db`/`PPUGenLatch` decay behavior
+
+Saving for stage 3 over NTSC/PAL difference, which I deem analogous
+to GB/GBC difference:
+
+- DMC DMA causing $2007 double reads
+
 ### Unsorted
 
-* Playing a short sample should have $4015 D4 go 1 then 0
-* Sprite 0 when X=$00 and left 8 pixels are disabled
-* 9 sprites high on screen, disable rendering during those, 9 more
-  sprites low on screen
-* DPCM causing $2007 double reads should be stage 3+ because it's
-  an NTSC/PAL difference
+* STA $2007,X (skip 1 byte)
+* INC $2007,X
