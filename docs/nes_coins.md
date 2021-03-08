@@ -27,9 +27,7 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 2. Writing $00 to $4017 (APU length counter) sets bit 6 of $4015
    (APU status) 1/60 second later
 3. Note on pulse 1 sets $4015 bit 0; length counter expiry clears it
-4. Branching between $FFxx and $00xx wraps correctly  
-   (Half of this coin freezes in PocketNES; the other half crashes
-   No$nes.  Further testing may be needed.)
+4. Branching from $BFFx in bank 0 to $C00x in the fixed bank works
 5. Sprite at Y=$FF (vertically off screen) doesn't trigger sprite 0
    hit
 6. Sprite 0 hit triggers in all four flip states
@@ -40,7 +38,9 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 11. 
 12. 
 13. 
-14. 
+14. Branching between $FFxx and $00xx wraps correctly  
+    (Because of bugs in No$nes and PocketNES that can crash the test,
+    this checks whether coin 4 passed first.)
 15. 
 16. 
 17. 

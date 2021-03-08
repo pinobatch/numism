@@ -1,19 +1,19 @@
 .include "nes.inc"
 .include "global.inc"
+.include "mmc1.inc"
 .import bccwrap_forward  ; from unrom.s
-
-; With 0, No$nes crashes.  With 1, PocketNES freezes.
-BREAK_POCKETNES = 1
 
 coin_names:
   .addr coin_name_stat_ack
   .addr coin_name_apufc_status
   .addr coin_name_apulc_status
-  .addr coin_name_branch_wrap
+  .addr coin_name_branch_bank
   .addr coin_name_s0_y255
   .addr coin_name_s0_flip
   .addr coin_name07, coin_name08, coin_name09, coin_name10
-  .addr coin_name11, coin_name12, coin_name13, coin_name14, coin_name15
+  .addr coin_name11, coin_name12, coin_name13
+  .addr coin_name_branch_wrap
+  .addr coin_name15
   .addr coin_name16, coin_name17, coin_name18, coin_name19, coin_name20
   .addr coin_name21, coin_name22, coin_name23, coin_name24, coin_name25
   .addr coin_name26, coin_name27, coin_name28, coin_name29, coin_name30
@@ -22,7 +22,7 @@ coin_routines:
   .addr coin_stat_ack
   .addr coin_apufc_status
   .addr coin_apulc_status
-  .addr coin_branch_wrap
+  .addr coin_branch_bank
   .addr coin_s0_y255
   .addr coin_s0_flip
   .addr coin_07
@@ -33,7 +33,7 @@ coin_routines:
   .addr coin_11
   .addr coin_12
   .addr coin_13
-  .addr coin_14
+  .addr coin_branch_wrap
   .addr coin_15
   .addr coin_16
   .addr coin_17
@@ -188,41 +188,69 @@ coin_apulc_status:
 @have_c:
   rts
 
-coin_name_branch_wrap:
-  .byte "Branch wrapping",10
-  .byte "bcc from $FFxx to $00xx or",10
-  .byte "vice versa wraps mod $10000",10
-  .byte "(thanks blargg)",0
-coin_branch_wrap:
-  ; Adapted from blargg's 02-branch_wrap.nes
-  ; Load INX INX RTS RTS STP to $0000-$0002
-  clc
-  ; The forward test freezes PocketNES
-.if ::BREAK_POCKETNES
-  lda #$E8
-  sta $00
-  sta $01  ; BCC $10001 branches HERE
-  lda #$60
-  sta $02
-  sta $03  ; 2021-03-05: no$nes overshoots when debugger disabled
-  lda #$02
-  sta $04  ; STP to drive the point home to no$nes users
-  ldx #0
-  jsr bccwrap_forward  ; if correct, X should be 1
-  dex
-  bne pass_if_x_zero
-.endif
-  ; Load BCC $FFE3 to $0000-$0001
-  ; The backward test segfaults No$nes
-  lda #$90
-  sta $00
-  lda #$E1
-  sta $01
-  jsr $0000
-  dex
-pass_if_x_zero:
-  cpx #1
+.pushseg
+; To protect the branch wrap test from crashing in PocketNES,
+; test for other branch wrap behaviors first, such as the one
+; that breaks The Magic of Scheherazade
+.segment "BCCFROM00"
+bccfrom00:
+  @offset = bccto15 - (* + 1)
+  .assert -128 <= @offset && @offset <= 127, error, "bccfrom00 out of bounds"
+  .byte $90
+  .byte <(bccto15 - (* + 1))
+  inx
+  inx
   rts
+
+.segment "BCCTO00"
+  sec
+bccto00:
+  sec
+  sec
+  rts
+
+.segment "BCCTO01"
+  sec
+bccto01:
+  sec
+  sec
+  rts
+
+.segment "BCCTO02"
+  sec
+bccto02:
+  sec
+  sec
+  rts
+
+.segment "BCCTO15"
+  inx
+bccto15:
+  inx
+  clc
+  rts
+
+.popseg
+coin_name_branch_bank:
+  .byte "Branch to fixed bank",10
+  .byte "bcc from $BFFx in bank 0",10
+  .byte "lands in $C00x in last bank",10
+  .byte 34,"Scheherazade had a",10
+  .byte "thousand tales",34,0
+coin_branch_bank:
+  lda lastPRGBank
+  pha
+  lda #0
+  jsr setPRGBank
+  ldx #0
+  clc
+  jsr bccfrom00
+  bcs @have_c
+  dex
+  cpx #1
+@have_c:
+  pla
+  jmp setPRGBank
 
 coin_name_s0_y255:
   .byte "Hidden sprite is hidden",10
@@ -336,11 +364,43 @@ coin_13:
   clc
   rts
 
-coin_name14:
-  .byte "Coin #14",10
-  .byte "Always pass for now",0
-coin_14:
-  clc
+coin_name_branch_wrap:
+  .byte "Branch wrapping",10
+  .byte "bcc from $FFxx to $00xx or",10
+  .byte "vice versa wraps mod $10000",10
+  .byte "(thanks blargg)",0
+coin_branch_wrap:
+  ; Protect the test from PocketNES because PocketNES freezes on
+  ; the forward test
+  jsr coin_branch_bank
+  bcs @have_c
+
+  ; Adapted from blargg's 02-branch_wrap.nes
+  ; Load INX INX RTS RTS STP to $0000-$0002
+  lda #$E8
+  sta $00
+  sta $01  ; BCC $10001 branches HERE
+  lda #$60
+  sta $02
+  sta $03  ; 2021-03-05: no$nes overshoots when debugger disabled
+  lda #$02
+  sta $04  ; STP to drive the point home to no$nes users
+  ldx #0
+  jsr bccwrap_forward  ; if correct, X should be 1
+  dex
+  bne @pass_if_x_zero
+
+  ; Load BCC $FFE3 to $0000-$0001
+  ; The backward test segfaults No$nes
+  lda #$90
+  sta $00
+  lda #$E1
+  sta $01
+  jsr $0000
+  dex
+@pass_if_x_zero:
+  cpx #1
+@have_c:
   rts
 
 coin_name15:

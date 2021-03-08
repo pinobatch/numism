@@ -161,6 +161,9 @@ This debugger is worth no cash.
 
 (Further testing showed that a forward branch overshoots by 2 bytes.)
 
+Both PocketNES and No$nes turned out to misbehave on branches from
+$BFFx to $C00x as well.
+
 [Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug
 
 ### APU

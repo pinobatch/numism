@@ -26,7 +26,7 @@ bankcallsaveA: .res 1
 
 ; Reserve $FFE0-$FFFF of the fixed bank for things needed by
 ; obscure tests
-.segment "FFE0"
+.segment "STUB15"
 bccwrap_forward:
   bcc *+$21
   inx
@@ -42,6 +42,7 @@ bccwrap_inxrts:
 ;;
 ; Changes $8000-$BFFF to point to a 16384 byte chunk of PRG ROM
 ; starting at $4000 * A.
+; On UNROM this trashes Y, NF, and ZF, and preserves VF and CF.
 .proc setPRGBank
   sta lastPRGBank
   tay
