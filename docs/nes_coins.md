@@ -36,7 +36,7 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 8. Indexed write to $2007 advances the VRAM pointer before writing
 9. Having nine or more sprites on a scanline turns on the overflow
    flag ($2002 bit 5), provided rendering is on for that line
-10. 
+10. $2002 bit 7 can read true and suppress NMI
 11. Second $2002 read in vblank has bit 7 false
 12. 
 13. 

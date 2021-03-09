@@ -13,7 +13,8 @@ coin_names:
   .addr coin_name_dmclc_status
   .addr coin_name_ppu_sta_absx
   .addr coin_name_9sprites_coarse
-  .addr coin_name10
+  .addr coin_name_nmi_suppression
+
   .addr coin_name_ack_nmi
   .addr coin_name12, coin_name13
   .addr coin_name_branch_wrap
@@ -32,7 +33,7 @@ coin_routines:
   .addr coin_dmclc_status
   .addr coin_ppu_sta_absx
   .addr coin_9sprites_coarse
-  .addr coin_10
+  .addr coin_nmi_suppression
 
   .addr coin_ack_nmi
   .addr coin_12
@@ -504,11 +505,27 @@ coin_9sprites_coarse:
 @bail:
   rts
 
-coin_name10:
-  .byte "Coin #10",10
-  .byte "Always pass for now",0
-coin_10:
-  clc
+coin_name_nmi_suppression:
+  .byte "NMI suppression",10
+  .byte "Reading $2002 can prevent",10
+  .byte "vblank NMI from firing",0
+coin_nmi_suppression:
+  ldx #30
+  ; 1 CPU cycle produces $2002 bit 7 = 0 and no NMI
+  ; 2 CPU cycles produce $2002 bit 7 = 1 and no NMI
+  ; Give 30 tries to test for the latter
+  ; Something that fails ack NMI will false-pass this
+  @testloop:
+    lda nmis
+    @vwait:
+      bit PPUSTATUS
+      bpl @vwait
+    eor nmis
+    beq @testdone
+    dex
+    bne @testloop
+@testdone:
+  cmp #1
   rts
 
 coin_name_ack_nmi:
