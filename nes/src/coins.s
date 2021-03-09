@@ -11,7 +11,7 @@ coin_names:
   .addr coin_name_s0_y255
   .addr coin_name_s0_flip
   .addr coin_name_dmclc_status
-  .addr coin_name08
+  .addr coin_name_ppu_sta_absx
   .addr coin_name_9sprites_coarse
   .addr coin_name10
   .addr coin_name_ack_nmi
@@ -30,7 +30,7 @@ coin_routines:
   .addr coin_s0_y255
   .addr coin_s0_flip
   .addr coin_dmclc_status
-  .addr coin_08
+  .addr coin_ppu_sta_absx
   .addr coin_9sprites_coarse
   .addr coin_10
 
@@ -114,6 +114,19 @@ does_s0_hit:
 
 s0tiles_chr:
   .incbin "obj/nes/s0tiles.chr.pb53"
+
+;;
+; Fills 256 bytes of VRAM $0000-$01FF
+; @return X=0, AY unchanged
+ppu_fill_identity_0000:
+  ldx #$00
+  stx PPUADDR
+  stx PPUADDR
+  :
+    stx PPUDATA
+    inx
+    bne :-
+  rts
 
 ; Coins 1-10 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Intended to catch No$nes
@@ -257,7 +270,7 @@ coin_branch_bank:
   jmp setPRGBank
 
 coin_name_s0_y255:
-  .byte "Hidden sprite is hidden",10
+  .byte "Y=-1 hides sprite",10
   .byte "Sprite at Y=$FF does not",10
   .byte "trigger sprite 0 hit",0
 coin_s0_y255:
@@ -393,7 +406,6 @@ coin_dmclc_status:
   lda #17>>4  ; length
   sta $4013
   lda #$1F
-  sta $4444
   sta $4015  ; Start sample
 
   ; The sample should take 7344 cycles to finish
@@ -415,14 +427,29 @@ coin_dmclc_status:
 @knownrts:
   rts
 
-coin_name08:
-  .byte "Coin #8",10
-  .byte "Always pass for now",10
-  .byte 34,"Old MacDonald had a farm,",10
-  .byte "CLI SEI CLI SEI...",10
-  .byte "oh wait, that's not it",34,0
-coin_08:
-  clc
+coin_name_ppu_sta_absx:
+  .byte "Indexed write dummy read",10
+  .byte "ldx #0 sta $2007,x advances",10
+  .byte "VRAM address before write",0
+coin_ppu_sta_absx:
+  jsr ppu_fill_identity_0000
+
+  ; Write to $0004 (not $0003) because of the dummy read before
+  ; an indexed access
+  stx PPUADDR
+  ldy #3
+  sty PPUADDR
+  lda #$69
+  sta PPUDATA,x  ; advance to $0004, write, advance to $0005
+
+  ; Now try to read it back
+  stx PPUADDR
+  iny
+  sty PPUADDR  ; address = $0004
+  stx PPUADDR
+  bit PPUDATA  ; return buffer (?), read $0004 to buffer, advance
+  eor PPUDATA  ; return buffer ($0004), read $0005 to buffer, advance
+  cmp #1
   rts
 
 coin_name_9sprites_coarse:
@@ -479,9 +506,7 @@ coin_9sprites_coarse:
 
 coin_name10:
   .byte "Coin #10",10
-  .byte "Always pass for now",10
-  .byte 34,"Was that nocash",10
-  .byte "or NoPass?",34,0
+  .byte "Always pass for now",0
 coin_10:
   clc
   rts
@@ -518,8 +543,8 @@ coin_name_branch_wrap:
   .byte "vice versa wraps mod $10000",10
   .byte "(thanks blargg)",0
 coin_branch_wrap:
-  ; Protect the test from PocketNES because PocketNES freezes on
-  ; the forward test
+  ; Protect the test from PocketNES and No$nes because they freeze
+  ; on various parts of the test
   jsr coin_branch_bank
   bcs @have_c
   ; Protect the test from NESticle because NESticle freezes too
@@ -527,16 +552,19 @@ coin_branch_wrap:
   bcs @have_c
 
   ; Adapted from blargg's 02-branch_wrap.nes
-  ; Load INX INX RTS RTS STP to $0000-$0002
+  ; Load INX INX RTS ... RTS to $0000-$000F
+  ; Fill with a bunch of RTS in case an emulator overshoots
+  lda #$60
+  ldx #$0E
+  @setloop:
+    sta $01,x
+    dex
+    bne @setloop
   lda #$E8
   sta $00
   sta $01  ; BCC $10001 branches HERE
-  lda #$60
-  sta $02
-  sta $03  ; 2021-03-05: no$nes overshoots when debugger disabled
-  lda #$02
-  sta $04  ; STP to drive the point home to no$nes users
-  ldx #0
+;  clc
+;  ldx #0
   jsr bccwrap_forward  ; if correct, X should be 1
   dex
   bne @pass_if_x_zero
@@ -657,14 +685,19 @@ coin_28:
 
 coin_name29:
   .byte "Coin #29",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Old MacDonald had a farm,",10
+  .byte "CLI SEI CLI SEI...",10
+  .byte "oh wait, that's not it",34,0
 coin_29:
   clc
   rts
 
 coin_name30:
   .byte "Coin #30",10
-  .byte "Always pass for now",0
+  .byte "Always pass for now",10
+  .byte 34,"Was that nocash",10
+  .byte "or NoPass?",34,0
 coin_30:
   clc
   rts

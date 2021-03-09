@@ -33,7 +33,7 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
    hit
 6. Sprite 0 hit triggers in all four flip states
 7. DMC sample sets $4015 bit 4; end of sample clears it
-8. 
+8. Indexed write to $2007 advances the VRAM pointer before writing
 9. Having nine or more sprites on a scanline turns on the overflow
    flag ($2002 bit 5), provided rendering is on for that line
 10. 
@@ -52,14 +52,16 @@ Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
 
 ### Delayed
 
-Prefer pushing to later stage because stage 1 needs more variety:
+Stage 1 has four $2002 tests, three $4015 tests, one $2007 test,
+and one CPU-to-mapper interaction test.  To ensure variety, prefer
+pushing these to a later stage:
 
 - Sprite overflow coarse timing 0-8 vs. 54-62
 - Sprite overflow doesn't depend on X=0 vs. X=255
 - Sprite overflow Y=239, but not Y=240 or Y=255
 - Sprite 0 coarse timing X=0 vs. X=254
-- Anything relying on PSG channels' length counter
 - Sprite 0 when X=$00 and left 8 pixels are disabled
+- Anything relying on PSG channels' length counter
 
 Not for stage 1 because games rarely rely on timing margins this
 tight:
@@ -78,5 +80,4 @@ to GB/GBC difference:
 
 ### Unsorted
 
-* STA $2007,X (skip 1 byte)
 * INC $2007,X
