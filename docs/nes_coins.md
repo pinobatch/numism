@@ -20,7 +20,8 @@ kilobytes of ROM.  I may have to use the DTE codec that I used for
 
 Coin list
 ---------
-Stage 1 (No$nes) is in progress.  Afterward comes NESticle time.
+Stage 1 (No$nes) is complete.  Stage 2 starts targeting other
+emulators, particularly NESticle.
 
 1. Reading $20E0,X with X=$22 does dummy read from $2002 (PPU status)
    then reads $2102 bit 7 false
