@@ -8,8 +8,9 @@ accuracy front.
 
 I regularly test in Mesen (Sour final), FCEUX 2.3.0 (New PPU),
 No$nes 1.2, and PocketNES 2013-07-01.  Occasionally I'll run
-something in loopyNES 11/21/99 and NESticle x.xx. Other emulators
-I'd like to test include NESten, rew., RockNES, and puNES.
+something in loopyNES 11/21/99, NESticle x.xx, NESten 0.61 beta 1,
+and rew. 12STX. Other emulators I'd like to test include RockNES,
+Nintendulator, and puNES.
 
 Unlike No$gmb, No$nes takes a ROM path on the command line.
 It must be an absolute path with backslashes.  Save this as
@@ -129,6 +130,8 @@ Overall results show PocketNES slightly edging out FCEUX.
 - No$nes: CPU 4/15, APU 0/24, PPU 12/32
 - NESten: CPU 5/15, APU 1/24, PPU 5/32
 - rew.: CPU 2/15, APU 0/24, PPU 3/32
+- loopyNES: CPU 1/15, APU 1/24, PPU to be tested
+- NESticle: CPU 1/15, APU 0/24, PPU to be tested
 
 [Emulator tests]: https://wiki.nesdev.com/w/index.php/Emulator_tests
 
@@ -142,20 +145,21 @@ implement the APU frame IRQ.
 the preceding tests.
 
 * Pass: Mesen, No$nes, NESten, and PocketNES
-* Fail: FCEUX at `1.Branch_Basics` (#2: NMI period too short);
-  rew. at `1.Branch_Basics` (#3: NMI period too long)
+* Fail: FCEUX and loopyNES at `1.Branch_Basics` (#2: NMI period too
+  short); NESticle and rew. at `1.Branch_Basics` (#3: NMI period too
+  long)
 
 `cpu_dummy_reads`
 
 * Pass: Mesen
-* Fail: FCEUX, No$nes, PocketNES, rew. (all #3: LDA abs,x); NESten
-  (#2: $2002 not mirrored)
+* Fail: FCEUX, No$nes, loopyNES, PocketNES, rew. (all #3: LDA abs,x);
+  NESticle and NESten (#2: $2002 not mirrored)
 * Source code not included in zip; cpow's repo has [cpu_dummy_reads.s]
 
 Though I don't have an NES exerciser yet, and I estimate that
 instructions under test will be less dense than on Game Boy,
 I can offer conjectures to be tested when I do build an exerciser.
-No$nes fails to perform the dummy read with $2102 then $2002:
+No$nes fails to perform the dummy read with $2002 then $2102:
 ```
 jsr wait_vbl_no_ack
 ldx #$22
@@ -180,7 +184,7 @@ such as NESticle's failure to acknowledge NMI at $2002.
   Fails `2-nmi_and_brk`, `3-nmi_and_irq`, `4-irq_and_dma`, and
   `5-branch_delays_irq`
 * PocketNES: 0/5
-* No$nes, NESten, rew.: 0/4  
+* No$nes, NESten, rew., loopyNES, NESticle: 0/4  
   `5-branch_delays_irq` _hangs_ during the first test.
 
 `instr_timing`
@@ -192,7 +196,10 @@ such as NESticle's failure to acknowledge NMI at $2002.
 * PocketNES: 0/2  
   The tests report many instructions as taking 0 cycles, which I
   attribute to speed hacks that let games run on a sub-20 MHz CPU.
-* NESten: 0/2
+* NESten: 0/2  
+  A bunch of 0 and 7 counts where there shouldn't have been
+* loopyNES, NESticle: 0/2  
+  Both fail `1-instr_timing` (#5)
 * rew.: 0/1  
   `1-instr_timing` has no output.
 * No$nes: `1-instr_timing` doesn't write "Official instructions", and
@@ -203,13 +210,16 @@ such as NESticle's failure to acknowledge NMI at $2002.
 * Mesen: 4/4
 * FCEUX: 3/4  
   Failed `03-dummy_reads` (#3)
-* rew.: 2/4
+* rew.: 2/4  
   Failed `03-dummy_reads`(#3), `04-dummy_reads_apu` (#2)
-* NESten: 2/4
+* NESten: 2/4  
   Failed `03-dummy_reads`(#2), `04-dummy_reads_apu` (#2)
-* No$nes and PocketNES: 1/4  
+* No$nes, loopyNES, and PocketNES: 1/4  
   Failed `02-branch_wrap` (#2), `03-dummy_reads` (#3),
   `04-dummy_reads_apu` (#2)
+* NESticle: 1/4  
+  Failed `03-dummy_reads` (#2), `04-dummy_reads_apu` (#2)  
+  `02-branch_wrap` hangs
 
 Like the No$gmb debugger, the No$nes debugger has a [heisenbug]
 (behavior difference arising while a behavior is under test).
@@ -236,9 +246,15 @@ $BFFx to $C00x as well.
 * FCEUX: 3/8  
   Failed `3-irq_flag` (#6), `4-jitter` (#2), `5-len_timing` (#2),
   `6-irq_flag_timing` (#2), `7-dmc_basics` (#8)
-* NESten: 0/8
+* NESten: 0/8  
   Failed #3, Failed, Failed #4, Failed #3, Failed #3, Failed #3,
   Failed #2, Failed #3
+* loopyNES: 0/8  
+  Failed #2, Failed, Failed #4, Failed #3, Failed #5, Failed #3,
+  Failed #2, Failed #2
+* NESticle: 0/8  
+  Failed #2, Failed, Failed #4, Failed #4, Failed #2, Failed #2,
+  Failed #2, Failed #2
 * rew., No$nes: 0/8  
   Failed 1 through 7; 8 hung
 
@@ -253,6 +269,8 @@ $BFFx to $C00x as well.
   $04, $F8 $FF $1E $02, $04, $03, $03, $03, $03, $04, $04, $04, $02
 * No$nes: 0/11  
   $03, $F8 $FF $1E $02, $02, $02, $03, $03, $02, $04, $02, $03, $02
+* loopyNES and NESticle: 0/11  
+  $02, $F8 $00 $1E $02, $04, $03, $02, $02, $03, $04, $04, $02, $02
 * rew.: 0/11  
   $02, $F8 $00 $1E $02, $02, $02, $02, $02, $02, $03, $02, $02, $02
 
@@ -269,10 +287,14 @@ validate the CRC against my NES.
 * FCEUX: Passed 2; failed `dma_4016_read`  
   `dma_2007_read` gives `498C5C5F`  
   `double_2007_read` gives `D84F6815`
-* PocketNES and NESten: Passed 1; failed `dma_4016_read` and
-  `read_write_2007`  
+* loopyNES, PocketNES, and NESten: Passed 1; failed `dma_4016_read`
+  and `read_write_2007`  
   `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
   `double_2007_read` gives `F018C287` (same as Mesen)
+* NESticle: Passed 0; failed `read_write_2007` and `dma_2007_write`  
+  `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
+  `double_2007_read` gives `B8364881`  
+  `dma_4016_read` hung on a black screen
 * No$nes and rew.: Passed 0; failed `read_write_2007`  
   `double_2007_read` gives `F018C287` (same as Mesen); `dma_*` hung
   on a black screen
@@ -282,7 +304,9 @@ validate the CRC against my NES.
 * Pass: Mesen
 * Fail: PocketNES (343E3215), FCEUX (0708B479/A6AB180A),
   NESten (93A657B9/4D2212F3)
-* Hang: No$nes and rew. (black screen)
+* Hang: No$nes, loopyNES, NESticle, and rew. (black screen)
+
+loopyNES and NESticle are tested through here
 
 ### PPU
 
