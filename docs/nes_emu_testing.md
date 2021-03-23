@@ -123,10 +123,11 @@ Not included:
 
 Overall results show PocketNES slightly edging out FCEUX.
 
-- Mesen: CPU 15/15, APU 24/24, PPU 31/31
-- PocketNES: CPU 4/15, APU 11/24, PPU 20/31
-- FCEUX: CPU 5/15, APU 8/24, PPU 19/31
-- No$nes: CPU 4/15, APU 0/24, PPU 11/24
+- Mesen: CPU 15/15, APU 24/24, PPU 32/32
+- PocketNES: CPU 4/15, APU 11/24, PPU 21/32
+- FCEUX: CPU 5/15, APU 8/24, PPU 20/32
+- No$nes: CPU 4/15, APU 0/24, PPU 12/25
+- NESten: CPU 5/15, APU 1/24, PPU 5/32
 
 [Emulator tests]: https://wiki.nesdev.com/w/index.php/Emulator_tests
 
@@ -139,13 +140,14 @@ implement the APU frame IRQ.
 `2.Backward_Branch`, and `3.Forward_Branch`.  Each depends on
 the preceding tests.
 
-* Pass: Mesen, No$nes, and PocketNES
+* Pass: Mesen, No$nes, NESten, and PocketNES
 * Fail: FCEUX at `1.Branch_Basics` (#2: NMI period too short)
 
 `cpu_dummy_reads`
 
 * Pass: Mesen
-* Fail: FCEUX, No$nes, PocketNES (all #3: LDA abs,x)
+* Fail: FCEUX, No$nes, PocketNES (all #3: LDA abs,x); NESten
+  (#2: $2002 not mirrored)
 * Source code not included in zip; cpow's repo has [cpu_dummy_reads.s]
 
 Though I don't have an NES exerciser yet, and I estimate that
@@ -176,7 +178,7 @@ such as NESticle's failure to acknowledge NMI at $2002.
   Fails `2-nmi_and_brk`, `3-nmi_and_irq`, `4-irq_and_dma`, and
   `5-branch_delays_irq`
 * PocketNES: 0/5
-* No$nes: 0/4  
+* No$nes, NESten: 0/4  
   `5-branch_delays_irq` _hangs_ during the first test.
 
 `instr_timing`
@@ -188,6 +190,7 @@ such as NESticle's failure to acknowledge NMI at $2002.
 * PocketNES: 0/2  
   The tests report many instructions as taking 0 cycles, which I
   attribute to speed hacks that let games run on a sub-20 MHz CPU.
+* NESten: 0/2
 * No$nes: `1-instr_timing` doesn't write "Official instructions", and
   `2-branch_timing` doesn't write anything.
 
@@ -196,6 +199,8 @@ such as NESticle's failure to acknowledge NMI at $2002.
 * Mesen: 4/4
 * FCEUX: 3/4  
   Failed `03-dummy_reads` (#3)
+* NESten: 2/4
+  Failed `03-dummy_reads`(#2), `04-dummy_reads_apu` (#2)
 * No$nes and PocketNES: 1/4  
   Failed `02-branch_wrap` (#2), `03-dummy_reads` (#3),
   `04-dummy_reads_apu` (#2)
@@ -225,6 +230,9 @@ $BFFx to $C00x as well.
 * FCEUX: 3/8  
   Failed `3-irq_flag` (#6), `4-jitter` (#2), `5-len_timing` (#2),
   `6-irq_flag_timing` (#2), `7-dmc_basics` (#8)
+* NESten: 0/8
+  Failed #3, Failed, Failed #4, Failed #3, Failed #3, Failed #3,
+  Failed #2, Failed #3
 * No$nes: 0/8  
   Failed 1 through 7; 8 hung
 
@@ -235,6 +243,8 @@ $BFFx to $C00x as well.
   $01, $01, $01, $01, $02, $02, $04, $02, $04, $01, $05
 * FCEUX: 3/11  
   $01, $01, $06, $02, $02, $02, $02, $02, $03, $01, $05
+* NESten: 0/11
+  $04, $F8 $FF $1E $02, $04, $03, $03, $03, $03, $04, $04, $04, $02
 * No$nes: 0/11  
   $03, $F8 $FF $1E $02, $02, $02, $03, $03, $02, $04, $02, $03, $02
 
@@ -251,7 +261,8 @@ validate the CRC against my NES.
 * FCEUX: Passed 2; failed `dma_4016_read`  
   `dma_2007_read` gives `498C5C5F`  
   `double_2007_read` gives `D84F6815`
-* PocketNES: Passed 1; failed `dma_4016_read` and `read_write_2007`  
+* PocketNES and NESten: Passed 1; failed `dma_4016_read` and
+  `read_write_2007`  
   `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
   `double_2007_read` gives `F018C287` (same as Mesen)
 * No$nes: Passed 0; failed `read_write_2007`  
@@ -261,7 +272,8 @@ validate the CRC against my NES.
 `sprdma_and_dmc_dma` (2 variants)
 
 * Pass: Mesen
-* Fail: PocketNES (343E3215), FCEUX (0708B479/A6AB180A)
+* Fail: PocketNES (343E3215), FCEUX (0708B479/A6AB180A),
+  NESten (93A657B9/4D2212F3)
 * Hang: No$nes (black screen)
 
 ### PPU
@@ -272,22 +284,30 @@ palette.  I'm excluding the last, whose result is not repeatable.
 
 - Pass: Mesen, FCEUX, and PocketNES
 - Fail: No$nes 3/4, failing `vbl_clear_time` ($03).
+- Fail: NESten 1/4, failing `palette_ram` ($03), `sprite_ram` ($02),
+  and `vbl_clear_time` ($02)
 
 `oam_read`
 
-No points, as FCEUX, Mesen, No$nes, and PocketNES all pass.
+FCEUX, Mesen, No$nes, and PocketNES all pass.  When NESten turned
+out to be the first to fail (FEF6F55C), I had to add a point to all
+the others.
 
 `oam_stress` takes a while to complete, and it often fails even on
 hardware because it doesn't account for odd modes (phase alignment
 between CPU and PPU clock).  Don't stress about failing it.
 
 * Pass: Mesen
-* Fail: FCEUX (B0A94719), No$nes (B0A94719), PocketNES (B0A94719)
+* Fail: FCEUX (B0A94719), No$nes (B0A94719), PocketNES (B0A94719),
+  NESten (5FBA8510)
 
 `ppu_open_bus`
 
+Tests the data retention of the PPU's CPU interface data bus, which
+emulators refer to as `io_db` or `PPUGenLatch`.
+
 * Pass: Mesen, No$nes
-* Fail: PocketNES (#2), FCEUX (#3)
+* Fail: PocketNES (#2), FCEUX (#3), NESten (#3)
 
 `ppu_sprite_hit`
 
@@ -299,6 +319,10 @@ between CPU and PPU clock).  Don't stress about failing it.
 * No$nes: 4/10  
   Failed `04-flip` (#3), `05-left_clip` (#2), `06-right_edge` (#2),
   `07-screen_bottom` (#4), `09-timing` (#2), `10-timing_order` (#2)
+* NESten: 3/10  
+  Failed `01-basics` (#4), `02-alignment` (#3), `05-left_clip` (#2),
+  `06-right_edge` (#2), `08-double_height` (#2), `09-timing` (#2),
+  `10-timing_order` (#2)
 
 `ppu_sprite_overflow`
 
@@ -307,6 +331,9 @@ between CPU and PPU clock).  Don't stress about failing it.
   Failed `03-timing` (#3), `04-obscure` (#2)
 * No$nes: 2/5  
   Failed `03-timing` (#3), `04-obscure` (#2), `05-emulator` (#3)
+* NESten: 0/5  
+  Failed `01-basics` (#7), `02-details` (#5), `03-timing` (#3),
+  `04-obscure` (#7), `05-emulator` (#3)
 * PocketNES: 0/5  
   Failed `01-basics` (#2), making the rest untestable?
 
@@ -319,6 +346,12 @@ between CPU and PPU clock).  Don't stress about failing it.
   Failed: `02-vbl_set_time` (4103C340), `05-nmi_timing` (7A959B66),
   `06-suppression` (3FE15516), `07-nmi_on_timing` (2B1F5269),
   `08-nmi_off_timing` (FA8C430B), `10-even_odd_timing` (#3)
+* NESten: 1/10   
+  Failed: `02-vbl_set_time` (4103C340), `03-vbl_clear_time`
+  (F9DC4B60), `04-nmi_control` (#3), `05-nmi_timing` (318E0281),
+  `06-suppression` (3574DB97), `07-nmi_on_timing` (FD9CDCC9),
+  `08-nmi_off_timing` (FA8C430B), `09_even_odd_frames` (#2),
+  `10-even_odd_timing` (#2)
 * No$nes: 1/10  
   Failed: `01-vbl_basics` (#7), `02-vbl_set_time` (C2633058),
   `03-vbl_clear_time` (74346C62), `05-nmi_timing` (67847679),
