@@ -126,8 +126,9 @@ Overall results show PocketNES slightly edging out FCEUX.
 - Mesen: CPU 15/15, APU 24/24, PPU 32/32
 - PocketNES: CPU 4/15, APU 11/24, PPU 21/32
 - FCEUX: CPU 5/15, APU 8/24, PPU 20/32
-- No$nes: CPU 4/15, APU 0/24, PPU 12/25
+- No$nes: CPU 4/15, APU 0/24, PPU 12/32
 - NESten: CPU 5/15, APU 1/24, PPU 5/32
+- rew.: CPU 2/15, APU 0/24, PPU 3/32
 
 [Emulator tests]: https://wiki.nesdev.com/w/index.php/Emulator_tests
 
@@ -141,12 +142,13 @@ implement the APU frame IRQ.
 the preceding tests.
 
 * Pass: Mesen, No$nes, NESten, and PocketNES
-* Fail: FCEUX at `1.Branch_Basics` (#2: NMI period too short)
+* Fail: FCEUX at `1.Branch_Basics` (#2: NMI period too short);
+  rew. at `1.Branch_Basics` (#3: NMI period too long)
 
 `cpu_dummy_reads`
 
 * Pass: Mesen
-* Fail: FCEUX, No$nes, PocketNES (all #3: LDA abs,x); NESten
+* Fail: FCEUX, No$nes, PocketNES, rew. (all #3: LDA abs,x); NESten
   (#2: $2002 not mirrored)
 * Source code not included in zip; cpow's repo has [cpu_dummy_reads.s]
 
@@ -178,7 +180,7 @@ such as NESticle's failure to acknowledge NMI at $2002.
   Fails `2-nmi_and_brk`, `3-nmi_and_irq`, `4-irq_and_dma`, and
   `5-branch_delays_irq`
 * PocketNES: 0/5
-* No$nes, NESten: 0/4  
+* No$nes, NESten, rew.: 0/4  
   `5-branch_delays_irq` _hangs_ during the first test.
 
 `instr_timing`
@@ -191,14 +193,18 @@ such as NESticle's failure to acknowledge NMI at $2002.
   The tests report many instructions as taking 0 cycles, which I
   attribute to speed hacks that let games run on a sub-20 MHz CPU.
 * NESten: 0/2
+* rew.: 0/1  
+  `1-instr_timing` has no output.
 * No$nes: `1-instr_timing` doesn't write "Official instructions", and
-  `2-branch_timing` doesn't write anything.
+  `2-branch_timing` has no output.
 
 `nes_instr_misc`
 
 * Mesen: 4/4
 * FCEUX: 3/4  
   Failed `03-dummy_reads` (#3)
+* rew.: 2/4
+  Failed `03-dummy_reads`(#3), `04-dummy_reads_apu` (#2)
 * NESten: 2/4
   Failed `03-dummy_reads`(#2), `04-dummy_reads_apu` (#2)
 * No$nes and PocketNES: 1/4  
@@ -233,7 +239,7 @@ $BFFx to $C00x as well.
 * NESten: 0/8
   Failed #3, Failed, Failed #4, Failed #3, Failed #3, Failed #3,
   Failed #2, Failed #3
-* No$nes: 0/8  
+* rew., No$nes: 0/8  
   Failed 1 through 7; 8 hung
 
 `blargg_apu_2005.07.30` tests the length counter
@@ -247,9 +253,11 @@ $BFFx to $C00x as well.
   $04, $F8 $FF $1E $02, $04, $03, $03, $03, $03, $04, $04, $04, $02
 * No$nes: 0/11  
   $03, $F8 $FF $1E $02, $02, $02, $03, $03, $02, $04, $02, $03, $02
+* rew.: 0/11  
+  $02, $F8 $00 $1E $02, $02, $02, $02, $02, $02, $03, $02, $02, $02
 
-Things only No$nes gets wrong: length counter table and changing
-between with and without length counter.
+Things low-tier emulators get wrong: length counter table and
+changing between with and without length counter.
 
 `dmc_dma_during_read4` contains five tests.  Three have a pass or
 fail condition; the others give only a CRC32 value.  Will need to
@@ -265,7 +273,7 @@ validate the CRC against my NES.
   `read_write_2007`  
   `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
   `double_2007_read` gives `F018C287` (same as Mesen)
-* No$nes: Passed 0; failed `read_write_2007`  
+* No$nes and rew.: Passed 0; failed `read_write_2007`  
   `double_2007_read` gives `F018C287` (same as Mesen); `dma_*` hung
   on a black screen
 
@@ -274,7 +282,7 @@ validate the CRC against my NES.
 * Pass: Mesen
 * Fail: PocketNES (343E3215), FCEUX (0708B479/A6AB180A),
   NESten (93A657B9/4D2212F3)
-* Hang: No$nes (black screen)
+* Hang: No$nes and rew. (black screen)
 
 ### PPU
 
@@ -286,12 +294,14 @@ palette.  I'm excluding the last, whose result is not repeatable.
 - Fail: No$nes 3/4, failing `vbl_clear_time` ($03).
 - Fail: NESten 1/4, failing `palette_ram` ($03), `sprite_ram` ($02),
   and `vbl_clear_time` ($02)
+- Fail: rew. 0/4, failing `palette_ram` ($02), `sprite_ram` ($04),
+  `vbl_clear_time` ($03), and `vram_access` ($06)
 
 `oam_read`
 
-FCEUX, Mesen, No$nes, and PocketNES all pass.  When NESten turned
-out to be the first to fail (FEF6F55C), I had to add a point to all
-the others.
+The first four emulators (FCEUX, Mesen, No$nes, and PocketNES) all
+pass.  When NESten turned out to be the first to fail (FEF6F55C), I
+had to add a point to all the others.  rew. also passed.
 
 `oam_stress` takes a while to complete, and it often fails even on
 hardware because it doesn't account for odd modes (phase alignment
@@ -299,7 +309,7 @@ between CPU and PPU clock).  Don't stress about failing it.
 
 * Pass: Mesen
 * Fail: FCEUX (B0A94719), No$nes (B0A94719), PocketNES (B0A94719),
-  NESten (5FBA8510)
+  NESten (5FBA8510), rew. (59916E5B)
 
 `ppu_open_bus`
 
@@ -307,7 +317,7 @@ Tests the data retention of the PPU's CPU interface data bus, which
 emulators refer to as `io_db` or `PPUGenLatch`.
 
 * Pass: Mesen, No$nes
-* Fail: PocketNES (#2), FCEUX (#3), NESten (#3)
+* Fail: PocketNES (#2), FCEUX (#3), NESten (#3), rew. (#2)
 
 `ppu_sprite_hit`
 
@@ -323,6 +333,10 @@ emulators refer to as `io_db` or `PPUGenLatch`.
   Failed `01-basics` (#4), `02-alignment` (#3), `05-left_clip` (#2),
   `06-right_edge` (#2), `08-double_height` (#2), `09-timing` (#2),
   `10-timing_order` (#2)
+* rew.: 2/10  
+  Failed `01-basics` (#4), `02-alignment` (#3), `05-left_clip` (#2),
+  `06-right_edge` (#2), `07-screen_bottom` (#3), `08-double_height`
+  (#2), `09-timing` (#2), `10-timing_order` (#2)
 
 `ppu_sprite_overflow`
 
@@ -334,7 +348,7 @@ emulators refer to as `io_db` or `PPUGenLatch`.
 * NESten: 0/5  
   Failed `01-basics` (#7), `02-details` (#5), `03-timing` (#3),
   `04-obscure` (#7), `05-emulator` (#3)
-* PocketNES: 0/5  
+* PocketNES, rew.: 0/5  
   Failed `01-basics` (#2), making the rest untestable?
 
 `ppu_vbl_nmi`
@@ -358,4 +372,10 @@ emulators refer to as `io_db` or `PPUGenLatch`.
   `06-suppression` (636EA6C0), `07-nmi_on_timing` (F4AFB970),
   `08-nmi_off_timing` (6CB785AD), `09_even_odd_frames` (#2),
   `10-even_odd_timing` (#2)
+* rew.: 0/8
+  Failed `01-vbl_basics` (#4), `02-vbl_set_time` (04A52CE1),
+  `03-vbl_clear_time` (F9DC4B60), `04-nmi_control` (#5),
+  `05-nmi_timing` (318E0281), `06-suppression` (FED37AAD),
+  `07-nmi_on_timing` (FD9CDCC9), `08-nmi_off_timing` (FA8C430B)  
+  Hangs on `09_even_odd_frames` and `10-even_odd_timing`
 
