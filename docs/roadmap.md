@@ -16,8 +16,8 @@ this sprint to fill the majority of stages 1 and 2 with coins, and
 once I filled 19 out of 20 on Game Boy, I felt ready to proceed to
 the NES.
 
-1. Find 3 more No$nes misbehaviors
-2. Get NESten running
+1. Get NESten running
+2. Run Blargg tests in rew.
 3. Run Blargg tests in NESticle
 4. Run Blargg tests in loopyNES
 5. Run Blargg tests in NESten
@@ -37,7 +37,7 @@ which in turn is blocked on weather.
 
 1. Walk
 2. Sudden stop
-3. Lean forward and back in crouch
+3. Lean back in crouch
 4. Lift onto ledge from side
 5. Lift onto ledge from front
 6. Jump

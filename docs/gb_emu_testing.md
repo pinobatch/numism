@@ -291,7 +291,7 @@ KiGB is the first time I saw a Blargg ROM crash a GB emulator, and
 I'm not sure how much is a KiGB bug and how much a Wine bug.
 
 09 "Wave read while on" happens to be the same thing that the
-"NO BOY! NO DEMO! screen in _Demotronic_ demo by Megaboys tests.
+"NO BOY! NO DEMO!" screen in _Demotronic_ demo by Megaboys tests.
 
 ### Halt bug
 
@@ -394,9 +394,9 @@ TODO: Ask gbdev #emudev which games depend on working timers
 
 ### Memory timing
 
-Instructions that access memory do so on the _last_ cycles of an
-instruction.  This includes read instructions, write instructions,
-and read-modify-write instructions.
+Instructions that access memory other than the program stream
+do so on the _last_ cycles of an instruction.  This includes read
+instructions, write instructions, and read-modify-write instructions.
 
 Blargg's memory access timing test synchronizes to a 64-cycle TIMA,
 waits a variable amount of cycles, and executes each instruction with
@@ -514,8 +514,8 @@ mode 2 on that line to the start of the following mode 0.
 
 - High-tier emulators match the Game Boy exactly.  
   42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
-- Mid-tier (or "M-tier") emulators show some sort of variance between
-  0 and 10 sprites.  
+- Mid-tier and lower-mid-tier emulators show some sort of variance
+  between 0 and 10 sprites.  
   42 to 67 (VBA-M), 42 to 57 (mGBA), 42 to 70 (Mesen-S)
 - Low-tier emulators show constant duration.  
   42 (rew.), 47 (VBA), 48 (KiGB)
@@ -560,12 +560,12 @@ also my first coin that distinguishes VBA-M (fail) from mGBA (pass).
 ### Echo RAM
 
 Echo RAM at $E000-$FDFF is a mirror of most of WRAM at $C000-$DFFF.
-Some mappers incompletely decode SRAM at $A000 using only A13, not
-both A13 and A14.  On these cartridges, writes to echo RAM go to both
-WRAM and SRAM, and reads from echo RAM produce a bus conflict as both
-memories put different values on the data bus.  For this reason,
-Nintendo required licensed games to avoid reading or writing
-echo RAM.  Yet in practice, it's safe on cartridges that completely
+Some mappers incompletely decode SRAM at $A000 using A13, not A14.
+On these cartridges, writes to echo RAM go to both WRAM and SRAM,
+and reads from echo RAM produce a bus conflict as both memories
+put different values on the data bus.  For this reason, Nintendo
+required licensed games to avoid reading or writing echo RAM.
+Yet in practice, it's safe on cartridges that completely
 decode SRAM or lack SRAM entirely.
 
 This exerciser shows that VBA 1.7 doesn't support echo RAM at all.
@@ -576,8 +576,9 @@ ld [hl], b  ; Write to WRAM
 ld [de], a  ; Overwrite WRAM via echo RAM
 ld c, [hl]  ; Read WRAM
 ```
-In BGB, it produces `accessing echo RAM` and ends up with C=69.
-VBA gives C=A5, indicating that the WRAM write didn't take.
+On a Game Boy, this gives C=69 (nice).  In BGB, it produces
+`accessing echo RAM` and ends up with C=69.  VBA gives C=A5,
+indicating that the WRAM write didn't take.
 
 Other tests
 -----------

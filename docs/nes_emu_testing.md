@@ -20,6 +20,16 @@ system, and make it executable (`chmod +x ~/.local/bin/nones`).
 wine '/path/to/NO$NES.EXE' $(winepath -w $1)
 ```
 
+[NESten] is provided as an installer built with Nullsoft PIMP, the
+predecessor of NSIS.  Version 0.61 beta 1 was the last release before
+its mapper API was repurposed for Nintendulator.  It likewise needs
+an absolute path.  Here's `~/.local/bin/nesten`, set up for the
+installation path that the installer suggests:
+```
+#!/bin/sh
+wine $HOME/'.wine/drive_c/NESten/NESten.exe' `winepath -w "$1"`
+```
+
 As with Mesen-S, Mesen is run in Mono 6.10 to avoid a regression that
 breaks preferences dialogs.
 
@@ -80,6 +90,7 @@ set -e
 mgba-qt "$1.gba"
 ```
 
+[NESten]: https://tnse.zophar.net/NESten.htm
 [loopyNES]: https://3dscapture.com/NES/
 [NESticle]: https://www.zophar.net/dos/nes/nesticle.html
 [DOS/32A]: https://dos32a.narechk.net/
@@ -172,7 +183,8 @@ such as NESticle's failure to acknowledge NMI at $2002.
 
 * Mesen: 2/2
 * FCEUX: 1/2  
-  `1-instr_timing`: Instructions E2 and BB have wrong cycle counts
+  `1-instr_timing`: Instructions E2 (unofficial `nop #imm`) and BB
+  (unofficial `las abs,y`) have wrong cycle counts
 * PocketNES: 0/2  
   The tests report many instructions as taking 0 cycles, which I
   attribute to speed hacks that let games run on a sub-20 MHz CPU.
