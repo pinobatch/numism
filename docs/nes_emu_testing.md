@@ -3,14 +3,19 @@ NES emulator testing
 
 Emulators under test
 --------------------
+I'm operating under the principle of "no cash."  This means no paid
+operating systems nor paid emulators.  Thus I'm running tests on
+Ubuntu, a GNU/Linux distribution, and I've excluded 3dSen.
+I test emulators made for Windows in Wine 5.0.2.
+
 When starting out, I'd like the emulators to be evenly spaced on the
 accuracy front.
 
 I regularly test in Mesen (Sour final), FCEUX 2.3.0 (New PPU),
 No$nes 1.2, and PocketNES 2013-07-01.  Occasionally I'll run
 something in loopyNES 11/21/99, NESticle x.xx, NESten 0.61 beta 1,
-and rew. 12STX. Other emulators I'd like to test include RockNES,
-Nintendulator, and puNES.
+Nintendulator 0.985, and rew. 12STX. Other emulators I'd like to test
+include RockNES, puNES, and iNES.
 
 Unlike No$gmb, No$nes takes a ROM path on the command line.
 It must be an absolute path with backslashes.  Save this as
@@ -31,13 +36,19 @@ installation path that the installer suggests:
 wine $HOME/'.wine/drive_c/NESten/NESten.exe' `winepath -w "$1"`
 ```
 
+Nintendulator understands relative paths, including those using
+forward slashes.  Here's `~/.local/bin/nulator`:
+```
+#!/bin/sh
+wine '/path/to/Nintendulator.exe' "$1"
+```
+
 As with Mesen-S, Mesen is run in Mono 6.10 to avoid a regression that
 breaks preferences dialogs.
 
 [loopyNES] and [NESticle] are run in DOSBox 0.74-3.  NESticle needs a
 DOS extender; we use [DOS/32A] to replace DOS/4GW.
-
-Save this as `~/.local/bin/lnes`, correct paths, and make it executable:
+Here's `~/.local/bin/lnes`:
 ```
 #!/bin/sh
 set -e
@@ -48,7 +59,7 @@ dosbox loopytmp.bat
 rm loopytmp.nes loopytmp.bat; true
 ```
 
-Save this as `~/.local/bin/nestc`, correct paths, and make it executable:
+And `~/.local/bin/nestc`:
 ```
 #!/bin/sh
 set -e
@@ -60,7 +71,7 @@ rm nestctmp.nes nestctmp.bat; true
 ```
 
 Change NESticle timing to hblank cycles 114, frame lines 240, vblank
-lines 22, and virtual fps 60.
+lines 22, and virtual fps 60.	
 
 Once you click the DOSBox window, such as to operate NESticle's GUI,
 you'll need to press Ctrl+F10 to move the mouse out of the window.
@@ -68,7 +79,7 @@ you'll need to press Ctrl+F10 to move the mouse out of the window.
 PocketNES began as a Game Boy Advance port of loopyNES.  PocketNES
 v7a and later require an extended 48-byte header before the iNES
 header.  ROM builders are expected to follow this format described
-in the [PocketNES FAQ], for which I wrote [my own builder].
+in the [PocketNES FAQ], for which I wrote [my own builder] in Python.
 
 - 32 bytes: ROM title (NUL terminated)
 - 4 bytes: ROM size (iNES header + PRG ROM + CHR ROM)
@@ -83,7 +94,7 @@ in the [PocketNES FAQ], for which I wrote [my own builder].
 - 16384*p bytes: PRG ROM
 - 8192*c bytes: CHR ROM
 
-Save this as `~/.local/bin/pnes`, correct paths, and make it executable:
+Here's `~/.local/bin/pnes` that calls the builder:
 ```
 #!/bin/sh
 set -e
@@ -125,13 +136,14 @@ Not included:
 Overall results show PocketNES slightly edging out FCEUX.
 
 - Mesen: CPU 15/15, APU 24/24, PPU 32/32
+- Nintendulator: CPU 13/15, APU 22/24, PPU 28/32
 - PocketNES: CPU 4/15, APU 11/24, PPU 21/32
 - FCEUX: CPU 5/15, APU 8/24, PPU 20/32
 - No$nes: CPU 4/15, APU 0/24, PPU 12/32
 - NESten: CPU 5/15, APU 1/24, PPU 5/32
+- loopyNES: CPU 1/15, APU 1/24, PPU 8/32
 - rew.: CPU 2/15, APU 0/24, PPU 3/32
-- loopyNES: CPU 1/15, APU 1/24, PPU to be tested
-- NESticle: CPU 1/15, APU 0/24, PPU to be tested
+- NESticle: CPU 1/15, APU 0/24, PPU 2/32
 
 [Emulator tests]: https://wiki.nesdev.com/w/index.php/Emulator_tests
 
@@ -144,14 +156,14 @@ implement the APU frame IRQ.
 `2.Backward_Branch`, and `3.Forward_Branch`.  Each depends on
 the preceding tests.
 
-* Pass: Mesen, No$nes, NESten, and PocketNES
+* Pass: Mesen, Nintendulator, No$nes, NESten, and PocketNES
 * Fail: FCEUX and loopyNES at `1.Branch_Basics` (#2: NMI period too
   short); NESticle and rew. at `1.Branch_Basics` (#3: NMI period too
   long)
 
 `cpu_dummy_reads`
 
-* Pass: Mesen
+* Pass: Mesen, Nintendulator
 * Fail: FCEUX, No$nes, loopyNES, PocketNES, rew. (all #3: LDA abs,x);
   NESticle and NESten (#2: $2002 not mirrored)
 * Source code not included in zip; cpow's repo has [cpu_dummy_reads.s]
@@ -180,8 +192,10 @@ such as NESticle's failure to acknowledge NMI at $2002.
 `cpu_interrupts_v2`
 
 * Mesen: 5/5
+* Nintendulator: 4/5  
+  Failed `4-irq_and_dma` (D8F25536)
 * FCEUX: 1/5  
-  Fails `2-nmi_and_brk`, `3-nmi_and_irq`, `4-irq_and_dma`, and
+  Failed `2-nmi_and_brk`, `3-nmi_and_irq`, `4-irq_and_dma`, and
   `5-branch_delays_irq`
 * PocketNES: 0/5
 * No$nes, NESten, rew., loopyNES, NESticle: 0/4  
@@ -191,8 +205,12 @@ such as NESticle's failure to acknowledge NMI at $2002.
 
 * Mesen: 2/2
 * FCEUX: 1/2  
-  `1-instr_timing`: Instructions E2 (unofficial `nop #imm`) and BB
-  (unofficial `las abs,y`) have wrong cycle counts
+  `1-instr_timing`: Unofficial instructions E2 (`nop #imm`) and
+  BB (`las abs,y`) have wrong cycle counts
+* Nintendulator: 1/2
+  `1-instr_timing`: Unofficial instructions 8B (`xaa #imm`),
+  93   (`ahx (zp),y`), 9B (`tas abs,y`), 9F, (`ahx a,y`), and
+  BB (`las abs,y`) have wrong cycle counts
 * PocketNES: 0/2  
   The tests report many instructions as taking 0 cycles, which I
   attribute to speed hacks that let games run on a sub-20 MHz CPU.
@@ -207,7 +225,7 @@ such as NESticle's failure to acknowledge NMI at $2002.
 
 `nes_instr_misc`
 
-* Mesen: 4/4
+* Mesen, Nintendulator: 4/4
 * FCEUX: 3/4  
   Failed `03-dummy_reads` (#3)
 * rew.: 2/4  
@@ -239,7 +257,7 @@ $BFFx to $C00x as well.
 
 `apu_test`
 
-* Mesen: 8/8
+* Mesen, Nintendulator: 8/8
 * PocketNES: 5/8  
   Failed `5-len_timing` (#2), `6-irq_flag_timing` (#4),
   `7-dmc_basics` (#19)
@@ -260,7 +278,7 @@ $BFFx to $C00x as well.
 
 `blargg_apu_2005.07.30` tests the length counter
 
-* Mesen: 11/11
+* Mesen, Nintendulator: 11/11
 * PocketNES: 5/11  
   $01, $01, $01, $01, $02, $02, $04, $02, $04, $01, $05
 * FCEUX: 3/11  
@@ -284,9 +302,12 @@ validate the CRC against my NES.
 * Mesen: Passed 3  
   `dma_2007_read` gives `159A7A8F`  
   `double_2007_read` gives `F018C287`
+* Nintendulator: Passed 3  
+  `dma_2007_read` gives `5E3DF9C4`  
+  `double_2007_read` gives `D84F6815`
 * FCEUX: Passed 2; failed `dma_4016_read`  
   `dma_2007_read` gives `498C5C5F`  
-  `double_2007_read` gives `D84F6815`
+  `double_2007_read` gives `D84F6815` (same as Nintendulator)
 * loopyNES, PocketNES, and NESten: Passed 1; failed `dma_4016_read`
   and `read_write_2007`  
   `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
@@ -303,10 +324,8 @@ validate the CRC against my NES.
 
 * Pass: Mesen
 * Fail: PocketNES (343E3215), FCEUX (0708B479/A6AB180A),
-  NESten (93A657B9/4D2212F3)
+  NESten (93A657B9/4D2212F3), Nintendulator (DCE73FC5/542FC3AE)
 * Hang: No$nes, loopyNES, NESticle, and rew. (black screen)
-
-loopyNES and NESticle are tested through here
 
 ### PPU
 
@@ -314,26 +333,37 @@ loopyNES and NESticle are tested through here
 `vbl_clear_time`, `vram_access`, and a fifth test for the power-up
 palette.  I'm excluding the last, whose result is not repeatable.
 
-- Pass: Mesen, FCEUX, and PocketNES
-- Fail: No$nes 3/4, failing `vbl_clear_time` ($03).
-- Fail: NESten 1/4, failing `palette_ram` ($03), `sprite_ram` ($02),
+- Mesen, FCEUX, Nintendulator, and PocketNES pass
+- No$nes: 3/4  
+  Failed `vbl_clear_time` ($03)
+- NESten: 1/4  
+  Failed `palette_ram` ($03), `sprite_ram` ($02),
   and `vbl_clear_time` ($02)
-- Fail: rew. 0/4, failing `palette_ram` ($02), `sprite_ram` ($04),
+- loopyNES: 1/4  
+  Failed `sprite_ram` ($07), `vbl_clear_time` ($03),
+  and `vram_access` ($06)
+- rew.: 0/4  
+  Failed `palette_ram` ($02), `sprite_ram` ($04),
   `vbl_clear_time` ($03), and `vram_access` ($06)
+- NESticle: 0/4
+  Failed `palette_ram` ($02), `sprite_ram` ($04),
+  `vbl_clear_time` ($02), and `vram_access` ($04)
 
 `oam_read`
 
 The first four emulators (FCEUX, Mesen, No$nes, and PocketNES) all
 pass.  When NESten turned out to be the first to fail (FEF6F55C), I
-had to add a point to all the others.  rew. also passed.
+had to add a point to all the others.  rew., Nintendulator, loopyNES,
+and NESticle also passed.
 
 `oam_stress` takes a while to complete, and it often fails even on
 hardware because it doesn't account for odd modes (phase alignment
 between CPU and PPU clock).  Don't stress about failing it.
 
-* Pass: Mesen
-* Fail: FCEUX (B0A94719), No$nes (B0A94719), PocketNES (B0A94719),
-  NESten (5FBA8510), rew. (59916E5B)
+* Pass: Mesen, Nintendulator
+* Fail (B0A94719): FCEUX, No$nes, PocketNES
+* Fail (5FBA8510): NESten
+* Fail (59916E5B): rew., loopyNES, NESticle
 
 `ppu_open_bus`
 
@@ -341,15 +371,20 @@ Tests the data retention of the PPU's CPU interface data bus, which
 emulators refer to as `io_db` or `PPUGenLatch`.
 
 * Pass: Mesen, No$nes
-* Fail: PocketNES (#2), FCEUX (#3), NESten (#3), rew. (#2)
+* Fail (#3 no decay): FCEUX, NESten, Nintendulator
+* Fail (#2 no support at all): PocketNES, rew., loopyNES, NESticle
 
 `ppu_sprite_hit`
 
 * Mesen: 10/10
+* Nintendulator: 8/10  
+  Failed `09-timing` (#3), `10-timing_order` (#5)
 * FCEUX: 8/10  
   Failed `09-timing` (#4), `10-timing_order` (#2)
 * PocketNES: 8/10  
   Failed `09-timing` (#10), `10-timing_order` (#6)
+* loopyNES: 7/10
+  Failed `05-left_clip` (#2), `09-timing` (#2), `10-timing_order` (#2)
 * No$nes: 4/10  
   Failed `04-flip` (#3), `05-left_clip` (#2), `06-right_edge` (#2),
   `07-screen_bottom` (#4), `09-timing` (#2), `10-timing_order` (#2)
@@ -357,14 +392,14 @@ emulators refer to as `io_db` or `PPUGenLatch`.
   Failed `01-basics` (#4), `02-alignment` (#3), `05-left_clip` (#2),
   `06-right_edge` (#2), `08-double_height` (#2), `09-timing` (#2),
   `10-timing_order` (#2)
-* rew.: 2/10  
+* rew. and NESticle: 2/10  
   Failed `01-basics` (#4), `02-alignment` (#3), `05-left_clip` (#2),
   `06-right_edge` (#2), `07-screen_bottom` (#3), `08-double_height`
   (#2), `09-timing` (#2), `10-timing_order` (#2)
 
 `ppu_sprite_overflow`
 
-* Mesen: 5/5
+* Mesen, Nintendulator: 5/5
 * FCEUX: 3/5  
   Failed `03-timing` (#3), `04-obscure` (#2)
 * No$nes: 2/5  
@@ -372,34 +407,52 @@ emulators refer to as `io_db` or `PPUGenLatch`.
 * NESten: 0/5  
   Failed `01-basics` (#7), `02-details` (#5), `03-timing` (#3),
   `04-obscure` (#7), `05-emulator` (#3)
-* PocketNES, rew.: 0/5  
+* PocketNES, loopyNES, rew., NESticle: 0/5  
   Failed `01-basics` (#2), making the rest untestable?
 
 `ppu_vbl_nmi`
 
 * Mesen: 10/10
+* Nintendulator: 9/10
+  Failed `07-nmi_on_timing` (2B1F5269)
 * PocketNES: 8/10  
-  Failed: `07-nmi_on_timing` (2B1F5269), `10-even_odd_timing` (#2)
+  Failed `07-nmi_on_timing` (2B1F5269), `10-even_odd_timing` (#2)
 * FCEUX: 4/10  
-  Failed: `02-vbl_set_time` (4103C340), `05-nmi_timing` (7A959B66),
+  Failed `02-vbl_set_time` (4103C340), `05-nmi_timing` (7A959B66),
   `06-suppression` (3FE15516), `07-nmi_on_timing` (2B1F5269),
   `08-nmi_off_timing` (FA8C430B), `10-even_odd_timing` (#3)
 * NESten: 1/10   
-  Failed: `02-vbl_set_time` (4103C340), `03-vbl_clear_time`
+  Failed `02-vbl_set_time` (4103C340), `03-vbl_clear_time`
   (F9DC4B60), `04-nmi_control` (#3), `05-nmi_timing` (318E0281),
   `06-suppression` (3574DB97), `07-nmi_on_timing` (FD9CDCC9),
   `08-nmi_off_timing` (FA8C430B), `09_even_odd_frames` (#2),
   `10-even_odd_timing` (#2)
 * No$nes: 1/10  
-  Failed: `01-vbl_basics` (#7), `02-vbl_set_time` (C2633058),
+  Failed `01-vbl_basics` (#7), `02-vbl_set_time` (C2633058),
   `03-vbl_clear_time` (74346C62), `05-nmi_timing` (67847679),
   `06-suppression` (636EA6C0), `07-nmi_on_timing` (F4AFB970),
   `08-nmi_off_timing` (6CB785AD), `09_even_odd_frames` (#2),
   `10-even_odd_timing` (#2)
-* rew.: 0/8
+* loopyNES: 0/10  
+  Failed `01-vbl_basics` (#7), `02-vbl_set_time` (D5AE32A3),
+  `03-vbl_clear_time` (FD9CDCC9), `04-nmi_control` (#11),
+  `05-nmi_timing` (31757776), `06-suppression` (0900EB39),
+  `07-nmi_on_timing` (FD9CDCC9), `08-nmi_off_timing` (A46D9938),
+  `09_even_odd_frames` (#2), `10-even_odd_timing` (#2)
+* NESticle: 0/10  
+  Failed `01-vbl_basics` (#3), `02-vbl_set_time` (AAACAA4D),
+  `03-vbl_clear_time` (hash offscreen), `04-nmi_control` (#3),
+  `05-nmi_timing` (31850281), `06-suppression` (hash offscreen),
+  `07-nmi_on_timing` (hash offscreen),
+  `08-nmi_off_timing` (?08C430B, partly offscreen),
+  `09_even_odd_frames` (#2), `10-even_odd_timing` (#2)
+* rew.: 0/8  
   Failed `01-vbl_basics` (#4), `02-vbl_set_time` (04A52CE1),
   `03-vbl_clear_time` (F9DC4B60), `04-nmi_control` (#5),
   `05-nmi_timing` (318E0281), `06-suppression` (FED37AAD),
   `07-nmi_on_timing` (FD9CDCC9), `08-nmi_off_timing` (FA8C430B)  
   Hangs on `09_even_odd_frames` and `10-even_odd_timing`
 
+`01-vbl_basics` (#3: Reading VBL flag should clear it) is what I've
+called "the NESticle bug" since roughly 2000 or so when I was active
+on Everything2.

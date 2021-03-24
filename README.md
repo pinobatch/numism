@@ -10,3 +10,6 @@ If you're curious
 -----------------
 Building the Game Boy ROM requires RGBDS, Python 3, and Pillow
 (Python Imaging Library).
+
+Building the NES ROM requires cc65, Python 3, and Pillow
+(Python Imaging Library).
