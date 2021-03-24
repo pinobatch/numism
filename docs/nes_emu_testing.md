@@ -1,12 +1,22 @@
 NES emulator testing
 ====================
 
+I'm testing several current and historic emulators of the Nintendo
+Entertainment System to compare and contrast their behavior with
+that of an authentic NES.  I seek to produce "coins," my term for
+short test programs to highlight a behavior difference.
+(See [What makes a good coin?] and [NES coin list].)
+
+[What makes a good coin?]: ./good_coin.md
+[NES coin list]: ./nes_coins.md
+
 Emulators under test
 --------------------
 I'm operating under the principle of "no cash."  This means no paid
 operating systems nor paid emulators.  Thus I'm running tests on
-Ubuntu, a GNU/Linux distribution, and I've excluded 3dSen.
-I test emulators made for Windows in Wine 5.0.2.
+Ubuntu, a GNU/Linux distribution.  I test emulators made for Windows
+in Wine 5.0.2.  I've excluded 3dSen due to its paywall, and I've
+excluded RockNES 5.65 because [RockNES ignores all input] under Wine.
 
 When starting out, I'd like the emulators to be evenly spaced on the
 accuracy front.
@@ -15,7 +25,7 @@ I regularly test in Mesen (Sour final), FCEUX 2.3.0 (New PPU),
 No$nes 1.2, and PocketNES 2013-07-01.  Occasionally I'll run
 something in loopyNES 11/21/99, NESticle x.xx, NESten 0.61 beta 1,
 Nintendulator 0.985, and rew. 12STX. Other emulators I'd like to test
-include RockNES, puNES, and iNES.
+include puNES and iNES.
 
 Unlike No$gmb, No$nes takes a ROM path on the command line.
 It must be an absolute path with backslashes.  Save this as
@@ -102,6 +112,7 @@ set -e
 mgba-qt "$1.gba"
 ```
 
+[RockNES ignores all input]: https://forums.nesdev.com/viewtopic.php?p=269315#p269315
 [NESten]: https://tnse.zophar.net/NESten.htm
 [loopyNES]: https://3dscapture.com/NES/
 [NESticle]: https://www.zophar.net/dos/nes/nesticle.html
@@ -119,7 +130,7 @@ These are listed at "[Emulator tests]" on NESdev Wiki:
 `ppu_open_bus`, `ppu_sprite_hit`, `ppu_sprite_overflow`,
 `ppu_vbl_nmi`, `sprite_hit_tests`, `sprite_overflow_tests`,
 `sprdma_and_dmc_dma`, `apu_test`, `blargg_apu`,
-`dmc_dma_during_read4.zip`
+`dmc_dma_during_read4`
 
 Not included:
 
@@ -157,9 +168,10 @@ implement the APU frame IRQ.
 the preceding tests.
 
 * Pass: Mesen, Nintendulator, No$nes, NESten, and PocketNES
-* Fail: FCEUX and loopyNES at `1.Branch_Basics` (#2: NMI period too
-  short); NESticle and rew. at `1.Branch_Basics` (#3: NMI period too
-  long)
+* FCEUX and loopyNES: 0/3  
+  Failed `1.Branch_Basics` (#2: NMI period too short)
+* NESticle and rew.: 0/3  
+  Failed `1.Branch_Basics` (#3: NMI period too long)
 
 `cpu_dummy_reads`
 
@@ -235,7 +247,7 @@ such as NESticle's failure to acknowledge NMI at $2002.
 * No$nes, loopyNES, and PocketNES: 1/4  
   Failed `02-branch_wrap` (#2), `03-dummy_reads` (#3),
   `04-dummy_reads_apu` (#2)
-* NESticle: 1/4  
+* NESticle: 1/3  
   Failed `03-dummy_reads` (#2), `04-dummy_reads_apu` (#2)  
   `02-branch_wrap` hangs
 
@@ -246,7 +258,8 @@ breakpoint at $E820 (the start of the body of the test) and step
 through the branches around $FFFF and $0000, the test passes.
 This debugger is worth no cash.
 
-(Further testing showed that a forward branch overshoots by 2 bytes.)
+(Further testing showed that a forward branch in No$nes overshoots
+by 2 bytes in some circumstances.)
 
 Both PocketNES and No$nes turned out to misbehave on branches from
 $BFFx to $C00x as well.
@@ -254,6 +267,9 @@ $BFFx to $C00x as well.
 [Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug
 
 ### APU
+
+It has been suggested that some of `apu_test` and
+`blargg_apu_2005.07.30` may be duplicative, causing undue weight.
 
 `apu_test`
 
@@ -299,24 +315,24 @@ changing between with and without length counter.
 fail condition; the others give only a CRC32 value.  Will need to
 validate the CRC against my NES.
 
-* Mesen: Passed 3  
+* Mesen: 3/3  
   `dma_2007_read` gives `159A7A8F`  
   `double_2007_read` gives `F018C287`
-* Nintendulator: Passed 3  
+* Nintendulator: 3/3  
   `dma_2007_read` gives `5E3DF9C4`  
   `double_2007_read` gives `D84F6815`
-* FCEUX: Passed 2; failed `dma_4016_read`  
+* FCEUX: 2/3; failed `dma_4016_read`  
   `dma_2007_read` gives `498C5C5F`  
   `double_2007_read` gives `D84F6815` (same as Nintendulator)
-* loopyNES, PocketNES, and NESten: Passed 1; failed `dma_4016_read`
+* loopyNES, PocketNES, and NESten: 1/3; failed `dma_4016_read`
   and `read_write_2007`  
   `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
   `double_2007_read` gives `F018C287` (same as Mesen)
-* NESticle: Passed 0; failed `read_write_2007` and `dma_2007_write`  
+* NESticle: 0/3; failed `read_write_2007` and `dma_2007_write`  
   `dma_2007_read` gives `498C5C5F` (same as FCEUX)  
   `double_2007_read` gives `B8364881`  
   `dma_4016_read` hung on a black screen
-* No$nes and rew.: Passed 0; failed `read_write_2007`  
+* No$nes and rew.: 0/3; failed `read_write_2007`  
   `double_2007_read` gives `F018C287` (same as Mesen); `dma_*` hung
   on a black screen
 
@@ -333,7 +349,7 @@ validate the CRC against my NES.
 `vbl_clear_time`, `vram_access`, and a fifth test for the power-up
 palette.  I'm excluding the last, whose result is not repeatable.
 
-- Mesen, FCEUX, Nintendulator, and PocketNES pass
+- Mesen, FCEUX, Nintendulator, and PocketNES: 4/4
 - No$nes: 3/4  
   Failed `vbl_clear_time` ($03)
 - NESten: 1/4  
@@ -351,13 +367,17 @@ palette.  I'm excluding the last, whose result is not repeatable.
 
 `oam_read`
 
-The first four emulators (FCEUX, Mesen, No$nes, and PocketNES) all
-pass.  When NESten turned out to be the first to fail (FEF6F55C), I
-had to add a point to all the others.  rew., Nintendulator, loopyNES,
-and NESticle also passed.
+NESten was the fifth emulator tested and the first to fail,
+causing me to have to stop excluding this test as a gimme.
 
-`oam_stress` takes a while to complete, and it often fails even on
-hardware because it doesn't account for odd modes (phase alignment
+- Pass: FCEUX, Mesen, No$nes, PocketNES, rew., Nintendulator,
+  loopyNES, and NESticle
+- Fail: NESten (FEF6F55C)
+
+`oam_stress`
+
+This takes a while to complete and can fail even on hardware
+because it doesn't account for odd modes (phase alignment
 between CPU and PPU clock).  Don't stress about failing it.
 
 * Pass: Mesen, Nintendulator

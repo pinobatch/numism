@@ -2,8 +2,8 @@ Game Boy emulator testing
 =========================
 
 I'm testing several current and historic emulators of the Game Boy
-compact video game system to compare and contrast their behavior with
-that of an authentic Game Boy.  My main goal is to produce "coins,"
+compact video game system to compare and contrast their behavior
+with that of an authentic Game Boy.  I seek to produce "coins,"
 my term for short test programs to highlight a behavior difference.
 (See [What makes a good coin?] and [Game Boy coin list].)
 Along the way, I'm producing [exercisers], or in-depth test ROMs
@@ -13,7 +13,7 @@ used to help me document specific differences.
 [Game Boy coin list]: ./gb_coins.md
 [exercisers]: ../gameboy/exerciser/README.md
 
-Installing emulators
+Emulators under test
 --------------------
 I'm operating under the principle of "no cash."  This means no paid
 operating systems nor paid emulators.  Thus I'm running tests on
