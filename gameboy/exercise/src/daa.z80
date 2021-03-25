@@ -181,9 +181,8 @@ daa_present:
 ; Set adjustment to $00
 ; If H true: Clear H and set adjustment to $06
 ; If C true: Add $60 to adjustment
-; Add adjustment to A
+; Add adjustment to or subtract adjustment from A
 ; If result is 0, set Z; otherwise clear Z
-; If N false and adding adjustment produced a carry: Set C
 emulate_daa:
   push bc
   push af
@@ -225,11 +224,10 @@ emulate_daa:
     jr .have_adjust_result
   .is_addition:
     add b
-    jr nc, .have_adjust_result
-    set 4, c
   .have_adjust_result:
 
-  ; fortunately SET/RES doesn't destroy the Z flag
+  ; Set Z flag based on adding or subtracting adjustment
+  ; (Fortunately SET/RES doesn't destroy the Z flag.)
   res 7, c
   jr nz, .is_zero
     set 7, c

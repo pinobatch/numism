@@ -185,8 +185,7 @@ The broken `push af` also breaks `pop af` in "08-misc instrs".
     2. If N == 0 and (A & $0F) >= $0A, set H
     3. `adjustment` is ($06 if H else $00) | ($60 if C else $00)
     4. Add or subtract `adjustment` based on N
-    5. If N == 0 and addition overflowed, set C (`daa` never clears C)
-    6. Z = A == 0, N unchanged, H = 0
+    5. Z = A == 0, N unchanged, H = 0
 
 VBA `push af` does not discard nonexistent bits 3-0 of flags.
 ```
