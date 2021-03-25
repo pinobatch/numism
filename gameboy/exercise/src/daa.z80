@@ -173,7 +173,9 @@ daa_present:
   ret
 
 ;;
-; This behavior matches DAA on bgb in all cases:
+; The behavior of the code below was exhaustively tested on a
+; Game Boy CPU and matched for all 4,096 values of AF.
+;
 ; If N false and A >= $9A: Set C
 ; If N false and (A & $0F) >= $0A: Set H
 ; Set adjustment to $00
@@ -181,7 +183,7 @@ daa_present:
 ; If C true: Add $60 to adjustment
 ; Add adjustment to A
 ; If result is 0, set Z; otherwise clear Z
-; If N false and C true: Set C
+; If N false and adding adjustment produced a carry: Set C
 emulate_daa:
   push bc
   push af
