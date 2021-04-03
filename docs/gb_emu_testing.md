@@ -81,25 +81,28 @@ ROMs by Shay Green (known in the scene as Blargg) that measure
 CPU-visible behaviors.  The tests show the following results in
 No$gmb 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
 Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
-Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte, and
-mGBA 0.9-6554-a2cd8f6cc:
+Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte,
+SDL2 GNUBoy 1.1.1, and mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
   VBA 6 of 11; rew. 7 of 11; No$gmb and KiGB 9 of 11;
-  VBA-M, BGB, mGBA, Mesen, and Goomba pass
+  GNUBoy 10 of 11; VBA-M, BGB, mGBA, Mesen, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ rew. hangs with 0 of 11; No$gmb and VBA 0 of 12;
-  Goomba 1 of 12; VBA-M and Mesen-S 7 of 12; mGBA 10 of 12; BGB passes
+  KiGB _crashes;_ rew. hangs with 0 of 11; No$gmb, VBA, and GNUBoy
+  0 of 12; Goomba 1 of 12; VBA-M and Mesen-S 7 of 12; mGBA 10 of 12;
+  BGB passes
 - Halt Bug  
-  VBA and rew. enter a reset loop; KiGB and Goomba fail; others pass
-- Instr Timing  
-  No$gmb and KiGB hang; rew. and Goomba fail #255; others pass
-- Mem Timing 2  
-  KiGB _crashes;_ VBA, No$gmb, rew., and Goomba 0 of 3; VBA-M 2 of 3;
+  VBA and rew. enter a reset loop; KiGB, Goomba, and GNUBoy fail;
   others pass
+- Instr Timing  
+  No$gmb and KiGB hang; rew. and Goomba fail #255; GNUBoy fails
+  (34, 37); others pass
+- Mem Timing 2  
+  KiGB _crashes;_ VBA, No$gmb, rew., GNUBoy, and Goomba 0 of 3;
+  VBA-M 2 of 3; others pass
 - OAM Bug  
-  VBA, No$gmb, KiGB, and Goomba fail LCD Sync, rendering others unmeasurable;
-  rew., VBA-M, BGB, Mesen, and mGBA 3 of 8
+  VBA, No$gmb, KiGB, Goomba, and GNUBoy fail LCD Sync, rendering
+  others unmeasurable; rew., VBA-M, BGB, Mesen, and mGBA 3 of 8
 
 SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
 BizHawk Gambatte are identical to BGB.
@@ -203,10 +206,10 @@ by running AF through a big lookup table.  Adding $95 and $05 on
 a Game Boy produces AF=$9A00, which `daa` adjusts to $0090 (Z and
 C flags set).  VBA adjusts $9A instead to $00B0 (Z, H, and C set).
 
-VBA fails "02-interrupts" at `halt`.  As described in "Halt bug",
-this instruction in VBA behaves all kinds of wrong.  The test sets
-IE=$04 (timer), TAC=$05, TIMA=IF=0, does `halt nop`, and looks for
-IF & $04 nonzero.  To demonstrate:
+VBA and GNUBoy fail "02-interrupts" at `halt`.  As described in
+"Halt bug", this instruction behaves all kinds of wrong in VBA.
+The test sets IE=$04 (timer), TAC=$05, TIMA=IF=0, does `halt nop`,
+and looks for IF & $04 nonzero.  To demonstrate:
 ```
 INST 327600000000, AF 0400, HL FF07, IEIF 0400
 ; disassembles to
@@ -389,6 +392,9 @@ ld b, [hl]   ; read TIMA 4 cycles after DIV
 A (DIV) and B (TIMA) should be the same on most presses, with B one
 higher on a small fraction.  Everything but No$gmb gets this right.
 
+GNUBoy is the first tested emulator to fail specific instructions
+(in this case `34` and `37`) without crashing the entire test.
+
 TODO: Ask gbdev #emudev which games depend on working timers
 
 ### Memory timing
@@ -406,7 +412,8 @@ before or after the increment.
 Because it relies on correct timers, which No$gmb lacks, a different
 approach will be needed.
 
-VBA-M fails 3 (01).
+VBA-M fails `03-modify_timing` (01).  GNUBoy fails all three, though
+it at least gets through enough of the tests to fail cleanly.
 
 TODO: Ask gbdev #emudev which games depend most on working memory timing
 
@@ -419,7 +426,7 @@ So is that of the monochrome Game Boy.  It copies one 8-byte pair of
 entries over another pair if the program is not careful.  On the
 Game Boy, the trigger is an increment or decrement operation on a
 16-bit register pair (BC, DE, HL, or SP) while the pair's value is in
-the range $FF00 to $FFFF during OAM scan (the first 80 dots of lines
+the range $FE00 to $FEFF during OAM scan (the first 80 dots of lines
 0-143 while the LCD is on).  Affected instructions are `inc`, `dec`,
 `push`, `pop`, and autoincrementing `ld`.  It _doesn't_ happen for
 `ld hl, sp+`, `add sp`, or `add hl`, at any time other than OAM scan,

@@ -52,39 +52,46 @@ A preliminary list for stages 1 and 2 is complete.
     into hblank on LYC+1
 24. Writes to echo RAM ($E000-$FDFF) affect corresponding WRAM byte
 
-Unranked
+Unranked, to be tested at title screen and in menus:
 
-- GBC palette can be written and read back during vblank only on GBC
 - Joypad interrupt works at all
 - Joypad interrupt happens at different LY values (Telling LYs?)
 - Asserting P14/P15 while holding a button causes joypad interrupt
   (suggested by Daid)
-- Approximate mode 3 duration with 0 and 10 sprites
+
+Unranked, possibly model-specific:
+
+- GBC palette can be written and read back during vblank only on GBC
 - Whether disabling sprites in LCDC changes mode 3 duration
-  (model specific?)
-- Something something mid-scanline WX changes (suggested by LIJI)
-- Enabling hblank and OAM in STAT causes one interrupt, not two
 - Writing anything to STAT during mode 3 outside LYC causes an
   immediate extra interrupt only on DMG (suggested by organharvester)
 
+Unranked:
+
+- Approximate mode 3 duration with 0 and 10 sprites
+- Something something mid-scanline WX changes (suggested by LIJI)
+- Enabling hblank and OAM in STAT causes one interrupt, not two
+
 Results
 -------
-We do not list results for no$gmb past stage 2 because stage 3 is
-where divergence between GB and GBC becomes more noticeable.
+Divergence between GB and GBC becomes more noticeable starting in
+stage 3.  Because the GBC features of No$gmb are paywalled,  we do
+not list results for No$gmb past stage 2.
 
 Emulator     | Stage 1 | Stage 2 | Stage 3
 ------------ | ------: | ------: | ------:
-emulicious   |  10/10  |  10/10  |   3/3
-sameboy      |  10/10  |  10/10  |   3/3
-bgb          |  10/10  |   9/10  |   3/3
-mesen-s      |  10/10  |   9/10  |   2/3
-gambattehawk |  10/10  |   9/10  |   3/3
-gambatte     |  10/10  |   9/10  |   3/3
-mgba         |  10/10  |   9/10  |   3/3
-vba-m        |  10/10  |   8/10  |   0/3
-goomba       |   5/10  |   5/10  |   0/3
-kigb         |   3/10  |   6/10  |   2/3
-no$gmb       |   0/10  |   7/10  |**$**/3
-vba          |   6/10  |   1/10  |   1/3
-rew.         |   2/10  |   2/10  |   1/3
+emulicious   |  10/10  |  10/10  |   4/4
+sameboy      |  10/10  |  10/10  |   4/4
+bgb          |  10/10  |   9/10  |   4/4
+mesen-s      |  10/10  |   9/10  |   3/4
+gambattehawk |  10/10  |   9/10  |   4/4
+gambatte     |  10/10  |   9/10  |   4/4
+mgba         |  10/10  |   9/10  |   4/4
+vba-m        |  10/10  |   8/10  |   1/4
+gnuboy       |   7/10  |   4/10  |   3/4
+goomba       |   5/10  |   5/10  |   1/4
+kigb         |   3/10  |   6/10  |   3/4
+no$gmb       |   0/10  |   7/10  |**$**/4
+vba          |   6/10  |   1/10  |   1/4
+rew.         |   2/10  |   2/10  |   2/4
 
