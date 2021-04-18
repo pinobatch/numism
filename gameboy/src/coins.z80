@@ -53,10 +53,6 @@ section "STAGE1COINS", ROM0
 ; Each coin is a subroutine then a description.
 ; The subroutine returns carry clear for pass or set for fail
 
-test_failed:
-  scf
-  ret
-
 coin_add_hl_flags:
   jr .start
   db "add hl flags",10
@@ -74,7 +70,7 @@ coin_add_hl_flags:
   pop bc
   ld a, c
   cp $30
-  jr nz, .local_test_failed
+  jr nz, pass_if_Z_flag
 
   and a  ; Clear ZN, set H, clear C
   ld hl, $8700
@@ -83,7 +79,7 @@ coin_add_hl_flags:
   pop bc
   ld a, c
   cp $10
-  jr nz, .local_test_failed
+  jr nz, pass_if_Z_flag
 
   sub a  ; Set ZN, clear H
   ld hl, $6800
@@ -92,17 +88,20 @@ coin_add_hl_flags:
   pop bc
   ld a, c
   cp $A0
-  jr nz, .local_test_failed
+  jr nz, pass_if_Z_flag
 
   scf
   sbc a  ; Clear Z, set NHC
   ld hl, $7700
   add hl, de  ; Clear NHC
+pass_if_all_flags_clear:
   push af
   pop bc
+pass_if_C_eq_0:
   ld a, c
+pass_if_A_eq_0:
   or a
-.local_test_failed:
+pass_if_Z_flag:
   jp nz, test_failed
   ret
 
@@ -118,12 +117,7 @@ coin_add_sp_flags:
   ld sp, $D000
   add sp, -2
   ld sp, hl  ; No way to set carry if SPL = $00
-  push af
-  pop bc
-  ld a, c
-  or a
-  jp nz, test_failed
-  ret
+  jr pass_if_all_flags_clear
 
 coin_apu_off_ignore_writes:
   jr .start
@@ -234,13 +228,14 @@ coin_apu_sweep_status:
   ld a, $25
   ld bc, $8787
   call time_sweep_note
-  ld a, d
-  or a
-  jp z, test_failed
+  ld a, d  ; Fail if D is zero
+  cp 1
+  ret c
 
   ld a, $1A
   ld bc, $8300
   call time_sweep_note
+pass_if_D_nonzero:
   ld a, d
   or a
   jp nz, test_failed
@@ -321,13 +316,12 @@ coin_apu_len_env00_status:
   lb bc, $80, $7C  ; experiment arm: length counter
   call time_pulse1_envb_lenc
   ld a, d
-  or a
-  jp z, test_failed
+  cp 1
+  ret c
   lb bc, $00, $80  ; experiment arm: 0 envelope
   call time_pulse1_envb_lenc
   ld a, d
-  or a
-  jp z, test_failed
+  cp 1  ; A=0: fail; A=1: pass
   ret
 
 coin_div_increases:
@@ -409,27 +403,30 @@ coin_start_timer:
   ldh [rTAC], a  ; four mcycles per increment, 262 kHz
   xor a
   ldh [rTMA], a  ; set reload value for full range
+  scf  ; make ret nz and ret z in the following
   ld [hl], a     ; ack all interrupts (everywhere but rew.)
 
   ; 2. Ensure the timer increases from -20 to 0 in 80 cycles
   ld a, 256-20
   ldh [rTIMA], a
   ld b, 20-2
-  ; This delay loop triggers a heisenbug in NO$GMB:
+  ; This delay loop triggers a heisenbug in No$gmb:
   ; IF.2 gets set if and only if not step debugging
   .delayloop1:
     dec b
     jr nz, .delayloop1
   bit IEB_TIMER, [hl]
-  jr nz, sync_to_TIMA.fail
+  ret nz
   bit IEB_TIMER, [hl]
-  jr z, sync_to_TIMA.fail
-  ; If we've reached here in NO$GMB then step debugging was off.
-  ; Fall through to the test
+  ret z
+  ; If we've reached here in No$gmb then step debugging was off.
+  ; Fall through to the second half of the test.
 
   ; 3. Align to 4-cycle timer by looping while [. . W .|. R . .] for
-  ; an odd number of cycles until we hit [W . . R]
-  ; (NO$GMB has failed this one in the past)
+  ; an odd number of cycles until we hit [W . . R], where W and R
+  ; represent TIMA writes and reads.  In particular, W does NOT reset
+  ; the phase of this 4-cycle timer; it's instead a tap off DIV.
+  ; (No$gmb has failed this one in the past)
 sync_to_TIMA:
   ld b, 4
 .loopfifteen:
@@ -441,7 +438,7 @@ sync_to_TIMA:
   nop             ; 1
   dec b           ; 1
   jr nz, .loopfifteen  ; 3
-.fail:
+test_failed:
   scf
   ret
 
@@ -468,7 +465,8 @@ coin_vram_blocked_writes:
   rst memset_tiny
   call lcd_on_blank
 
-  ; Write to video memory (expect lots of invalid
+  ; Write to video memory.  BGB gives lots of invalid write
+  ; exceptions here; press Shift+F9 Esc to skip them.
   pop hl
   call write_in_all_modes
   ld hl, $FE80
@@ -488,13 +486,10 @@ coin_vram_blocked_writes:
   ; bug.  Disregard the affected writes.
   and %00111111  ; disregard writes affected by OAM bug
   cp %00111100  ; OAM: modes 2 and 3 blocked
-  jr nz, .local_failed
+.local_failed:
+  jp nz, fail_and_turn_off_ppu
   call lcd_off
   or a
-  ret
-.local_failed:
-  call lcd_off
-  scf
   ret
 
 write_in_all_modes:
@@ -552,7 +547,6 @@ write_in_all_modes_readback:
     jr nc, .loop
   ld a, b
   ret
-
 
 ; mode 3 duration measurement ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -656,9 +650,11 @@ coin_di_halt_sets_if:
   nop
   ldh a, [rIF]
   and IEF_TIMER    ; Make sure a timer interrupt arrived
-  jp z, test_failed
+  cp 1  ; A=0: fail; A=1: pass
   ret
 
+; Also called the "halt bug", and beware claims The Smurfs (SGB)
+; relies on it
 coin_di_halt_2inc:
   jr .start
   db "di halt double increment",10
@@ -698,6 +694,7 @@ coin_di_halt_no_handler:
 pass_if_b_in_red_zone:
   ld hl, sp-1      ; Get a pointer to the stack red zone
   ld a, [hl-]      ; The value of B should still be there
+pass_if_A_eq_B:
   cp b
   jp nz, test_failed
   ret

@@ -86,9 +86,8 @@ The following steps model what the CPU does:
 1. If N == 0 (addition) and A >= $9F: Set C (carry)
 2. If N == 0 and (A & $0F) >= $0A: Set H (half carry)
 3. `adjustment` is ($06 if H else $00) | ($60 if C else $00)
-4. Add or subtract `adjustment` based on N
-5. If N == 0 and addition overflowed, set C (`daa` never clears C)
-6. Z (zero) = A == 0, N unchanged, H = 0
+4. Add `adjustment` if N is 0 or subtract `adjustment` if N is 1
+5. Z (zero) = A == 0, N unchanged, clear H to 0
 
 This tests the `daa` (decimal adjust accumulator) instruction on
 all 4,096 distinct AF (accumulator and flags) values, compares them
