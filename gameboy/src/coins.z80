@@ -31,14 +31,25 @@ coin_list::
   dw coin_apu_status_ro
   dw coin_push_af_low_4
   dw coin_oam_bug
-  ; stage 3: begin dmg/gbc differences; things vba-m fails
+  ; stage 3: mostly things vba-m fails
   dw coin_wave_ram_locked
   dw coin_ei_di
   dw coin_stat_blocking
   dw coin_echo_ram_write
-  dw coin_no_25
+  dw coin_other_or_mask
   dw coin_no_26
   dw coin_no_27
+  dw coin_no_28
+  dw coin_no_29
+  dw coin_no_30
+  ; stage 4: begin dmg/gbc differences
+  dw coin_no_31
+  dw coin_no_32
+  dw coin_no_33
+  dw coin_no_34
+  dw coin_no_35
+  dw coin_no_36
+  dw coin_no_37
   dw coin_wave_ram_retrigger
   dw coin_gbc_palette_readback
   dw coin_stat_write_ff
@@ -850,7 +861,12 @@ coin_push_af_low_4:
   ret
 
 ;;
-; This is a very rough test for OAM bug
+; This is a very rough test for the DMG OAM bug.
+; It represents a couple firsts:
+; 1. In the game, it gives users of emulators other than Emulicious
+;    or SameBoy their first experience of a counterfeit coin.
+; 2. It adjusts for different expected behavior on Game Boy
+;    compared to Game Boy Color.  This foreshadows stage 4.
 coin_oam_bug:
   jr .start
   db "16-bit inc corrupts OAM",10
@@ -1114,12 +1130,124 @@ coin_echo_ram_write:
   scf
   ret
 
-coin_no_25:
+coin_other_or_mask:
   jr .start
-  db "Always pass for now",0
+  db "OR mask for other regs",10
+  db "Unused bits of P1, SC, TAC,",10
+  db "IF, and STAT read as 1",10
+  db "but not OBP0/1 or IE;",10
+  db "unmapped regs read $FF",0
 .start:
-  or a
+  ld hl, regs_with_ormask
+  .with_ormask_loop:
+    ld a, [hl+]
+    ld c, a
+    ld a, [hl+]
+    ld d, a     ; D: mask
+    ld a, [hl+]
+    ld e, a     ; E: first write value
+    ldh [c], a  ; Write first write value
+    ldh a, [c]
+    and d
+    cp d
+    jr nz, .fail_nz
+    ld a, e
+    xor d
+    ldh [c], a  ; Second write value is first ^ mask
+    ldh a, [c]
+    and d
+    cp d
+    jr nz, .fail_nz
+    ld a, l
+    xor low(regs_wo_ormask)
+    jr nz, .with_ormask_loop
+
+  ld d, $69  ; thue-morse comparison value
+  .wo_ormask_loop:
+    ld a, [hl+]
+    ld c, a
+    ld a, d
+    ldh [c], a
+    ldh a, [c]
+    cp d
+  .fail_nz:
+    jp nz, test_failed
+    cpl
+    ldh [c], a
+    ldh a, [c]
+    cpl
+    cp d
+    jr nz, .fail_nz
+    ld a, l
+    xor low(regs_unmapped)
+    jr nz, .wo_ormask_loop
+  ldh a, [c]  ; clear IE
+
+  .unmapped_range_loop:
+    ld a, [hl+]
+    ld c, a
+    ld a, [hl+]
+    ld d, a  ; D: end of range
+    .unmapped_loc_loop:
+      xor a
+      ldh [c], a
+      ldh a, [c]
+      inc a
+      ld b, b
+      jr nz, .fail_nz
+      ld a, c
+      inc c
+      cp d
+      jr nz, .unmapped_loc_loop
+    ld a, l
+    xor low(regs_unmapped_end)
+    jr nz, .unmapped_range_loop
   ret
+
+; I found a more compact representation of Gekkio's OR mask tests in
+; mooneye-gb/acceptance/bits/unused_hwio-GS.s
+;
+; regs_with_ormask
+; 1. Write wrvalue to reg
+; 2. Read rdvalue from reg
+; 3. If (rdvalue & mask) != mask, fail
+; 4. Write wrvalue^mask to reg
+; 5. Read rdvalue from reg
+; 6. If (rdvalue & mask) != mask, fail
+;
+; regs_wo_ormask
+; 1. Write $69 to reg
+; 2. Read reg
+; 3. If (rdvalue & mask) != $69, fail
+; 4. Write $96 to reg
+; 5. Read reg
+; 6. If (rdvalue & mask) != $96, fail
+;
+; regs_unmapped
+; for reg from low through high inclusive:
+; 1. Write $00 to reg
+; 2. Read rdvalue from reg
+; 3. if rdvalue != $FF, fail
+
+regs_with_ormask:
+  ;  reg     mask       wrvalue
+  db low(rP1),    %11000000, %11111111
+  db low(rSC),    %01111110, %01111110
+  db low(rTAC),   %11111000, %11111000
+  db low(rIF),    %11100000, %11100000
+  db low(rSTAT),  %10000000, %10000000
+regs_wo_ormask:
+  db low(rOBP0), low(rOBP1), low(rIE)
+regs_unmapped:
+  ; low, high
+  db $03, $03
+  db $08, $0E
+  db $15, $15
+  db $1F, $1F
+  db $27, $29
+  db $4C, $4E
+regs_unmapped_end:
+
 
 coin_no_26:
   jr .start
@@ -1135,35 +1263,23 @@ coin_no_27:
   or a
   ret
 
-; This is where I want to start making tests that behave differently
-; in GBC mode vs. DMG mode.  I'll start implementing these once I
-; allocate 40 coins.
-coin_wave_ram_retrigger:
+coin_no_28:
   jr .start
-  db "NYA Retrigger corrupts wave",10
-  db "Playing another note without",10
-  db "unlocking and relocking wave",10
-  db "RAM corrupts it on B&W only",0
-.start:
-  call init_silent_apu
-  or a
-  ret
-
-coin_gbc_palette_readback:
-  jr .start
-  db "NYA GBC CRAM readable",10
-  db "Can read palette during",10
-  db "vblank on GBC only",0
+  db "Always pass for now",0
 .start:
   or a
   ret
 
-coin_stat_write_ff:
+coin_no_29:
   jr .start
-  db "NYA STAT briefly enables all",10
-  db "Writing 0 to FF41 during",10
-  db "mode 0, 1, 2, or LY=LYC",10
-  db "fires interrupt on B&W only",0
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_30:
+  jr .start
+  db "Always pass for now",0
 .start:
   or a
   ret
@@ -1217,23 +1333,35 @@ coin_no_37:
   or a
   ret
 
-coin_no_38:
+; This is where I want to start making tests that behave differently
+; in GBC mode vs. DMG mode.  I'll start implementing these once I
+; allocate 40 coins.
+coin_wave_ram_retrigger:
   jr .start
-  db "Always pass for now",0
+  db "NYA Retrigger corrupts wave",10
+  db "Playing another note without",10
+  db "unlocking and relocking wave",10
+  db "RAM corrupts it on B&W only",0
+.start:
+  call init_silent_apu
+  or a
+  ret
+
+coin_gbc_palette_readback:
+  jr .start
+  db "NYA GBC CRAM readable",10
+  db "Can read palette during",10
+  db "vblank on GBC only",0
 .start:
   or a
   ret
 
-coin_no_39:
+coin_stat_write_ff:
   jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
-
-coin_no_40:
-  jr .start
-  db "Always pass for now",0
+  db "NYA STAT briefly enables all",10
+  db "Writing 0 to FF41 during",10
+  db "mode 0, 1, 2, or LY=LYC",10
+  db "fires interrupt on B&W only",0
 .start:
   or a
   ret

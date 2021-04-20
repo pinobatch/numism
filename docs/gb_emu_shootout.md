@@ -55,6 +55,7 @@ A counterpart to [Holy Mapperel] would be a more suitable venue.
 Tests that are meaningless on DMG shouldn't be included before
 stage 4 in case I want to extend No$gmb results to stage 3.
 
+- blargg interrupt_time
 - daid CGB ​speed_switch_timing_*
 - samesuite APU tests that fewer than 2 B/M tier emulators pass
 - samesuite dma
@@ -62,19 +63,19 @@ stage 4 in case I want to extend No$gmb results to stage 3.
 Tests where Gambatte, mGBA, bgb, and VBA-M differ
 -------------------------------------------------
 With the exception of mapper tests, visual-only tests, and Daid's
-stop_instr, Gambatte passes all tests that one of mGBA, bgb, and
-VBA-M fail.
+stop_instr, Gambatte passes all tests that at least one of mGBA, bgb,
+and VBA-M also pass.
 
 VBA-M alone fails
 
-- blargg interrupt_time (a 00 is missing on the third line)
-- blargg mem_timing versions 1 and 2 modify timing (all res b, [hl] and set b, [hl])
-- blargg DMG/CGB sound 09-wave_read_while_on (rumored that so does a GBA)
+- blargg mem_timing versions 1 and 2 modify timing (`dec [hl]`; `inc [hl]`; all bit manip `[hl]`; `res b, [hl]`; and `set b, [hl]`)
+- blargg DMG/CGB sound 09-wave_read_while_on (rumored that so does a GBA; cf. coin #21)
 - blargg DMG sound ​11-regs_after_power (power off shouldn't affect NR41) and ​12-wave_write_while_on
 - daid CGB stop_instr
-- mooneye unused_hwio-GS ($FF02)
+- mooneye unused_hwio-GS ($FF02; coin #25)
 - mooneye ​di_timing-GS (round 2)
-- mooneye oam_dma/sources-GS, oam_dma_restart, oam_dma_timing, stat_lyc_onoff
+- mooneye oam_dma/sources-GS, oam_dma_restart, oam_dma_timing
+- mooneye stat_lyc_onoff (cf. coin #24)
 - mooneye intr_1_2_timing-GS
 - ​mooneye rapid_di_ei (coin #22)
 - mooneye tima_reload, tima_write_reloading, tma_write_reloading
@@ -98,12 +99,13 @@ mGBA and VBA-M fail
 
 bgb and VBA-M fail
 
-- mooneye add_sp_e_timing
-- mooneye call_cc_timing, call_timing, jp_cc_timing, jp_timing,
-  reti_timing, ret_cc_timing, ret_timing  (bgb: round 2; VBA-M: round 1)
+- Tests in Mooneye that use OAM accessibility timing to modify an instruction; many require instructions at specific ROM addresses.
+    - mooneye add_sp_e_timing
+    - mooneye call_cc_timing, call_timing, jp_cc_timing, jp_timing,
+      reti_timing, ret_cc_timing, ret_timing  (bgb: round 2; VBA-M: round 1)
+    - mooneye ld_hl_sp_e_timing
 - mooneye ie_push (bgb: unwanted cancel; VBA-M: not cancelled)
-- mooneye ld_hl_sp_e_timing
-- mooneye ​pop_timing
+- mooneye ​pop_timing (pops from DIV)
 
 bgb, mGBA, and VBA-M fail
 
@@ -126,7 +128,7 @@ duplicate an existing coin:
 - mooneye halt_ime0_nointr_timing: Bottom tier emulators fail differently
 - mooneye halt_ime1_timing: Only KiGB fails
 - mooneye halt_ime1_timing2-GS: Bottom tier emulators fail differently
-- mooneye if_ie_registers: Goomba and KiGB fail
+- mooneye if_ie_registers: Goomba and KiGB fail for not ORing bits 7-5 of IF with $E0
 - mooneye daa: H flag stuff, like coin 15
 - mooneye ​intr_timing: Goomba passes this one
 - mooneye ​oam_dma/​reg_read: Only Goomba fails

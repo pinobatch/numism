@@ -51,6 +51,7 @@ A preliminary list for stages 1 and 2 is complete.
 23. STAT=LYC+hblank+OAM causes halt in hblank on line LYC-1 to extend
     into hblank on LYC+1
 24. Writes to echo RAM ($E000-$FDFF) affect corresponding WRAM byte
+25. Unused I/O register bits read back with an OR mask
 
 Unranked, to be tested at title screen and in menus:
 

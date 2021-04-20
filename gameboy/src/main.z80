@@ -19,6 +19,8 @@ main::
   call run_tests_in_stage_a
   ld a, 2
   call run_tests_in_stage_a
+  ld a, 3
+  call run_tests_in_stage_a
 
   jp show_stages
 
