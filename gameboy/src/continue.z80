@@ -385,10 +385,41 @@ show_stages::
   and PADF_START
   jr z, .waitloop
 
+  ; 2021-04-25: The response to the Start Button before the
+  ; implementation of platformer mode confused beware.
   call lcd_off
+  call clear_scrn0_to_0
+  ldxy hl, 3, 8
+  ld a, 1
+  ld c, 14
+  call memset_inc
+
+  ld a, $FC
+  ldh [rLYC], a
+  ldh [rBGP], a
+  ldh [rWY], a
+  ldh [rWX], a
+  xor a
+  ldh [rSCX], a
+  ldh [rSCY], a
+
+  call vwfClearBuf
+  ld hl, not_ready_msg
+  ld b, 8
+  call vwfPuts
+  lb bc, 0, 16
+  ld hl, $9000
+  call vwfPutBuf03_lenC
+
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ldh [vblank_lcdc_value], a
+  ldh [rLCDC], a
+
 forever:
   halt
   jr forever
+
+not_ready_msg: db "Platformer isn't ready yet", 0
 
 DESCRIPTION_TILE = $80
 DIGITS_BAR_TILE = $C0
