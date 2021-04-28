@@ -20,7 +20,8 @@ of a 32K ROM.  I may have to use the DTE codec that I used for
 
 Coin list
 ---------
-A preliminary list for stages 1 and 2 is complete.
+A preliminary list for stages 1 and 2 is complete, and stage 3 is
+in progress.
 
 1. `add hl` flags
 2. `add sp` flags
@@ -52,6 +53,9 @@ A preliminary list for stages 1 and 2 is complete.
     into hblank on LYC+1
 24. Writes to echo RAM ($E000-$FDFF) affect corresponding WRAM byte
 25. Unused I/O register bits read back with an OR mask
+26. Approximate mode 3 duration with 0, 10, and 16 sprites
+27. 4 kHz timer turning on and off every 12 cycles eventually counts
+    up past $FF
 
 Unranked, to be tested at title screen and in menus:
 
@@ -69,30 +73,27 @@ Unranked, possibly model-specific:
 
 Unranked:
 
-- Approximate mode 3 duration with 0 and 10 sprites
 - Something something mid-scanline WX changes (suggested by LIJI)
-- Enabling hblank and OAM in STAT causes one interrupt, not two
 
 Results
 -------
-Divergence between GB and GBC becomes more noticeable starting in
-stage 3.  Because the GBC features of No$gmb are paywalled,  we do
-not list results for No$gmb past stage 2.
+Divergence between DMG and GBC behavior becomes more noticeable
+starting in stage 4.  Because the GBC features of No$gmb are
+paywalled, we do not list results for No$gmb past stage 3.
 
-Emulator     | Stage 1 | Stage 2 | Stage 3
------------- | ------: | ------: | ------:
-emulicious   |  10/10  |  10/10  |   4/4
-sameboy      |  10/10  |  10/10  |   4/4
-bgb          |  10/10  |   9/10  |   4/4
-mesen-s      |  10/10  |   9/10  |   3/4
-gambattehawk |  10/10  |   9/10  |   4/4
-gambatte     |  10/10  |   9/10  |   4/4
-mgba         |  10/10  |   9/10  |   4/4
-vba-m        |  10/10  |   8/10  |   1/4
-gnuboy       |   7/10  |   4/10  |   3/4
-goomba       |   5/10  |   5/10  |   1/4
-kigb         |   3/10  |   6/10  |   3/4
-no$gmb       |   0/10  |   7/10  |**$**/4
-vba          |   6/10  |   1/10  |   1/4
-rew.         |   2/10  |   2/10  |   2/4
-
+Emulator     | Stage 1 | Stage 2 | Stage 3 | Stage 4
+------------ | ------: | ------: | ------: | ------:
+emulicious   |  10/10  |  10/10  |   7/7   |
+sameboy      |  10/10  |  10/10  |   7/7   |
+bgb          |  10/10  |   9/10  |   7/7   |
+gambattehawk |  10/10  |   9/10  |   7/7   |
+gambatte     |  10/10  |   9/10  |   7/7   |
+mesen-s      |  10/10  |   9/10  |   6/7   |
+mgba         |  10/10  |   9/10  |   5/7   |
+vba-m        |  10/10  |   8/10  |   3/7   |
+gnuboy       |   6/10  |   4/10  |   4/7   |
+kigb         |   3/10  |   6/10  |   4/7   |
+goomba       |   4/10  |   5/10  |   1/7   |
+no$gmb       |   0/10  |   7/10  |   2/7   |**$**/10
+vba          |   6/10  |   1/10  |   1/7   |
+rew.         |   2/10  |   2/10  |   2/7   |

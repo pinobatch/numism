@@ -8,6 +8,8 @@ include "src/global.inc"
 
 COINS_PER_STAGE equ 10
 NUM_STAGES equ 4
+
+; Displays 2 bytes of intermediate output from coins in the last stage
 WITH_DEBUGHEX equ 0
 
 section "passbits", WRAM0, ALIGN[2]

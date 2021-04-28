@@ -37,8 +37,8 @@ coin_list::
   dw coin_stat_blocking
   dw coin_echo_ram_write
   dw coin_other_or_mask
-  dw coin_no_26
-  dw coin_no_27
+  dw coin_mode_3_length
+  dw coin_flashing_12
   dw coin_no_28
   dw coin_no_29
   dw coin_no_30
@@ -374,6 +374,9 @@ coin_lyc_to_hint:
   cp 4  ; If A < 4 then there was only one interrupt
   ret
 
+;;
+; Turns on the LCD with OAM cleared to 0, LYC=64, scrolling at X=0,
+; all-white BGP, and IE set to vblank only
 lcd_on_blank:
   call lcd_off
   ld hl, $FE00     ; clear ALL of OAM to 0
@@ -387,7 +390,8 @@ lcd_on_blank_keep_oam:
   ldh [rBGP], a    ; hide everything during test
   inc a
   ldh [rIE], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
+  ldh [stat_lcdc_value], a
   ldh [rLCDC], a
   ret
 
@@ -566,6 +570,8 @@ write_in_all_modes_readback:
 
 section "measure_mode3", ROM0
 
+;;
+; Measure the duration of mode 3 on line LYC in M-cycles
 measure_mode3:
   ; Allow only IRQs on the chosen scanline to cause an interrupt
   ld c, low(rSTAT)
@@ -1193,7 +1199,6 @@ coin_other_or_mask:
       ldh [c], a
       ldh a, [c]
       inc a
-      ld b, b
       jr nz, .fail_nz
       ld a, c
       inc c
@@ -1249,19 +1254,104 @@ regs_unmapped:
 regs_unmapped_end:
 
 
-coin_no_26:
+coin_mode_3_length:
   jr .start
-  db "Always pass for now",0
+  db "Mode 3 length",10
+  db "Mode 3 without sprites",10
+  db "lasts 40 to 45 cycles;",10
+  db "with 10 or 16 sprites 8px",10
+  db "apart lasts 64 to 72", 0
 .start:
+
+  ; Measure with 0 sprites
+  call lcd_on_blank
+  call measure_mode3
+  add -46  ; map 40-45 to 245-255
+  cp -6
+.fail:
+  jp c, fail_and_turn_off_ppu
+
+  ; Measure with 10 sprites
+  lb bc, 10, 8
+  call .test_with_full_load
+  ld e, a
+  add -73
+  cp -9
+  jr c, .fail
+
+  ; Whatever 10 was, 16 needs to match
+  push de
+  lb bc, 16, 8
+  call .test_with_full_load
+  pop de
+  sub e
+  cp 1  ; CF=1 if match
+  ccf
+  jr c, .fail
+  call lcd_off
   or a
   ret
 
-coin_no_27:
+.test_with_full_load:
+  ; Put B sprites spaced 8 pixels apart
+  ld hl, SOAM
+  ld d, 8+8  ; X position
+  .loop:
+    ld a, 60+16
+    ld [hl+], a
+    ld a, d
+    ld [hl+], a
+    add c
+    ld d, a
+    xor a
+    ld [hl+], a
+    ld [hl+], a
+    djnz .loop
+  ld a, 160
+  sub l
+  ld c, a
+  xor a
+  rst memset_tiny
+
+  ; send them to the PPU and see how long it took
+  rst wait_vblank_irq
+  call run_dma
+  jp measure_mode3
+
+; inspired by Gekkio's timer/rapid_toggle
+coin_flashing_12:
   jr .start
-  db "Always pass for now",0
+  db "Flashing 12",10
+  db "TAC at 4 kHz, 12 cycles on,",10
+  db "12 cycles off, should",10
+  db "eventually count up", 0
 .start:
-  or a
-  ret
+  ld a, IEF_TIMER
+  ldh [rIE], a
+  xor a
+  ldh [rIF], a
+  ldh [rTAC], a
+  ldh [rDIV], a
+  ld a, -16
+  ldh [rTIMA], a
+  ld b, 1
+  .loop:
+    ld a, TACF_4KHZ|TACF_START  ; 2
+    ldh [rTAC], a      ; 5 [WRITE]
+    ld a, [rTIMA]      ; 8
+    or a               ; 9
+    or a               ; 10
+    or a               ; 11
+    jr z, .loopdone    ; 13
+    xor a              ; 14
+    ldh [rTAC], a      ; 17 [WRITE]
+    or a               ; 18
+    or a               ; 19
+    inc a              ; 21
+    inc b              ; 21
+    jr nz, .loop       ; 24
+  .loopdone:
+  jp pass_if_A_eq_0
 
 coin_no_28:
   jr .start
