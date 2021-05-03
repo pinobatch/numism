@@ -280,7 +280,7 @@ time_sweep_note:
 
 ;;
 ; Waits a tenth of a second for a note to end.
-; @return E: negative if stopped or 0 if still playing
+; @return DE: negative if stopped or 0 if still playing
 time_pulse1_note:
   ; Give a sweep 1/8 second cycles to ring out
   ld hl, rNR52
@@ -319,21 +319,32 @@ coin_apu_len_env00_status:
 .start:
   call init_silent_apu
   di
-  lb bc, $80, $80  ; control arm
+  ; Control arm: No envelope, no length counter
+  ; Note should play to completion (DE = 0)
+  lb bc, $80, $80
   call time_pulse1_envb_lenc
-  ld a, d
-  or a
-  jp nz, test_failed
-  lb bc, $80, $7C  ; experiment arm: length counter
+  rl d
+  ret c
+  ; Experiment arm 1: Length counter set to 4 ticks (1/64 second)
+  ; Note should stop (DE < 0)
+  lb bc, $80, $7C
   call time_pulse1_envb_lenc
   ld a, d
   cp 1
   ret c
-  lb bc, $00, $80  ; experiment arm: 0 envelope
+  ; Experiment arm 2: Setting the envelope to $00 through $07
+  ; disables the DAC, which in turn disables the channel until
+  ; the next note-on.  Note should stop (DE < 0)
+  lb bc, $00, $80
   call time_pulse1_envb_lenc
   ld a, d
   cp 1  ; A=0: fail; A=1: pass
   ret
+
+  ; Ideas for experiment arms in later coins:
+  ; Envelope $21: Note fadeout to 0 does not clear status
+  ; Envelope $08: Silent + increase + sweep rate 0 (never)
+  ; does not clear status
 
 coin_div_increases:
   jr .start
