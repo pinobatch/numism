@@ -17,11 +17,32 @@ Emulators under test
 --------------------
 I'm operating under the principle of "no cash."  This means no paid
 operating systems nor paid emulators.  Thus I'm running tests on
-Ubuntu, a GNU/Linux distribution.  I test emulators made for
-Windows, such as No$gmb, BGB, rew., and the last version of KiGB,
-in Wine 5.0.2.
+Ubuntu, a GNU/Linux distribution.
 
-For three emulators (No$gmb, rew., and BizHawk), I have not been able
+These are built from source:
+* [Gambatte-Speedrun (Non-PSR)](https://github.com/pinobatch/gambatte-speedrun) r738
+* [GNUBoy](https://github.com/rofl0r/gnuboy.git) 1.0.3
+* [mGBA](https://mgba.io/) 0.10-7008-3159f2ec5
+* [SameBoy](https://sameboy.github.io) 0.14.3
+* [VisualBoyAdvance-M](https://vba-m.com/) 2.1.4
+
+These are run in Wine 5.0.2 (Ubuntu 20.04) or 5.6 (Ubuntu 21.04):
+* [BGB](https://bgb.bircd.org/) 1.5.9
+* [KiGB](http://kigb.emuunlim.com/) 2.05
+* [No$gmb](https://problemkaputt.de/gmb.htm) 2.5
+* [rew.](https://www.emuparadise.me/emulators/gb.php) 12STX
+* [VisualBoyAdvance](https://sourceforge.net/projects/vba) 1.7.2
+
+These are run in Mono 6.8 (because 6.12 has serious regressions):
+* [Mesen-S](https://github.com/SourMesen/Mesen-S/)
+
+This is run in OpenJDK 17:
+* [Emulicious](https://emulicious.net/)
+
+This is run in mGBA:
+* [Goomba Color](https://www.dwedit.org/gba/goombacolor.php) 12-14-2014
+
+For two emulators (No$gmb and rew.), I have not been able
 to get them to take a ROM on the command line.  Only `File > Open...`
 (however labeled) works.
 
@@ -33,45 +54,40 @@ In a chat on 2021-03-01, BGB developer Beware provided a couple tips:
 I use KiGB for Windows because KiGB for Linux is three versions back.
 KiGB saves key bindings and other settings in the current working
 directory, not the executable's directory (as if a portable app)
-or the user's local settings directory (as if installed).
+or the user's local settings directory (as if installed).  I have
+created a script to change to KiGB's directory before running a ROM.
 
-Now that SCons has transitioned to Python 3, the `SConstruct`
-file for classic [Gambatte] needs a change before it will build:
-```
--               version_str_def = [ 'GAMBATTE_SDL_VERSION_STR', r'\"r' + git_revno + r'\"' ]
-+               version_str_def = [ 'GAMBATTE_SDL_VERSION_STR', r'\"r' + git_revno.decode("utf-8") + r'\"' ]
-```
+In July 2021, Gambatte developer Sinamas stepped down and handed
+maintenance to the _Pokémon_ speedrunning community, which publishes
+Gambatte-Speedrun.  One drawback is that Gambatte-Speedrun rejects
+boot ROM files that are not bit-identical to Nintendo's copyrighted
+boot ROM, and unlike with the Game Boy Advance BIOS, there is no
+known loophole through which to dump the Game Boy Color boot ROM
+through the Game Pak slot.  Thus I have forked Gambatte-Speedrun to
+allow use of SameBoot, a replacement boot ROM distributed as free
+software that comes with SameBoy.
 
-I use the [BizHawk] version of [Gambatte-Speedrun] in order to use
-the replacement BIOS file from SameBoy.  Upstream Gambatte-Speedrun
-rejects boot ROM files that are not bit-identical to Nintendo's
-copyrighted boot ROM, and unlike with the Game Boy Advance BIOS,
-there is no known loophole through which to dump the Game Boy Color
-boot ROM through the Game Pak slot.
-
-Prerelease versions of the Super NES emulator Mesen-S also support
-Game Boy with an aim toward supporting Super Game Boy.  However,
-Mono 6.12 from Mono Project's repository has regressions that break
-things in Mesen-S as well as the NES emulator Mesen. So I reverted to
-Mono 6.10 from Ubuntu's repository for running Mesen-S and BizHawk.
-
-[VisualBoyAdvance] 1.7.2 for Windows (from before the VBA-M fork)
+VisualBoyAdvance 1.7.2 for Windows (from before the VBA-M fork)
 requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
 redistributable package, sometimes called [vcredist].
 
-The [Goomba Color] ROM builder is written in Visual Basic 6 and needs
+The Goomba Color ROM builder is written in Visual Basic 6 and needs
 the [Visual Basic 6 runtime].  Skip it.  Just use `cat` 😸️
 ```
 $ cat goomba.gba libbet.gb gb240p.gb exerciser.gb > magicflr.gba
 C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
 ```
+Better yet, use this Bash script:
+```
+#!/bin/sh
+set -e
+tmpfile=$(mktemp /tmp/goombaXXXXXX.gba) || exit 1
+trap "rm -f $tmpfile" EXIT
+cat "/home/pino/develop/emulators/goomba.gba" "$1" > "$tmpfile"
+mgba-qt "$tmpfile"
+```
 
-[Gambatte]: https://github.com/sinamas/gambatte
-[BizHawk]: https://github.com/TASVideos/BizHawk
-[Gambatte-Speedrun]: https://github.com/pokemon-speedrunning/gambatte-speedrun
-[VisualBoyAdvance]: https://sourceforge.net/projects/vba
 [vcredist]: https://jrsoftware.org/iskb.php?vc
-[Goomba Color]: https://www.dwedit.org/gba/goombacolor.php
 [Visual Basic 6 runtime]: https://www.microsoft.com/en-us/download/details.aspx?id=24417
 
 Results of Blargg's emulator tests
@@ -82,7 +98,7 @@ CPU-visible behaviors.  The tests show the following results in
 No$gmb 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
 Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
 Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte,
-SDL2 GNUBoy 1.1.1, and mGBA 0.9-6554-a2cd8f6cc:
+SDL2 GNUBoy 1.0.3, and mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
   VBA 6 of 11; rew. 7 of 11; No$gmb and KiGB 9 of 11;
