@@ -629,6 +629,9 @@ handle_input:
 
 SECTION "shared_bg", ROM0
 
+;;
+; caution: cannot draw to (0, 0), (0, 8), or (0, 16) because
+; address low byte is 0
 cls_draw_labels::
   push hl
   ld h, 36
@@ -732,7 +735,7 @@ check_reload_font:
   call stpcpy
   ld h, d
   ld l, e
-  ; ld a, $FF
+  ld a, $24
   ld c, $10
   call memset_tiny
 

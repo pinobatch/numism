@@ -2,7 +2,10 @@ include "src/hardware.inc"
 include "src/global.inc"
 
 LYC_TO_MEASURE equ 64
+PRIO_BOX_Y equ 80
 WITH_INACCESS equ 0
+GRAY_TILE equ $6F
+DIGIT_TILE_BASE equ $70
 
 section "mode3len_test", ROM0
 
@@ -20,6 +23,15 @@ mode3len_test::
   ld a, 38
   ld c, 20
   call memset_tiny
+
+  ; Draw marker for priority test
+  ld a, GRAY_TILE
+  ldxy hl, 9, (PRIO_BOX_Y / 8)
+  ld [hl+], a
+  ld [hl+], a
+  ldxy hl, 9, (PRIO_BOX_Y / 8) + 1
+  ld [hl+], a
+  ld [hl+], a
 
   ld a, %11100100
   ldh [rBGP], a
@@ -42,7 +54,7 @@ mode3len_test::
   call measure_mode3
   call bcd8bit_ac
   ld b, a
-  ldxy de, 13, 2
+  ldxy de, 13, 3
   call hblank_put_bc
   
   ldh a, [new_keys]
@@ -51,8 +63,6 @@ mode3len_test::
   jp p1settle_test
 
 ; the UI ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-DIGIT_TILE_BASE = $70
 
 ;;
 ; Inits the 64 objs
@@ -87,9 +97,21 @@ init_obj_locs:
   jp lcd_clear_oam
 
 load_obj_digit_chr:
+  ld hl, CHRRAM0 + GRAY_TILE * 16
+  ld a, $55
+  ld bc, $08FF
+  .grayloop:
+    ld [hl+], a
+    cpl
+    ld [hl], c
+    inc hl
+    dec b
+    jr nz, .grayloop
+
+
   ld hl, CHRRAM0
-  ld de, CHRRAM0+DIGIT_TILE_BASE * 16
-  ld c, 0  ; C controls whether dark gray or light gray
+  ld de, CHRRAM0 + DIGIT_TILE_BASE * 16
+  ld c, l  ; C controls whether dark gray ($00) or light gray ($FF)
   .tileloop:
     ld b, 16
     .byteloop:
@@ -118,7 +140,7 @@ draw_obj_loc:
   ldxy de, 5, 1
   call hblank_put_bc
 
-  ; Write the X, Y coordinates
+  ; Write the X, Y coordinates and priority
   ld h, high(SOAM)
   ldh a, [cursor_x]
   add a
@@ -126,23 +148,33 @@ draw_obj_loc:
   ld l, a      ; HL points to the sprite under control
   ld a, [hl+]  ; A = Y coordinate
   sub 16
-  ldxy de, 15, 1
+  ldxy de, 9, 2
   call .wr_3dig
   ld a, [hl+]  ; A = X coordinate
   sub 8
-  ldxy de, 9, 1
+  ldxy de, 3, 2
   call .wr_3dig
+  inc l        ; skip tile ID
+  ld a, [hl]  ; A = PVHC0000
+  rlca
+  and $01
+  ld b, a
+  ld c, $24  ; write nothing to 2nd cell
+  ldxy de, 18, 2
+  call hblank_put_bc
 
   ; Blink the sprite under control
-  inc l
+  ld a, [hl]
+  and $80
+  ld b, a
   ldh a, [nmis]
   and $18
   jr z, .blink1
     ld a, $10
   .blink1:
+  or b
   ld [hl], a
   ret
-
 
 .wr_3dig:
   call bcd8bit_baa
@@ -175,7 +207,7 @@ handle_input:
     ; Unblink sprite under control in case moved
     inc l
     inc l
-    ld [hl], 0
+    res 4, [hl]
 
     ldh a, [cursor_x]
     bit PADB_LEFT, b
@@ -186,6 +218,14 @@ handle_input:
     jr z, .sel_not_next
       inc a
     .sel_not_next:
+    bit PADB_DOWN, b
+    jr z, .sel_not_lowprio
+      set 7, [hl]
+    .sel_not_lowprio:
+    bit PADB_UP, b
+    jr z, .sel_not_highprio
+      res 7, [hl]
+    .sel_not_highprio:
     and $0F
     ldh [cursor_x], a
     ret
@@ -213,11 +253,15 @@ handle_input:
 
 mode3len_labels:
   dwxy 1, 1
-  db "OBJ 0 X:    Y:", $FF
+  db "OBJ 0", $FF
   dwxy 1, 2
+  db "X:    Y:    PRIO:", $FF
+  dwxy 1, 3
   db "MODE 3 TIME:", $FF
+  dwxy 1, 13
+  db "L R:PICK OBJ", $FF
   dwxy 1, 14
-  db "DIR:PICK OBJ", $FF
+  db "U D:SET PRIORITY", $FF
   dwxy 1, 15
   db "A DIR:MOVE OBJ", $FF
   dwxy 1, 16
