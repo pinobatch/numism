@@ -390,7 +390,7 @@ coin_lyc_to_hint:
 ; all-white BGP, and IE set to vblank only
 lcd_on_blank:
   call lcd_off
-  ld hl, $FE00     ; clear ALL of OAM to 0
+  ld hl, _OAMRAM     ; clear all of OAM to 0
   ld c, $A0
   rst memset_tiny
 lcd_on_blank_keep_oam:
@@ -405,9 +405,6 @@ lcd_on_blank_keep_oam:
   ldh [stat_lcdc_value], a
   ldh [rLCDC], a
   ret
-
-
-IEB_TIMER = 2
 
 ;;
 ; Analogous to the "does the timer even work?" check from blargg's
@@ -495,7 +492,7 @@ coin_vram_blocked_writes:
   ; exceptions here; press Shift+F9 Esc to skip them.
   pop hl
   call write_in_all_modes
-  ld hl, $FE80
+  ld hl, _OAMRAM+$80
   call write_in_all_modes
 
   ; Read back
@@ -504,7 +501,7 @@ coin_vram_blocked_writes:
 ;  ld [debughex+0], a
   cp %00010100  ; VRAM: mode 3 blocked
   jr nz, .local_failed
-  ld hl, $FE80
+  ld hl, _OAMRAM+$80
   call write_in_all_modes_readback
 ;  ld [debughex+1], a
   ; On Game Boy, Super Game Boy, and Game Boy pocket, the (invalid)
@@ -521,25 +518,25 @@ coin_vram_blocked_writes:
 write_in_all_modes:
   lb de, "0", 0
   call write_in_mode_E
-  lb de, "1", 1
+  lb de, "1", STATF_VBL
   call write_in_mode_E
-  lb de, "2", 2
+  lb de, "2", STATF_OAM
   call write_in_mode_E
-  lb de, "3", 3
+  lb de, "3", STATF_LCD
   call write_in_mode_E
-  lb de, "O", 2
+  lb de, "O", STATF_OAM
   call write_in_mode_E
-  lb de, "P", 3
+  lb de, "P", STATF_LCD
   call write_in_mode_E
   lb de, "H", 0
   call write_in_mode_E
-  lb de, "V", 1
+  lb de, "V", STATF_VBL
   ; fall through
 ;;
 ; @param D byte to write
 ; @param E mode to write in
 write_in_mode_E:
-  lb bc, 3, low(rSTAT)
+  lb bc, STATF_LCD, low(rSTAT)
   .wait0loop:
     ld a, [$FF00+c]
     xor e
@@ -590,7 +587,7 @@ measure_mode3:
   ld [$FF00+C], a
   ld a, [rIE]
   push af
-  ld a, IEF_LCDC
+  ld a, IEF_STAT
   ldh [rIE], a
 
   ; rew. doesn't respond to IF writes, and VBA behaves badly with
@@ -793,9 +790,9 @@ coin_div_stops_apu:
 coin_apu_off_clear:
   jr .start
   db "What APU off clears",10
-  db "Turning APU off clears",10
-  db "readable sound registers",10
-  db "and not wave RAM",0
+  db "FF26=00 clears readable",10
+  db "sound registers and not",10
+  db "wave RAM",0
 .start:
   ; Turn on the APU, fill with $FF
   ld a, $FF
@@ -916,15 +913,14 @@ coin_oam_bug:
 
   ; Wait for mode 0 then mode 2
   ; This can be a lot faster than when waiting for an arbitrary mode
-
-  ld b, $FE
+  ld b, high(_OAMRAM)
   ld d, b
   ld l, low(rSTAT)
   .gotom0:
-    bit 1, [hl]
+    bit STATB_BUSY, [hl]
     jr nz, .gotom0
   .gotom2:
-    bit 1, [hl]
+    bit STATB_BUSY, [hl]
     jr z, .gotom2
   dec h
 
@@ -957,14 +953,14 @@ coin_oam_bug:
 ;;
 ; Writes test pattern starting at A
 oamset_inc:
-  ld hl, $FE00
+  ld hl, _OAMRAM
   ld c, 160
   jp memset_inc
 
 ;;
 ; Compares OAM to oamset_inc written data, starting at B
 oamcmp_inc:
-  ld hl, $FE00
+  ld hl, _OAMRAM
   ld c, 160
   .loop:
     ld a, [hl]
@@ -1073,10 +1069,12 @@ coin_stat_blocking:
   db "STAT interrupt waits for all",10
   db "to turn off before firing again",0
 .start:
-  call lcd_on_blank
-  ld a, IEF_LCDC
+  call lcd_on_blank  ; LYC is well below STAT_BLOCKING_LY
+  ld a, IEF_STAT
   ldh [rIE], a
   ei  ; Drain out any pending interrupts
+
+  ; Spin until the line where the test starts
   .waitforaline:
     ldh a, [rLY]
     cp STAT_BLOCKING_LY
@@ -1095,12 +1093,19 @@ coin_stat_blocking:
   cp STAT_BLOCKING_LY
   jr nz, fail_and_turn_off_ppu
 
-  ; Leave LYC on for the entire line STAT_BLOCKING_LY+1 so there's
-  ; no 0 to 1 transition until line STAT_BLOCKING_LY+2
+  ; While in mode 0 (hblank) of line STAT_BLOCKING_LY, STAT remains
+  ; on.  Change LYC to STAT_BLOCKING_LY+1 so that STAT can remain on
+  ; throughout that line as well.  Then it goes low after mode 2 (OAM
+  ; scan) of line STAT_BLOCKING_LY+2 and high again after that line.
+  ; 
+  ; SBLY:   2222222222333333333333333333333/000000000000000000*000000
+  ; SBLY+1: 222222222233333333333333333333300000000000000000000000000
+  ; SBLY+2: 222222222\333333333333333333333/0000000000000000000000000
+  ; Key: * where we are now; / STAT turns on; \ STAT turns off
   inc a
   ldh [rLYC], a
 
-  ; Halt, ensure mode 0 on NEXT line
+  ; Halt, ensure mode 0 on line SBLY+2
   halt
   ldh a, [rSTAT]
   and b
@@ -1118,8 +1123,13 @@ fail_and_turn_off_ppu:
   scf
   ret
 
+;;
+; Waits for mode 3 then writes C to STAT.  Changing STAT while in
+; mode 3 helps avoid the DMG-only STAT bug (on which Road Rash and
+; Xerd rely).
+; @return A = C = new STAT value; B = STATF_LCD
 set_stat_c_in_mode_3:
-  ld b, 3
+  ld b, STATF_LCD
   .waitformode3:
     ldh a, [rSTAT]
     and b
@@ -1245,13 +1255,15 @@ coin_other_or_mask:
 ; 2. Read rdvalue from reg
 ; 3. if rdvalue != $FF, fail
 
+def STATF_UNUSED equ $FF ^ (STATF_LYC|STATF_MODE10|STATF_MODE01|STATF_MODE00|STATF_LYCF|STATF_LCD)
+
 regs_with_ormask:
   ;  reg     mask       wrvalue
   db low(rP1),    %11000000, %11111111
   db low(rSC),    %01111110, %01111110
   db low(rTAC),   %11111000, %11111000
   db low(rIF),    %11100000, %11100000
-  db low(rSTAT),  %10000000, %10000000
+  db low(rSTAT),  STATF_UNUSED, STATF_UNUSED
 regs_wo_ormask:
   db low(rOBP0), low(rOBP1), low(rIE)
 regs_unmapped:

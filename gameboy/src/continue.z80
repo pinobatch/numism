@@ -173,7 +173,7 @@ show_stages::
 
   ; Hide data left in OAM by a coin until first DMA
   xor a
-  ld hl, $FE00
+  ld hl, _OAMRAM
   ld c, 160
   rst memset_tiny
 
@@ -265,7 +265,7 @@ show_stages::
 
   ; Now everything that doesn't depend on the stage number is in,
   ; so turn on display
-  ld a,IEF_VBLANK|IEF_LCDC
+  ld a,IEF_VBLANK|IEF_STAT
   ldh [rIE],a  ; enable IRQs
   ld a, STATF_LYC
   ldh [rSTAT], a

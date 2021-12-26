@@ -39,7 +39,7 @@ in progress.
 12. `di halt` with TAC=IE=$04 and TIMA=IF=$00 sets IF bit 2
 13. `di halt inc d halt inc e` double-increments only E (halt bug)
 14. `di halt inc d halt inc e` calls no handler (VBA halt bug)
-15. `ld a, 5 add a daa` does not produce half carry
+15. After `ld a, 5 add a daa`, half-carry is clear
 16. Writing DIV every 1000 cycles or faster keeps APU length counter
     from expiring (suggested by LIJI)
 17. APU off clears readable registers
