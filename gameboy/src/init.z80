@@ -46,10 +46,11 @@ section "stack", WRAM0, ALIGN[2]
 stack_top: ds STACK_SIZE
 
 section "bootregs_hram", HRAM
-hw_capability:: ds 1
+hCapability:: ds 1
 
 section "bootregs", WRAM0
 initial_a:: ds 1
+initial_nr52:: ds 1
 initial_b:: ds 1
 
 section "rom_init", ROM0
@@ -57,6 +58,8 @@ reset_handler::
   di  ; Disable interrupts
   ld sp, stack_top + STACK_SIZE  ; Set up stack pointer (full descending)
   ld hl, initial_a
+  ld [hl+], a
+  ldh a, [rNR52]
   ld [hl+], a
   ld [hl], b
 
@@ -67,6 +70,7 @@ reset_handler::
   ; hardware.
   xor a
   ldh [cur_keys],a
+  ldh [hCapability], a
   ldh [rLCDC], a  ; turn off rendering
   ldh [rSCY], a   ; clear scroll
   ldh [rSCX], a   ; clear scroll
@@ -93,6 +97,14 @@ reset_handler::
   ld bc,hramcode_end-hramcode_start
   call memcpy
   call run_dma
+
+  ; Detect Super Game Boy
+  call sgb_wait
+  call sgb_wait
+  call sgb_wait
+  call sgb_wait
+  call sgb_wait
+  call detect_sgb
 
   jp main
 

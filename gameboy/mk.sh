@@ -12,7 +12,7 @@ set -e
 
 title=numism
 inttitle='NUMISM'
-objlist='header init ppuclear pads main unpb16 uniur coins continue vwflabels vwfdraw'
+objlist='header init ppuclear pads main unpb16 uniur coins continue vwflabels vwfdraw sgb'
 genobjlist='vwf7_cp144p'
 twobitlist='coincels'
 pb16list='checkmark'
@@ -42,5 +42,4 @@ for filename in $genobjlist; do
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist)
 rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
-rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 "$title.gb"
-
+rgbfix -jvst "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 "$title.gb"

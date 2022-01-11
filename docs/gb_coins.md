@@ -56,6 +56,8 @@ in progress.
 26. Approximate mode 3 duration with 0, 10, and 16 sprites
 27. 4 kHz timer turning on and off every 12 cycles eventually counts
     up past $FF
+28. At start, NR52=$F0 on SGB or $F1 elsewhere (breaks SGB detection
+    in LSDJ)
 
 Unranked, to be tested at title screen and in menus:
 
@@ -70,6 +72,8 @@ Unranked, possibly model-specific:
 - Whether disabling sprites in LCDC changes mode 3 duration
 - Writing anything to STAT during mode 3 outside LYC causes an
   immediate extra interrupt only on DMG (suggested by organharvester)
+- `MLT_REQ` does not initiate multiplayer on GBC (GBC+SGB mode is
+  not authentic)
 
 Unranked:
 

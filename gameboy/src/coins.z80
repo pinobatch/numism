@@ -39,7 +39,7 @@ coin_list::
   dw coin_other_or_mask
   dw coin_mode_3_length
   dw coin_flashing_12
-  dw coin_no_28
+  dw coin_initial_nr52
   dw coin_no_29
   dw coin_no_30
   ; stage 4: begin dmg/gbc differences
@@ -1376,12 +1376,18 @@ coin_flashing_12:
   .loopdone:
   jp pass_if_A_eq_0
 
-coin_no_28:
+coin_initial_nr52:
   jr .start
-  db "Always pass for now",0
+  db "Initial NR52",10
+  db "FF26=F0 on Super Game Boy;",10
+  db "F1 otherwise",0
 .start:
-  or a
-  ret
+  ldh a, [hCapability]
+  rra  ; CF = 1 for SGB or 0 otherwise
+  ld a, [initial_nr52]  ; A = $F1 for SGB or $F0 otherwise
+  ld b, b
+  adc low(-$F1)
+  jp pass_if_A_eq_0
 
 coin_no_29:
   jr .start

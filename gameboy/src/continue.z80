@@ -58,9 +58,8 @@ run_tests_in_stage_a::
   ld [hl], $DE
   endc
 
-  ; HL: pointer into coin_list
   ld a, b
-  call get_coin_list_stage_a
+  call get_coin_list_stage_a  ; HL points into coin_list
 
   .coinloop:
     ; Save state, run a test, and restore state
