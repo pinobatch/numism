@@ -11,6 +11,8 @@ NUM_STAGES equ 4
 
 ; Displays 2 bytes of intermediate output from coins in the last stage
 WITH_DEBUGHEX equ 0
+DEBUGHEX_TILEID = $30
+DEBUGHEX_NUMTILES = 3
 
 section "passbits", WRAM0, ALIGN[2]
 passbits:: ds NUM_STAGES*2
@@ -158,6 +160,7 @@ putnibble::
 show_stages::
   ; Clear pixels in VWF canvas
   call lcd_off
+
   ld de, CHRRAM1
   ld h, e
   ld bc, $1000
@@ -177,9 +180,9 @@ show_stages::
   rst memset_tiny
 
   if WITH_DEBUGHEX
-  ld a, $30
+  ld a, DEBUGHEX_TILEID
   ldxy hl, 2, 5
-  ld c, 16
+  ld c, DEBUGHEX_NUMTILES
   call memset_inc
   call vwfClearBuf
   ld hl, CHRRAM0 + TEST_OK_TILE * $10
@@ -192,8 +195,8 @@ show_stages::
   pop hl
   ld b, 0
   call vwfPuts
-  lb bc, 0, 3
-  ld hl, $8300
+  lb bc, 0, DEBUGHEX_NUMTILES
+  ld hl, $8000 + 16 * DEBUGHEX_TILEID
   call vwfPutBuf03_lenC
   endc
 
@@ -287,6 +290,7 @@ show_stages::
   ld [wnd_progress], a
   ld [cursor_y], a
   ld [want_coin_out], a
+
 .set_stage_to_a:
   ld [cur_stage], a
   push af

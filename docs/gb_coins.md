@@ -81,23 +81,27 @@ Unranked:
 
 Results
 -------
+Test each emulator in Game Boy, Super Game Boy, and Game Boy Color
+mode, and record the lowest score among supported modes.  Also
+record the highest score if at least twice the lowest.
+
 Divergence between DMG and GBC behavior becomes more noticeable
 starting in stage 4.  Because the GBC features of No$gmb are
 paywalled, we do not list results for No$gmb past stage 3.
 
-Emulator     | Stage 1 | Stage 2 | Stage 3 | Stage 4
------------- | ------: | ------: | ------: | ------:
-emulicious   |  10/10  |  10/10  |   7/7   |
-sameboy      |  10/10  |  10/10  |   7/7   |
-bgb          |  10/10  |   9/10  |   7/7   |
-gambattehawk |  10/10  |   9/10  |   7/7   |
-gambatte     |  10/10  |   9/10  |   7/7   |
-mesen-s      |  10/10  |   9/10  |   6/7   |
-mgba         |  10/10  |   9/10  |   5/7   |
-vba-m        |  10/10  |   8/10  |   3/7   |
-gnuboy       |   6/10  |   4/10  |   4/7   |
-kigb         |   3/10  |   6/10  |   4/7   |
-goomba       |   4/10  |   5/10  |   1/7   |
-no$gmb       |   0/10  |   7/10  |   2/7   |**$**/10
-vba          |   6/10  |   1/10  |   1/7   |
-rew.         |   2/10  |   2/10  |   2/7   |
+Emulator     | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Notes
+------------ | ------: | ------: | ------: | ------: | -----
+emulicious   |  10/10  |  10/10  |   8/8   |         | No SGB
+sameboy      |  10/10  |  10/10  |   8/8   |         |
+bgb          |  10/10  |   9/10  |   8/8   |         |
+gambatte(DMG)|  10/10  |   9/10  |   8/8   |         |
+mesen-s      |  10/10  |   9/10  |   7/8   |         |
+mgba         |  10/10  |   9/10  |   6/8   |         |
+vba-m        |  10/10  |   8/10  |   3/8   |         |
+gnuboy       |   6/10  |   4/10  |   4/8   |         |
+kigb         |   3/10  |   6/10  |   4/8   |         |
+goomba       |   5/10  |   5/10  |   2/8   |         |
+no$gmb       |   0/10  |   7/10  |   2/8   |**$**/10 | GBC paywall
+vba          |   6/10  |   1/10  |   1/8   |         |
+rew.         |   2/10  |   2/10  |   3/8   |         |
+gambatte(GBC)|   2/10  |   2/10  |   0/8   |         | Result display misbehaves

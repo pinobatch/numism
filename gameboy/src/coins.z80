@@ -1380,7 +1380,8 @@ coin_initial_nr52:
   jr .start
   db "Initial NR52",10
   db "FF26=F0 on Super Game Boy;",10
-  db "F1 otherwise",0
+  db "F1 otherwise.",10
+  db "LSDJ relies on this",0
 .start:
   ldh a, [hCapability]
   rra  ; CF = 1 for SGB or 0 otherwise
