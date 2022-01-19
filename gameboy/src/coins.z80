@@ -580,6 +580,7 @@ section "measure_mode3", ROM0
 
 ;;
 ; Measure the duration of mode 3 on line LYC in M-cycles
+; @return A number of bytes executed before interrupt
 measure_mode3:
   ; Allow only IRQs on the chosen scanline to cause an interrupt
   ld c, low(rSTAT)

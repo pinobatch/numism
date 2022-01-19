@@ -8,8 +8,12 @@ animation work it entails?
 
 If you're curious
 -----------------
-Building the Game Boy ROM requires RGBDS, Python 3, and Pillow
+The Game Boy version has at least [28 coins](docs/gb_coins.md).
+There is also an interactive [exerciser](gameboy/exercise/README.md)
+used for hardware and emulator behavior testing.
+Building them requires RGBDS, Python 3, and Pillow
 (Python Imaging Library).
 
-Building the NES ROM requires cc65, Python 3, and Pillow
+The NES version has at least [12 coins](docs/nes_coins.md).
+Building it requires cc65, Python 3, and Pillow
 (Python Imaging Library).
