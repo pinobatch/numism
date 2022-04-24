@@ -47,8 +47,6 @@ SECTION "rst50", ROM0[$0050]
   reti  ; jp timer_handler
 SECTION "rst58", ROM0[$0058]
   reti  ; jp serial_handler
-SECTION "rst60", ROM0[$0060]
-  reti  ; jp joypad_handler
 
 SECTION "header", ROM0[$0100]
   nop

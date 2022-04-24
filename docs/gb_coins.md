@@ -58,6 +58,7 @@ in progress.
     up past $FF
 28. At start, NR52=$F0 on SGB or $F1 elsewhere (breaks SGB detection
     in LSDJ)
+29. Joypad interrupt works at all
 
 Unranked, to be tested at title screen and in menus:
 
@@ -66,24 +67,42 @@ Unranked, to be tested at title screen and in menus:
 - Asserting P14/P15 while holding a button causes joypad interrupt
   (suggested by Daid)
 
-Unranked, possibly model-specific:
+Stage 4 is expected to focus on Game Boy Color differences.
 
 - GBC palette can be written and read back during vblank only on GBC
 - Whether disabling sprites in LCDC changes mode 3 duration
 - Writing anything to STAT during mode 3 outside LYC causes an
   immediate extra interrupt only on DMG (suggested by organharvester)
+
+Stage 5 is expected to include some Super Game Boy differences.
+These are hard to test for because so much of the SGB is open-loop,
+passing no feedback to the Game Boy SoC.
+
 - `MLT_REQ` does not initiate multiplayer on GBC (GBC+SGB mode is
   not authentic)
+- NR52 bits 3-0 are 0000 if SGB (if `MLT_REQ` initiates multiplayer)
+  and 0001 $1 otherwise
+- P1 rise time differences among DMG/MGB, SGB, and GBC/GBA
+- Joypad interrupt timing is predictable on SGB/SGB2 (at least in
+  60 Hz) and not so on handhelds
+- Which of P14 and P15 advances to the next player in SGB multiplayer
+- `JUMP` does anything at all on SGB only
 
 Unranked:
 
 - Something something mid-scanline WX changes (suggested by LIJI)
 
+To make things easier for some emulator developers during extended
+periods of development hiatus due to the maintainer's day job,
+it has been suggested to prototype the Super Game Boy coins in a
+separate ROM and add them to Numism once complete.
+
 Results
 -------
 Test each emulator in Game Boy, Super Game Boy, and Game Boy Color
 mode, and record the lowest score among supported modes.  Also
-record the highest score if at least twice the lowest.
+record the highest score if at least twice the lowest.  If an
+emulator requires a boot ROM, use SameBoot.
 
 Divergence between DMG and GBC behavior becomes more noticeable
 starting in stage 4.  Because the GBC features of No$gmb are
@@ -104,4 +123,4 @@ goomba       |   5/10  |   5/10  |   2/8   |         |
 no$gmb       |   0/10  |   7/10  |   2/8   |**$**/10 | GBC paywall
 vba          |   6/10  |   1/10  |   1/8   |         |
 rew.         |   2/10  |   2/10  |   3/8   |         |
-gambatte(GBC)|   2/10  |   2/10  |   0/8   |         | Result display misbehaves
+gambatte(GBC)|   2/10  |   2/10  |   0/8   |         | Result display misbehaves due to SameBoot conflict

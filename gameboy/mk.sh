@@ -42,4 +42,6 @@ for filename in $genobjlist; do
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist)
 rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
-rgbfix -jvst "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 "$title.gb"
+
+# per beware: don't add -s until SGB-related tests are ready
+rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 "$title.gb"

@@ -316,7 +316,7 @@ show_stages::
   call read_pad
   ld b, PADF_UP|PADF_DOWN
   call autorepeat
-  ldh a, [new_keys]
+  ldh a, [hNewKeys]
   ld b, a
 
   ld hl, cur_stage
@@ -386,7 +386,7 @@ show_stages::
   call run_dma
   ld a, [wnd_y]
   ldh [rWY], a
-  ldh a, [new_keys]
+  ldh a, [hNewKeys]
   and PADF_START
   jr z, .waitloop
 

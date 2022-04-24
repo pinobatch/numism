@@ -55,7 +55,7 @@ main::
   call logo_cycle_spinning_coin
 
   call read_pad
-  ldh a, [new_keys]
+  ldh a, [hNewKeys]
   and PADF_A|PADF_START
   jr z, .waitloop
 

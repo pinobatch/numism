@@ -1,9 +1,29 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-; Super Game Boy detection ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 section "sgb_detection", ROM0
+
+;;
+; Waits about 4 frames for Super Game Boy to have processed a command
+; Ideally, 4 frames is 4*154 = 616 scanlines or 4*154*114 = 70224
+; M-cycles.  But in fact, the guideline might be referring to
+; NTSC Super NES frames, which are 262 scanlines of 68.2 M-cycles
+; each.  Thus we can try waiting 4*262*68.2 = 71473.6 cycles.
+; Each iteration of the inner loop takes 4+3/256 cycles.
+; Thus we wait 71473 / 4 = 17868 iterations.
+sgb_wait::
+  ld de, 65536 - 17868
+.loop:
+  inc e
+  jr nz, .loop
+  inc d
+  jr nz, .loop
+  ret
+
+  IF WITH_SGB
+
+; Super Game Boy detection ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;
 ; Sets hCapability to 1 if the player number is 2 or 4.
@@ -153,23 +173,6 @@ sgb_send::
   jr nz,.packetloop
   ret
 
-;;
-; Waits about 4 frames for Super Game Boy to have processed a command
-; Ideally, 4 frames is 4*154 = 616 scanlines or 4*154*114 = 70224
-; M-cycles.  But in fact, the guideline might be referring to
-; NTSC Super NES frames, which are 262 scanlines of 68.2 M-cycles
-; each.  Thus we can try waiting 4*262*68.2 = 71473.6 cycles.
-; Each iteration of the inner loop takes 4+3/256 cycles.
-; Thus we wait 71473 / 4 = 17868 iterations.
-sgb_wait::
-  ld de, 65536 - 17868
-.loop:
-  inc e
-  jr nz, .loop
-  inc d
-  jr nz, .loop
-  ret
-
 section "sgbcode", ROM0
 
 ;;
@@ -202,3 +205,12 @@ sgb_send_trn_ab::
   ld a, l
   call sgb_send_ab
   jp lcd_off
+
+  ELSE
+
+; Placeholder SGB detection when SGB support is disabled
+
+detect_sgb::
+  ret
+
+  ENDC
