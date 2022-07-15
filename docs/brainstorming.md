@@ -75,19 +75,20 @@ of 1990s collectathon platformers.
 
 ### Art style inspirations
 
-A little bit of Alice, a little bit of Cirno...
+Touches of Alice, Cirno, and Sanae can be identified.
 
 * [A Princess in Fairyland](https://opengameart.org/content/a-princess-in-fairyland), an OpenGameArt.org collection by OptimusDu
-
 
 The tests
 ---------
 Flip the coin over, and Numism is a test ROM.  Each coin represents
 a behavior of a console visible to a running program, and each fake
 coin represents an emulator's failure to accurately reproduce that
-behavior.
+behavior.  One may draw parallels to protection measures in
+Sony's _Spyro: Year of the Dragon_ for PlayStation, where some
+[eggs are missing] on an infringing copy.
 
 See [What makes a good coin?] for what I'm aiming at.
 
 [What makes a good coin?]: ./good_coin.md
-
+[eggs are missing]: https://www.ign.com/wikis/spyro-year-of-the-dragon/Pirated_Copy_Effects
