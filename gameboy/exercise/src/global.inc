@@ -20,7 +20,7 @@
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
   IF  !DEF(GLOBAL_INC)
-GLOBAL_INC SET 1
+GLOBAL_INC EQU 1
 
 ; Follow this thread:
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176

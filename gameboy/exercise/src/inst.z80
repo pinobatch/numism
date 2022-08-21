@@ -3,6 +3,11 @@ include "src/global.inc"
 
 WITH_DEBUGHEX equ 0
 
+; Workaround for exercising JSGB emulator by Pedro Ladaria,
+; whose ld [abs], sp is broken.  This causes incorrect output for HL
+; and AF (HL=SP, A=H).
+WITH_PLADARIA_JSGB_WORKAROUND equ 1
+
 inst_length equ 6
 inst_epilog_length equ 5
 
@@ -162,6 +167,19 @@ forever:
 ; Instruction execution ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 run_inst:
+  ; Save stack for return
+  di
+  ; One emulator I was testing had a broken ld [abs], sp
+  if WITH_PLADARIA_JSGB_WORKAROUND
+    ld hl, sp+0
+    ld a, l
+    ldh [sp_save+0], a
+    ld a, h
+    ldh [sp_save+1], a
+  else
+    ld [sp_save], sp
+  endc
+
   ; Write the instruction epilog
   ld hl, inst_epilog_src
   ld de, inst_epilog
@@ -169,10 +187,6 @@ run_inst:
   call memcpy
   ld a, $ff
   ldh [last_int], a
-
-  ; Save stack for return
-  di
-  ld [sp_save], sp
 
   ; Load input register values
   ldh a, [input_if]
@@ -195,7 +209,15 @@ run_inst:
 
 inst_after:
   ; Save registers at end
-  ld [result_sp], sp
+  if WITH_PLADARIA_JSGB_WORKAROUND
+    ld hl, sp+0
+    ld a, l
+    ldh [result_sp+0], a
+    ld a, h
+    ldh [result_sp+1], a
+  else
+    ld [result_sp], sp
+  endc
   ld sp, result_sp
   push hl
   push de
@@ -254,6 +276,14 @@ inst_labels:
   db "LAST INT", $FF
   dwxy 1, 12
   db "FONT:",$FF
+
+  if WITH_PLADARIA_JSGB_WORKAROUND
+    dwxy 1, 13
+    db "JSGB MODE:", $FF
+    dwxy 2, 14
+    db "AFHL OUT IS WRONG", $FF
+  endc
+
   dwxy 1, 15
   db "A DIR:CHANGE DIGIT",$FF
   dwxy 1, 16

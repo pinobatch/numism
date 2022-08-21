@@ -49,7 +49,7 @@ This is run in mGBA:
 
 This is run in Firefox:
 
-* [JSGB](https://github.com/bleepbloop/JsGB) v0.02
+* [JSGB by Pedro Ladaria](https://github.com/bleepbloop/JsGB) v0.02
 
 For two emulators (No$gmb and rew.), I have not been able
 to get them to take a ROM on the command line.  Only `File > Open...`
@@ -107,6 +107,10 @@ python3 -m http.server & firefox http://localhost:8000
 ```
 JSGB pauses emulation and shows an `alert()` box when reaching
 `di halt`.  This exception is hardcoded in the emulator's CPU core.
+Fortunately, stage 2 coins trip it only four times.  (The similarly
+named [jsGB by Imran Nazar](https://github.com/Two9A/jsGB) went on
+hiatus in August 2010 and never got far enough along in development
+to be testable.)
 
 [vcredist]: https://jrsoftware.org/iskb.php?vc
 [Visual Basic 6 runtime]: https://www.microsoft.com/en-us/download/details.aspx?id=24417
@@ -622,6 +626,26 @@ ld c, [hl]  ; Read WRAM
 On a Game Boy, this gives C=69 (nice).  In BGB, it produces
 `accessing echo RAM` and ends up with C=69.  VBA gives C=A5,
 indicating that the WRAM write didn't take.
+
+### JSGB breaks saving the stack pointer
+
+In JSGB by Pedro Ladaria, `ld [abs], sp` behaves as if it were
+`ld [abs], hl` due to a typo.  It required a modification to the
+exerciser just to save the stack pointer when running the entered
+instructions.  The compromise causes the exerciser to display wrong
+values for AF and HL output.
+
+Turn on `WITH_PLADARIA_JSGB_WORKAROUND` in inst.z80, rebuild the
+exerciser, and run this
+```
+INST 08D0CF1A4700, DE CFD0, HL CF44, SP CFFC
+; disassembles to
+ld [$CFD0], sp
+ld a, [de]
+ld b, a
+```
+Gives B=FC on a Game Boy or B=44 in JSGB.  I'm not sure if I want to
+support a coin for this.
 
 Other tests
 -----------
