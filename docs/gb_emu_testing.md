@@ -15,32 +15,41 @@ used to help me document specific differences.
 
 Emulators under test
 --------------------
-I'm operating under the principle of "no cash."  This means no paid
-operating systems nor paid emulators.  Thus I'm running tests on
-Ubuntu, a GNU/Linux distribution.
+For the sake of reproducibility, I'm operating under the principle of
+"no cash."  This means no paid operating systems nor paid emulators.
+Thus I'm running tests on Ubuntu, a GNU/Linux distribution.
 
 These are built from source:
+
 * [Gambatte-Speedrun (Non-PSR)](https://github.com/pinobatch/gambatte-speedrun) r738
-* [GNUBoy](https://github.com/rofl0r/gnuboy.git) 1.0.3
+* [GNUBoy](https://github.com/rofl0r/gnuboy) 1.0.3
 * [mGBA](https://mgba.io/) 0.10-7008-3159f2ec5
 * [SameBoy](https://sameboy.github.io) 0.14.3
 * [VisualBoyAdvance-M](https://vba-m.com/) 2.1.4
 
 These are run in Wine 5.0.2 (Ubuntu 20.04) or 5.6 (Ubuntu 21.04):
+
 * [BGB](https://bgb.bircd.org/) 1.5.9
 * [KiGB](http://kigb.emuunlim.com/) 2.05
 * [No$gmb](https://problemkaputt.de/gmb.htm) 2.5
 * [rew.](https://www.emuparadise.me/emulators/gb.php) 12STX
 * [VisualBoyAdvance](https://sourceforge.net/projects/vba) 1.7.2
 
-These are run in Mono 6.8 (because 6.12 has serious regressions):
-* [Mesen-S](https://github.com/SourMesen/Mesen-S/)
+This is run in Mono:
+
+* [Mesen-SX](https://github.com/NovaSquirrel/Mesen-SX/) 2022-3-10
 
 This is run in OpenJDK 17:
+
 * [Emulicious](https://emulicious.net/)
 
 This is run in mGBA:
+
 * [Goomba Color](https://www.dwedit.org/gba/goombacolor.php) 12-14-2014
+
+This is run in Firefox:
+
+* [JSGB](https://github.com/bleepbloop/JsGB) v0.02
 
 For two emulators (No$gmb and rew.), I have not been able
 to get them to take a ROM on the command line.  Only `File > Open...`
@@ -59,13 +68,16 @@ created a script to change to KiGB's directory before running a ROM.
 
 In July 2021, Gambatte developer Sinamas stepped down and handed
 maintenance to the _Pokémon_ speedrunning community, which publishes
-Gambatte-Speedrun.  One drawback is that Gambatte-Speedrun rejects
-boot ROM files that are not bit-identical to Nintendo's copyrighted
-boot ROM, and unlike with the Game Boy Advance BIOS, there is no
-known loophole through which to dump the Game Boy Color boot ROM
-through the Game Pak slot.  Thus I have forked Gambatte-Speedrun to
-allow use of SameBoot, a replacement boot ROM distributed as free
-software that comes with SameBoy.
+Gambatte-Speedrun.  Its default front end is opinionated, assuming
+that the user is attempting a speedrun of a _Pokémon_ game with
+intent to verify it later on a Game Boy Player.  To ensure cycle
+accuracy of the timers that _Pokémon_ relies on for random number
+generation, GSR requires a boot ROM and rejects boot ROMs that are
+not bit-identical to Nintendo's copyrighted boot ROM.  Unlike with
+the Game Boy Advance BIOS, there is no known loophole through which
+to dump the Game Boy Color boot ROM through the Game Pak slot.
+Instead, we use either BizHawk or a forked front end that accepts
+SameBoot, the boot ROM of SameBoy.
 
 VisualBoyAdvance 1.7.2 for Windows (from before the VBA-M fork)
 requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
@@ -86,6 +98,15 @@ trap "rm -f $tmpfile" EXIT
 cat "/home/pino/develop/emulators/goomba.gba" "$1" > "$tmpfile"
 mgba-qt "$tmpfile"
 ```
+
+JSGB is tedious to test.  You have to put ROMs in a folder, change
+`index.htm` to name them, and then start a web server so that the
+emulator can `XMLHttpRequest` the ROMs.
+```
+python3 -m http.server & firefox http://localhost:8000
+```
+JSGB pauses emulation and shows an `alert()` box when reaching
+`di halt`.  This exception is hardcoded in the emulator's CPU core.
 
 [vcredist]: https://jrsoftware.org/iskb.php?vc
 [Visual Basic 6 runtime]: https://www.microsoft.com/en-us/download/details.aspx?id=24417

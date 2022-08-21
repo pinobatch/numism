@@ -122,5 +122,6 @@ kigb         |   3/10  |   6/10  |   4/8   |         |
 goomba       |   5/10  |   5/10  |   2/8   |         |
 no$gmb       |   0/10  |   7/10  |   2/8   |**$**/10 | GBC paywall
 vba          |   6/10  |   1/10  |   1/8   |         |
+jsgb         |   3/10  |   2/10  |   1/7   |         | Four pauses for `di halt`
 rew.         |   2/10  |   2/10  |   3/8   |         |
 gambatte(GBC)|   2/10  |   2/10  |   0/8   |         | Result display misbehaves due to SameBoot conflict

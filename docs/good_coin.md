@@ -39,7 +39,7 @@ For example, a Game Boy test would depend on ability to get in-game
 in _Tetris_, _Super Mario Land_, and _Pokémon Blue Version_. We're
 looking for things that widely used emulators get wrong, not things
 that block typical users from even considering using an emulator.
-There are other, more focused tests for early emulator development. 
+There are other, more focused tests for early emulator development.
 
 Behaviors affecting more popular games rank earlier than those
 affecting only some obscure Japanese release.  Things causing
