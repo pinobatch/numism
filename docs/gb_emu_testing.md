@@ -100,8 +100,10 @@ mgba-qt "$tmpfile"
 ```
 
 JSGB is tedious to test.  You have to put ROMs in a folder, change
-`index.htm` to name them, and then start a web server so that the
-emulator can `XMLHttpRequest` the ROMs.
+`index.htm` to name them, and then start a web server so that JSGB
+can have a well-defined origin through which to `XMLHttpRequest`
+the ROMs.  We use the static server built into Python because the
+test ROM build process already uses Python for font conversion.
 ```
 python3 -m http.server & firefox http://localhost:8000
 ```

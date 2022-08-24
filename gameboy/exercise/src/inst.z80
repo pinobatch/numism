@@ -6,7 +6,7 @@ WITH_DEBUGHEX equ 0
 ; Workaround for exercising JSGB emulator by Pedro Ladaria,
 ; whose ld [abs], sp is broken.  This causes incorrect output for HL
 ; and AF (HL=SP, A=H).
-WITH_PLADARIA_JSGB_WORKAROUND equ 1
+WITH_PLADARIA_JSGB_WORKAROUND equ 0
 
 inst_length equ 6
 inst_epilog_length equ 5
