@@ -27,9 +27,9 @@ These are built from source:
 * [SameBoy](https://sameboy.github.io) 0.14.3
 * [VisualBoyAdvance-M](https://vba-m.com/) 2.1.4
 
-These are run in Wine 5.0.2 (Ubuntu 20.04) or 5.6 (Ubuntu 21.04):
+These are run in Wine 6.0 (Ubuntu 22.04):
 
-* [BGB](https://bgb.bircd.org/) 1.5.9
+* [BGB](https://bgb.bircd.org/) 1.5.10
 * [KiGB](http://kigb.emuunlim.com/) 2.05
 * [No$gmb](https://problemkaputt.de/gmb.htm) 2.5
 * [rew.](https://www.emuparadise.me/emulators/gb.php) 12STX
