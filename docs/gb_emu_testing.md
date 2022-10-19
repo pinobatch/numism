@@ -22,7 +22,7 @@ Thus I'm running tests on Ubuntu, a GNU/Linux distribution.
 These are built from source:
 
 * [Gambatte-Speedrun (Non-PSR)](https://github.com/pinobatch/gambatte-speedrun) r738
-* [GNUBoy](https://github.com/rofl0r/gnuboy) 1.0.3
+* [gnuboy](https://github.com/rofl0r/gnuboy) 1.0.3
 * [mGBA](https://mgba.io/) 0.10-7008-3159f2ec5
 * [SameBoy](https://sameboy.github.io) 0.14.3
 * [VisualBoyAdvance-M](https://vba-m.com/) 2.1.4
@@ -123,29 +123,30 @@ Results of Blargg's emulator tests
 ROMs by Shay Green (known in the scene as Blargg) that measure
 CPU-visible behaviors.  The tests show the following results in
 No$gmb 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
-Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.8, rew. 12STX,
+Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.10, rew. 12STX,
 Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte,
-SDL2 GNUBoy 1.0.3, and mGBA 0.9-6554-a2cd8f6cc:
+SDL2 gnuboy 1.0.3, and mGBA 0.9-6554-a2cd8f6cc:
 
 - CPU Instrs  
   VBA 6 of 11; rew. 7 of 11; No$gmb and KiGB 9 of 11;
-  GNUBoy 10 of 11; VBA-M, BGB, mGBA, Mesen, and Goomba pass
+  gnuboy 10 of 11; VBA-M, BGB, mGBA, Mesen, and Goomba pass
 - DMG Sound  
-  KiGB _crashes;_ rew. hangs with 0 of 11; No$gmb, VBA, and GNUBoy
+  KiGB _crashes;_ rew. hangs with 0 of 11; No$gmb, VBA, and gnuboy
   0 of 12; Goomba 1 of 12; VBA-M and Mesen-S 7 of 12; mGBA 10 of 12;
   BGB passes
 - Halt Bug  
-  VBA and rew. enter a reset loop; KiGB, Goomba, and GNUBoy fail;
+  VBA and rew. enter a reset loop; KiGB, Goomba, and gnuboy fail;
   others pass
 - Instr Timing  
-  No$gmb and KiGB hang; rew. and Goomba fail #255; GNUBoy fails
+  No$gmb and KiGB hang; rew. and Goomba fail #255; gnuboy fails
   (34, 37); others pass
 - Mem Timing 2  
-  KiGB _crashes;_ VBA, No$gmb, rew., GNUBoy, and Goomba 0 of 3;
+  KiGB _crashes;_ VBA, No$gmb, rew., gnuboy, and Goomba 0 of 3;
   VBA-M 2 of 3; others pass
 - OAM Bug  
-  VBA, No$gmb, KiGB, Goomba, and GNUBoy fail LCD Sync, rendering
-  others unmeasurable; rew., VBA-M, BGB, Mesen, and mGBA 3 of 8
+  VBA, No$gmb, KiGB, Goomba, and gnuboy fail LCD Sync, rendering
+  others unmeasurable; rew., VBA-M, Mesen, and mGBA 3 of 8.
+  BGB passes since 1.5.10.
 
 SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
 BizHawk Gambatte are identical to BGB.
@@ -249,7 +250,7 @@ by running AF through a big lookup table.  Adding $95 and $05 on
 a Game Boy produces AF=$9A00, which `daa` adjusts to $0090 (Z and
 C flags set).  VBA adjusts $9A instead to $00B0 (Z, H, and C set).
 
-VBA and GNUBoy fail "02-interrupts" at `halt`.  As described in
+VBA and gnuboy fail "02-interrupts" at `halt`.  As described in
 "Halt bug", this instruction behaves all kinds of wrong in VBA.
 The test sets IE=$04 (timer), TAC=$05, TIMA=IF=0, does `halt nop`,
 and looks for IF & $04 nonzero.  To demonstrate:
@@ -435,7 +436,7 @@ ld b, [hl]   ; read TIMA 4 cycles after DIV
 A (DIV) and B (TIMA) should be the same on most presses, with B one
 higher on a small fraction.  Everything but No$gmb gets this right.
 
-GNUBoy is the first tested emulator to fail specific instructions
+Gnuboy is the first tested emulator to fail specific instructions
 (in this case `34` and `37`) without crashing the entire test.
 
 TODO: Ask gbdev #emudev which games depend on working timers
@@ -455,7 +456,7 @@ before or after the increment.
 Because it relies on correct timers, which No$gmb lacks, a different
 approach will be needed.
 
-VBA-M fails `03-modify_timing` (01).  GNUBoy fails all three, though
+VBA-M fails `03-modify_timing` (01).  Gnuboy fails all three, though
 it at least gets through enough of the tests to fail cleanly.
 
 TODO: Ask gbdev #emudev which games depend most on working memory timing
