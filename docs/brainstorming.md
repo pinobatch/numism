@@ -7,8 +7,9 @@ The game
 --------
 On the surface, Numism is a simple platformer game.  The object
 is to proceed through the levels, collect all 100 coins, and buy the
-Product.  A lot of coins will be out of reach until you pay the
-characters you meet to teach you moves.
+Product.  As you move through the [starting village], you find a lot
+of coins be out of reach until you pay the characters you meet to
+teach you moves.
 
 You only collect coins that you know are authentic.  If you grab a
 coin and it just stops spinning, that means it's fake.  Stand in
@@ -38,9 +39,17 @@ and reach more coins.
   alcoholism).
 - **Hoop buoy** sold by a duck named (name missing) for 5 coins  
   Float across the surface of water and ascend one cell from water.
+- **Bus pass** sold in the general store by a human clerk named
+  (name missing) for 10 coins  
+  At the end of the third stage is a snowman sitting on the side of
+  the road.  As you ponder why there's a snowman in the middle of
+  spring, a bus pulls up and the snowman scoots on board.  After you
+  buy the bus pass, you can visit the city where the next stages are
+  located.
 
-At this point, if you haven't hit any fakes, you'll have collected 30
-coins and spent 10.  This leads into a big change for the game feel.
+At this point, if you haven't hit any fakes, you'll have collected
+30 coins and spent 20.  What you find in the city leads into a big
+change for the game feel.
 
 - **Clapper** sold by Roopert, a kangaroo dressed as Spirou,
   outside the hotel for 10 coins  
@@ -50,10 +59,14 @@ coins and spent 10.  This leads into a big change for the game feel.
   for what that does).  In exchange, you can no longer walk.  Instead
   you hop like a kangaroo.  You can also fall, after which you are
   placed at the previous checkpoint.
-- **Ground effect hovering** sold by (name missing) for 10 coins  
+- **Ground effect hovering** sold by a (species missing) named (name
+  missing) for 10 coins  
   Hover a couple pixels above the ground or water.  Jump height from
   ground increases as well to cross gaps of more cells.
-- **Flight** sold by (name missing) for 10 coins
+- **Flight** sold by a (species missing) named (name missing) for 10
+  coins
+
+[starting village]: ./village.md
 
 ### Continue
 
