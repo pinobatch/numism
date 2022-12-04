@@ -6,13 +6,13 @@ include "src/global.inc"
 ; represents having collected all coins in stages with 10 of 10
 ; passes.
 
-COINS_PER_STAGE equ 10
-NUM_STAGES equ 4
+DEF COINS_PER_STAGE equ 10
+DEF NUM_STAGES equ 4
 
 ; Displays 2 bytes of intermediate output from coins in the last stage
-WITH_DEBUGHEX equ 0
-DEBUGHEX_TILEID = $30
-DEBUGHEX_NUMTILES = 3
+DEF WITH_DEBUGHEX equ 0
+DEF DEBUGHEX_TILEID equ $30
+DEF DEBUGHEX_NUMTILES equ 3
 
 section "passbits", WRAM0, ALIGN[2]
 passbits:: ds NUM_STAGES*2
@@ -545,7 +545,7 @@ draw_checkmarks_ca:
     bit 1, c
     push af
     .vwait:
-      ld a, [rSTAT]
+      ldh a, [rSTAT]
       and STATF_BUSY
       jr nz, .vwait
     ld [hl], TEST_OK_TILE

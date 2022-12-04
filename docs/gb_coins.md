@@ -59,10 +59,11 @@ in progress.
 28. At start, NR52=$F0 on SGB or $F1 elsewhere (breaks SGB detection
     in LSDJ)
 29. Joypad interrupt works at all
+30. `daa` produces correct results for some pathological AF (check
+    lesser emulators' exerciser plots)
 
 Unranked, to be tested at title screen and in menus:
 
-- Joypad interrupt works at all
 - Joypad interrupt happens at different LY values (Telling LYs?)
 - Asserting P14/P15 while holding a button causes joypad interrupt
   (suggested by Daid)
@@ -80,8 +81,6 @@ passing no feedback to the Game Boy SoC.
 
 - `MLT_REQ` does not initiate multiplayer on GBC (GBC+SGB mode is
   not authentic)
-- NR52 bits 3-0 are 0000 if SGB (if `MLT_REQ` initiates multiplayer)
-  and 0001 $1 otherwise
 - P1 rise time differences among DMG/MGB, SGB, and GBC/GBA
 - Joypad interrupt timing is predictable on SGB/SGB2 (at least in
   60 Hz) and not so on handhelds
@@ -116,6 +115,7 @@ bgb          |  10/10  |  10/10  |   8/8   |         |
 gambatte(DMG)|  10/10  |   9/10  |   8/8   |         |
 mesen-s      |  10/10  |   9/10  |   7/8   |         |
 mgba         |  10/10  |   9/10  |   6/8   |         |
+geebly       |   6/10  |   9/10  |   6/7   |         |
 vba-m        |  10/10  |   8/10  |   3/8   |         |
 gnuboy       |   6/10  |   4/10  |   4/8   |         |
 kigb         |   3/10  |   6/10  |   4/8   |         |

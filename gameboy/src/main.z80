@@ -3,8 +3,8 @@ include "src/global.inc"
 
 SECTION "main", ROM0
 
-COINCELS_TILE = $23
-LOGO_IDOT_XY = $982B
+DEF COINCELS_TILE equ $23
+DEF LOGO_IDOT_XY equ $982B
 
 main::
   xor a
@@ -43,7 +43,7 @@ main::
   ld a,IEF_VBLANK
   ldh [rIE],a  ; enable IRQs
   ld a, %01101100
-  ld [rBGP], a
+  ldh [rBGP], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
   ldh [rLCDC], a
   ei

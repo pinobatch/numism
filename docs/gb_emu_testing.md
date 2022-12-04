@@ -267,7 +267,7 @@ problems.  At least rew. gets flags right more often, particularly N.
 Apart from VBA not clearing the H flag, VBA and rew. have no errors
 on AF states that result from adding or subtracting two valid
 BCD bytes.  Incorrect results come from pathological AF states,
-such as carry with A >= $40.  Leave them for level 3 or later.
+such as carry with A >= $40.  Leave them for stage 3 or later.
 
 Like No$gmb, rew. fails `add sp` and `ld hl, sp+`.  More worrying
 is the failure on basic interrupt functionality.  It fails the

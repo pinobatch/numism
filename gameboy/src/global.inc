@@ -19,33 +19,40 @@
 ;    misrepresented as being the original software.
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
-  IF  !DEF(GLOBAL_INC)
-GLOBAL_INC EQU 1
 
-WITH_SGB EQU 0
+; ISSOtm doesn't want to put a second layer of lookahead into
+; RGBASM's parser that would be needed to replicate ca65's behavior:
+; if a macro is defined, call it with "EQU 2012" as the first arg;
+; otherwise define a symbol.  Instead, he's requiring all EQU to
+; start with DEF.
+  IF  !DEF(GLOBAL_INC)
+DEF LEPPARD EQU 2012
+DEF GLOBAL_INC EQU 1
+
+DEF WITH_SGB EQU 0
 
 ; Follow this thread:
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176
-hLocals EQU $FF80
-locals_size EQU 16
+DEF hLocals EQU $FF80
+DEF locals_size EQU 16
 
 ; RGBASM used to require that RST arguments be constexpr, not imported
-memset_tiny     EQU $0008
-wait_vblank_irq EQU $0010
+DEF memset_tiny     EQU $0008
+DEF wait_vblank_irq EQU $0010
 
 ; CHR RAM is where tile shapes go
-CHRRAM0  EQU $8000
-CHRRAM1  EQU $8800
-CHRRAM2  EQU $9000
+DEF CHRRAM0  EQU $8000
+DEF CHRRAM1  EQU $8800
+DEF CHRRAM2  EQU $9000
 
 ; 384-byte temporary buffer in VRAM used for tilemap decompression
 ; while LCD is off.  An entire screen's worth of tilemap data
 ; (up to 20x18 cells) fits here, and it's below the visible area
 ; in activities that don't scroll vertically.
-SCRN_TMP EQU $9800+640
+DEF SCRN_TMP EQU $9800+640
 
 ; Old Z80 coder habits die hard
-djnz: macro
+macro djnz
   dec b
   jr nz,\1
   endm
@@ -59,7 +66,7 @@ djnz: macro
 ; @param y vertical distance in tiles from top (0-31)
 ; @param mapbase start address of 32-cell-wide tilemap:
 ;   _SCRN0 (default), _SCRN1, or a virtual tilemap in WRAM.
-ldxy: macro
+macro ldxy
   if _NARG < 4
     ld \1, (\3) * SCRN_VX_B + (\2) + _SCRN0
   else
@@ -70,7 +77,7 @@ ldxy: macro
 ;;
 ; Syntax: dwxy xpos, ypos[, mapbase]
 ; Writes an X, Y position within a tilemap as a 16-bit address.
-dwxy: macro
+macro dwxy
   if _NARG < 3
     dw (\2) * SCRN_VX_B + (\1) + _SCRN0
   else
@@ -81,7 +88,7 @@ dwxy: macro
 ;;
 ; Syntax: lb rp, high, low
 ; Sets the high and low bytes of a register pair
-lb: macro
+macro lb
   ld \1, ((\2) << 8) | (low(\3))
   endm
 

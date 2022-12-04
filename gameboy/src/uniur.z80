@@ -34,7 +34,7 @@ include "src/global.inc"
 ;;
 ; 7/8 of the time, it takes 5 cycles
 ; The other 1/8, it takes 10 cycles
-getbit: macro
+macro getbit
   sla b
   ; Once out of bits, CF is 1 and B is 0
   jr nz, .nonewbyte\@
@@ -44,10 +44,10 @@ getbit: macro
   .nonewbyte\@:
   endm
 
-hBytesLeftHi = hLocals + $00
-hInNewRun    = hLocals + $01
-hMaxTile     = hLocals + $02
-hPrevTile    = hLocals + $03
+DEF hBytesLeftHi equ hLocals + $00
+DEF hInNewRun    equ hLocals + $01
+DEF hMaxTile     equ hLocals + $02
+DEF hPrevTile    equ hLocals + $03
 
 SECTION "incruniq", ROM0
 

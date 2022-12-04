@@ -40,8 +40,8 @@ coin_list::
   dw coin_mode_3_length
   dw coin_flashing_12
   dw coin_initial_nr52
-  dw coin_no_29
-  dw coin_no_30
+  dw coin_any_joypad_irq
+  dw coin_daa_oddball_af
   ; stage 4: begin dmg/gbc differences
   dw coin_no_31
   dw coin_no_32
@@ -586,7 +586,7 @@ measure_mode3:
   ld c, low(rSTAT)
   ld a, STATF_LYC
   ld [$FF00+C], a
-  ld a, [rIE]
+  ldh a, [rIE]
   push af
   ld a, IEF_STAT
   ldh [rIE], a
@@ -778,14 +778,14 @@ coin_div_stops_apu:
     inc c  ; Apparently I need to keep it UNDER 1024 cycles per write
     jr nz, .loop
     ldh [rDIV], a
-    ld a, [rNR52]  ; bit 1 becomes 0 when it stops
+    ldh a, [rNR52]  ; bit 1 becomes 0 when it stops
     rra
     ccf  ; carry set if it has stopped
     ret c
     inc b
     jr nz, .loop
   ld a, c  ; APU off!
-  ld [rNR52], a
+  ldh [rNR52], a
   ret
 
 coin_apu_off_clear:
@@ -901,7 +901,7 @@ coin_oam_bug:
   ret c
 
   xor a
-  ld [rOBP0], a
+  ldh [rOBP0], a
 
   call lcd_on_blank_keep_oam
 
@@ -992,20 +992,20 @@ coin_wave_ram_locked:
     ldh [rNR51], a
     ldh [rNR50], a
     ld a, $20
-    ld [rNR32], a
+    ldh [rNR32], a
   endc
   xor a
-  ld [rNR33], a
+  ldh [rNR33], a
   ld a, $87
-  ld [rNR30], a  ; always give and take wave RAM before new note
-  ld [rNR34], a
+  ldh [rNR30], a  ; always give and take wave RAM before new note
+  ldh [rNR34], a
 
   ; Prepare to read $44 and $33 from wave RAM and pass if it differs
   ld hl, _AUD3WAVERAM+4
   ld b, 2
 
   ; But first ensure the channel is running, even while otherwise muted
-  ld a, [rNR52]
+  ldh a, [rNR52]
   and $04
   jr z, fail_and_turn_off_apu
 
@@ -1362,7 +1362,7 @@ coin_flashing_12:
   .loop:
     ld a, TACF_4KHZ|TACF_START  ; 2
     ldh [rTAC], a      ; 5 [WRITE]
-    ld a, [rTIMA]      ; 8
+    ldh a, [rTIMA]     ; 8
     or a               ; 9
     or a               ; 10
     or a               ; 11
@@ -1408,17 +1408,23 @@ coin_initial_nr52:
 
   endc
 
-
-coin_no_29:
+; This one will be failed at first, then checked after the player
+; navigates the menu
+coin_any_joypad_irq:
   jr .start
-  db "Always pass for now",0
+  db "NYA Joypad interrupt",10
+  db "Pressing a button makes",10
+  db "an interrupt",0
 .start:
   or a
   ret
 
-coin_no_30:
+coin_daa_oddball_af:
   jr .start
-  db "Always pass for now",0
+  db "NYA daa with oddball AF",10
+  db "A few DAA results that",10
+  db "can't come from valid",10
+  db "BCD calculations",0
 .start:
   or a
   ret
