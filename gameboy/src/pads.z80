@@ -33,6 +33,7 @@ hLastKeyLY:: ds 1
 SECTION "ram_pads", WRAM0
 das_keys:: ds 1
 das_timer:: ds 1
+wJoyIRQCapability:: ds 1
 
 SECTION "rom_pads", ROM0
 

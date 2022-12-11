@@ -15,6 +15,8 @@ DEF DEBUGHEX_TILEID equ $30
 DEF DEBUGHEX_NUMTILES equ 3
 
 section "passbits", WRAM0, ALIGN[2]
+; passbits[2*(S - 1) + 1]: bits 1-0 are stage S coins 1-2 (0=pass, 1=fail)
+; passbits[2*(S - 1)]: bits 7-0 are stage S coins 3-10
 passbits:: ds NUM_STAGES*2
 
 section "continue_state", WRAM0
@@ -284,12 +286,14 @@ show_stages::
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [vblank_lcdc_value], a
   ldh [rLCDC], a
-  ei
 
+  call continue_read_pad
   xor a
   ld [wnd_progress], a
   ld [cursor_y], a
   ld [want_coin_out], a
+  ldh [rIF], a  ; cancel joypad IRQ from holding button during setup
+  ei
 
 .set_stage_to_a:
   ld [cur_stage], a
@@ -313,9 +317,7 @@ show_stages::
   call draw_checkmarks_stage_a  ; Now draw actual results
 
 .waitloop:
-  call read_pad
-  ld b, PADF_UP|PADF_DOWN
-  call autorepeat
+  call continue_read_pad
   ldh a, [hNewKeys]
   ld b, a
 
@@ -423,6 +425,57 @@ show_stages::
 forever:
   halt
   jr forever
+
+;;
+; Waits for a joypad IRQ or lack thereof, then reads the controller
+continue_read_pad:
+  ; Once we've resolved joypad IRQ, either positive or negative
+  ldh a, [rP1]
+  ld b, a
+  ld a, [wJoyIRQCapability]
+  or a
+  jr z, .waiting_for_first_joyirq
+    ld a,IEF_VBLANK|IEF_STAT
+    ldh [rIE],a  ; enable IRQs except joypad
+    call read_pad
+    ld b, PADF_UP|PADF_DOWN
+    jp autorepeat
+  .waiting_for_first_joyirq:
+
+  ; So far, it's undecided whether joypad IRQ is supported.
+  ; Either an IRQ has happened, or there is no IRQ and a button
+  ; was pressed (lingering in B).
+  ; Set up joypad for IRQ if it isn't already
+  ld a,IEF_VBLANK|IEF_STAT|IEF_HILO
+  ldh [rIE], a  ; enable IRQs including joypad
+  xor a
+  ldh [rP1], a  ; enable both key matrix halves
+  ldh a, [hLastKeyLY]
+  xor $FF
+  jr z, .irq_not_occurred_yet
+    ; An IRQ has occurred.  Mark this in two ways: earn coin 29,
+    ; and set read to True.
+    ld hl, passbits + 4  ; Seek to coins 23-30
+    res (30 - 29), [hl]
+    ld a, $80  ; $80: has been determined not to support IRQ
+    jr .have_new_capability
+  .irq_not_occurred_yet:
+    ; If the read from rP1 contains a button that was pressed without
+    ; causing an IRQ, this is a loss.
+    ld a, b
+    cpl
+    and $0F
+    ret z
+    ld a, 1  ; $01: has been determined not to support IRQ
+  .have_new_capability
+  ld [wJoyIRQCapability], a
+
+  ; When both key matrix halves are on, Super Game Boy's ICD2 bridge
+  ; expects the next 129 cycles of P1 to be a packet.  It interprets
+  ; all zeroes, for example, as a PAL01 with all black colors.
+  ; So push out a (redundant) MLT_REQ packet now.
+  ld b, 0
+  jp sgb_set_bplus1_players
 
 not_ready_msg: db "Platformer isn't ready yet", 0
 

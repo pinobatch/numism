@@ -59,6 +59,20 @@ coin_list::
 ; Set to nonzero during debugging.
 APU_NOT_SILENT equ 0
 
+; When turning off a coin temporarily to troubleshoot an
+; emulator getting hung up on it, change it to
+;   dw coin_disabled
+if 0
+section "OFFCOINS", ROM0
+coin_disabled:
+  jr .start
+  db "NYA Disabled for debug",10
+  db "Always fail",0
+.start:
+  scf
+  ret
+endc
+
 section "STAGE1COINS", ROM0
 
 ; Each coin is a subroutine then a description.
@@ -1408,15 +1422,15 @@ coin_initial_nr52:
 
   endc
 
-; This one will be failed at first, then checked after the player
+; This one is failed at first, then checked after the player
 ; navigates the menu
 coin_any_joypad_irq:
   jr .start
-  db "NYA Joypad interrupt",10
+  db "Joypad interrupt",10
   db "Pressing a button makes",10
   db "an interrupt",0
 .start:
-  or a
+  scf
   ret
 
 coin_daa_oddball_af:

@@ -29,7 +29,7 @@
 DEF LEPPARD EQU 2012
 DEF GLOBAL_INC EQU 1
 
-DEF WITH_SGB EQU 0
+DEF WITH_SGB EQU 1
 
 ; Follow this thread:
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176
@@ -56,6 +56,15 @@ macro djnz
   dec b
   jr nz,\1
   endm
+
+;;
+; Syntax: lb rp, high, low
+; Sets the high and low bytes of a register pair
+macro lb
+  ld \1, ((\2) << 8) | (low(\3))
+  endm
+
+; Game Boy PPU data formats ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;
 ; Syntax: ldxy rp, xpos, ypos[, mapbase]
@@ -86,10 +95,11 @@ macro dwxy
   endm
 
 ;;
-; Syntax: lb rp, high, low
-; Sets the high and low bytes of a register pair
-macro lb
-  ld \1, ((\2) << 8) | (low(\3))
-  endm
+; Syntax: drgb $FF9966 for color #FF9966
+; Divides each hex tuplet by 8 and rounds down, forming an RGB555
+; color word suitable for SNES/SGB or GBC/GBA/DS.
+macro drgb
+  dw (\1 & $F80000) >> 19 | (\1 & $00F800) >> 6 | (\1 & $0000F8) << 7
+endm
 
   ENDC  ; end include guard

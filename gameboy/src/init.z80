@@ -70,7 +70,9 @@ reset_handler::
   ; hardware.
   xor a
   ldh [hCurKeys], a
+  ldh [hNewKeys], a
   ldh [hCapability], a
+  ld [wJoyIRQCapability], a
   ldh [rLCDC], a  ; turn off rendering
   ldh [rSCY], a   ; clear scroll
   ldh [rSCX], a   ; clear scroll
