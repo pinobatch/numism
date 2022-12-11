@@ -109,19 +109,18 @@ paywalled, we do not list results for No$gmb past stage 3.
 
 Emulator     | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Notes
 ------------ | ------: | ------: | ------: | ------: | -----
-emulicious   |  10/10  |  10/10  |   8/8   |         | No SGB
-sameboy      |  10/10  |  10/10  |   8/8   |         |
-bgb          |  10/10  |  10/10  |   8/8   |         |
-gambatte(DMG)|  10/10  |   9/10  |   8/8   |         |
-mesen-s      |  10/10  |   9/10  |   7/8   |         |
-mgba         |  10/10  |   9/10  |   6/8   |         |
-geebly       |   6/10  |   9/10  |   6/7   |         |
-vba-m        |  10/10  |   8/10  |   3/8   |         |
-gnuboy       |   6/10  |   4/10  |   4/8   |         |
-kigb         |   3/10  |   6/10  |   4/8   |         |
-goomba       |   5/10  |   5/10  |   2/8   |         |
-no$gmb       |   0/10  |   7/10  |   2/8   |**$**/10 | GBC paywall
-vba          |   6/10  |   1/10  |   1/8   |         |
-jsgb         |   3/10  |   2/10  |   1/7   |         | Four pauses for `di halt`
-rew.         |   2/10  |   2/10  |   3/8   |         |
-gambatte(GBC)|   2/10  |   2/10  |   0/8   |         | Result display misbehaves due to SameBoot conflict
+emulicious   |  10/10  |  10/10  |  10/10  |         | No SGB
+sameboy      |  10/10  |  10/10  |  10/10  |         |
+bgb          |  10/10  |  10/10  |  10/10  |         |
+gambatte     |  10/10  |   9/10  |  10/10  |         |
+mesen-s      |  10/10  |   9/10  |   8/10  |         |
+mgba         |  10/10  |   9/10  |   8/10  |         |
+vba-m        |  10/10  |   8/10  |   5/10  |         |
+gnuboy       |   6/10  |   4/10  |   7/10  |         |
+kigb         |   3/10  |   6/10  |   6/10  |         |
+goomba       |   5/10  |   5/10  |   3/10  |         |
+no$gmb       |   0/10  |   7/10  |   4/10  |**$**/10 | GBC paywall
+vba          |   6/10  |   1/10  |   3/10  |         |
+peanut-gb    |   4/10  |   5/10  |   2/10  |         |
+jsgb         |   3/10  |   3/10  |   3/10  |         | Four pauses for `di halt`
+rew.         |   2/10  |   2/10  |   4/10  |         |

@@ -1427,7 +1427,8 @@ coin_initial_nr52:
 coin_any_joypad_irq:
   jr .start
   db "Joypad interrupt",10
-  db "Pressing a button makes",10
+  db "Pressing a button with an",10
+  db "active key matrix makes",10
   db "an interrupt",0
 .start:
   scf

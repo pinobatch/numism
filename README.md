@@ -8,10 +8,10 @@ animation work it entails?
 
 If you're curious
 -----------------
-The Game Boy version has at least [28 coins](docs/gb_coins.md).
+The Game Boy version has at least [30 coins](docs/gb_coins.md).
 There is also an interactive [exerciser](gameboy/exercise/README.md)
 used for hardware and emulator behavior testing.
-Building them requires RGBDS, Python 3, and Pillow
+Building them requires RGBDS 0.6.1 or later, Python 3, and Pillow
 (Python Imaging Library).
 
 The NES version has at least [12 coins](docs/nes_coins.md).

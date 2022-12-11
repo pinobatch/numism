@@ -23,13 +23,13 @@ echo 'Force folder creation' > obj/gb/index.txt
 
 python3 tools/vwfbuild.py tilesets/vwf7_cp144p.png obj/gb/vwf7_cp144p.z80
 for filename in $twobitlist $pb16list; do
-  rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
+  rgbgfx -c embedded -o "obj/gb/$filename.2b" "tilesets/$filename.png"
 done
 for filename in $pb16list; do
   python3 tools/pb16.py "obj/gb/$filename.2b" "obj/gb/$filename.2b.pb16"
 done
 for filename in $iurlist; do
-  rgbgfx -o "obj/gb/$filename.2b" "tilesets/$filename.png"
+  rgbgfx -c embedded -o "obj/gb/$filename.2b" "tilesets/$filename.png"
   python3 tools/incruniq.py "obj/gb/$filename.2b" "obj/gb/$filename.iur"
 done
 for filename in $objlist; do
