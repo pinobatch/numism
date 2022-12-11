@@ -701,7 +701,7 @@ draw_2dig_c::
 
 ;;
 ; Waits for mode 0 or 1, then writes nibbles of A to [DE]
-; @return DE incremented by 1, B high nibble, C low nibble
+; @return DE incremented by 2, B high nibble, C low nibble
 hblank_put_a::
   ld c, a
   swap a
@@ -714,7 +714,7 @@ hblank_put_a::
 
 ;;
 ; Waits for mode 0 or 1, then writes characters B and C to [DE]
-; BCHL unchanged
+; @return DE incremented by 2, BCHL unchanged
 hblank_put_bc::
   ldh a, [rSTAT]
   bit 1, a

@@ -1,8 +1,13 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-DAA_CANVAS_START equ $8600
-ERRORS_DIGITS equ 4
+def DAA_CANVAS_START equ $8600
+def ERRORS_DIGITS equ 4
+
+; For debugging a particular emulator whose DAA output for a
+; particular set of inputs is correct except for not clearing H flag
+def DAA_VALID_PAIR_IGNORE_H equ 0
+
 errors_count_ones equ $98D1
 
 section "daa_test", ROM0
@@ -92,59 +97,98 @@ daa_test::
   ldh [rLCDC], a
 
 valid_pair_test:
-  ; This optional phase tests DAA with valid combinations
-  ld bc, 0
-  .bloop:
-    call daa_present
-    jr nz, next_test
+  ; Phase 2 tests DAA with valid combinations (00-09, 10-19, 20-29,
+  ; 30-39, etc.) that don't use carry
+  ; B and C are the addends, and D chooses add or subtract or carry
+  ld d, 0
+  .dloop:
+    ld b, 0
+    .bloop:
+      call daa_present
+      jr nz, next_test
 
-    ld c, 0
-    .cloop:
+      ld c, 0
+      .cloop:
+        push de  ; Save current operation
+        call daa_valid_op_b_c
+        daa
+        push af
+        call daa_valid_op_b_c
+        call emulate_daa
+        push af
+        pop hl
+        pop de
+        ; D = actual A; E = actual F; A = H = expected A; L = expected F
+        ; Compare values to expected
+        xor d
+        ld h, a
+        ld a, l
+        xor e
+        if DAA_VALID_PAIR_IGNORE_H
+          and %11010000
+        else
+          and %11110000
+        endc
+        ; H = difference from expected A; A = difference from expected F
+        pop de
+
+        or h
+        jr nz, .is_mismatch
+
+        inc c
+        ld a, c
+        and $0F
+        cp $0A
+        jr c, .cloop
+        ld a, c
+        add 6
+        ld c, a
+        cp $A0
+        jr c, .cloop
+      inc b
       ld a, b
-      add c
-      daa
-      push af
-      pop de
-      ld a, b
-      add c
-      call emulate_daa
-      push af
-      pop hl
-
-      xor d
-      jr nz, .is_mismatch
-      ld a, l
-      xor e
-;      and %11011111  ; ignore H flag for debug purposes
-      jr nz, .is_mismatch
-
-      inc c
-      ld a, c
       and $0F
       cp $0A
-      jr c, .cloop
-      ld a, c
+      jr c, .bloop
+      ld a, b
       add 6
-      ld c, a
+      ld b, a
       cp $A0
-      jr c, .cloop
-    inc b
-    ld a, b
-    and $0F
-    cp $0A
-    jr c, .bloop
-    ld a, b
-    add 6
-    ld b, a
-    cp $A0
-    jr c, .bloop
-  ldxy de, 12, 8
+      jr c, .bloop
+    inc d
+    ld b, b
+    bit 2, d
+    jr z, .dloop
+  ldxy de, 11, 8
   lb bc, "O", "K"
   call hblank_put_bc
   jr .valids_ok
 
 .is_mismatch:
-  ldxy de, 12, 8
+  push bc
+  ld a, d
+  add a
+  add a
+  add low(daa_valid_op_name)
+  ld l, a
+  adc high(daa_valid_op_name)
+  sub l
+  ld h, a
+
+  ; Write instruction name
+  ldxy de, 11, 8
+  ld a, [hl+]
+  ld b, a
+  ld a, [hl+]
+  ld c, a
+  call hblank_put_bc
+  ld a, [hl+]
+  ld b, a
+  ld a, [hl+]
+  ld c, a
+  call hblank_put_bc
+  
+  pop bc
   push bc
   ld a, b
   call hblank_put_a
@@ -158,6 +202,23 @@ valid_pair_test:
   jr z, .forever
 next_test:
   jp mode3len_test
+
+;;
+; Adds B and C or subtracts C from B, producing AF.
+; @param B, C terms to add or subtract
+; @param D operation (0: add; 1: scf adc; 2: sub; 3: scf sbc)
+daa_valid_op_b_c:
+  ld a, d
+  ld b, b
+  rra
+  bit 1, d
+  ld a, b
+  jr nz, .is_sbc
+    adc c
+    ret
+  .is_sbc:
+    sbc c
+    ret
 
 daa_present:
   push bc
@@ -312,6 +373,8 @@ daa_labels:
   dw errors_count_ones - 10
   db "ERRORS:", $FF
   dwxy 1, 8
-  db "VALID ADDS", $FF
+  db "VALID OPS:", $FF
   db $00
 
+daa_valid_op_name: 
+  db "ADD ADC SUB SBC "
