@@ -277,7 +277,7 @@ measure_mode3:
   ld c, low(rSTAT)
   ld a, STATF_LYC
   ld [$FF00+C], a
-  ld a, [rIE]
+  ldh a, [rIE]
   push af
   ld a, IEF_LCDC
   ldh [rIE], a

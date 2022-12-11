@@ -20,23 +20,24 @@
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
   IF  !DEF(GLOBAL_INC)
-GLOBAL_INC EQU 1
+def GLOBAL_INC EQU 1
+def LEPPARD equ 5
 
 ; Follow this thread:
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176
-hLocals EQU $FF80
-locals_size EQU 16
+def hLocals EQU $FF80
+def locals_size EQU 16
 
 ; CHR RAM is where tile shapes go
-CHRRAM0  EQU $8000
-CHRRAM1  EQU $8800
-CHRRAM2  EQU $9000
+def CHRRAM0  EQU $8000
+def CHRRAM1  EQU $8800
+def CHRRAM2  EQU $9000
 
 ; 384-byte temporary buffer in VRAM used for tilemap decompression
 ; while LCD is off.  An entire screen's worth of tilemap data
 ; (up to 20x18 cells) fits here, and it's below the visible area
 ; in activities that don't scroll vertically.
-SCRN_TMP EQU $9800+640
+def SCRN_TMP EQU $9800+640
 
 ; Character encoding for Crash_dump_uncial.png is not ASCII.
 charmap "0", 0
@@ -78,9 +79,8 @@ charmap "Z", 35
 charmap " ", 36
 charmap ":", 37
 
-
 ; Old Z80 coder habits die hard
-djnz: macro
+macro djnz
   dec b
   jr nz,\1
   endm
@@ -94,7 +94,7 @@ djnz: macro
 ; @param y vertical distance in tiles from top (0-31)
 ; @param mapbase start address of 32-cell-wide tilemap:
 ;   _SCRN0 (default), _SCRN1, or a virtual tilemap in WRAM.
-ldxy: macro
+macro ldxy
   if _NARG < 4
     ld \1, (\3) * SCRN_VX_B + (\2) + _SCRN0
   else
@@ -105,7 +105,7 @@ ldxy: macro
 ;;
 ; Syntax: dwxy xpos, ypos[, mapbase]
 ; Writes an X, Y position within a tilemap as a 16-bit address.
-dwxy: macro
+macro dwxy
   if _NARG < 3
     dw (\2) * SCRN_VX_B + (\1) + _SCRN0
   else
@@ -116,7 +116,7 @@ dwxy: macro
 ;;
 ; Syntax: lb rp, high, low
 ; Sets the high and low bytes of a register pair
-lb: macro
+macro lb
   ld \1, ((\2) << 8) | (low(\3))
   endm
 
