@@ -6,6 +6,7 @@ def ERRORS_DIGITS equ 4
 
 ; For debugging a particular emulator whose DAA output for a
 ; particular set of inputs is correct except for not clearing H flag
+def DAA_PLOT_IGNORE_H equ 1
 def DAA_VALID_PAIR_IGNORE_H equ 0
 
 errors_count_ones equ $98D1
@@ -53,16 +54,20 @@ daa_test::
     push af
     pop hl
 
-    ; A = H = software A
+    ; A = H = software (expected) A
     ; L = software ZNHC
-    ; D = hardware A
+    ; D = hardware (actual) A
     ; E = hardware ZNHC
     ; If they don't match, plot a pixel
     xor d
     jr nz, .is_mismatch
     ld a, l
     xor e
-;    and $80  ; ignore what flags?
+    if DAA_PLOT_IGNORE_H
+      and %11010000
+    else
+      and %11110000
+    endc
     jr z, .is_match
     .is_mismatch:
       call daa_seek_bc
@@ -156,7 +161,6 @@ valid_pair_test:
       cp $A0
       jr c, .bloop
     inc d
-    ld b, b
     bit 2, d
     jr z, .dloop
   ldxy de, 11, 8
@@ -209,7 +213,6 @@ next_test:
 ; @param D operation (0: add; 1: scf adc; 2: sub; 3: scf sbc)
 daa_valid_op_b_c:
   ld a, d
-  ld b, b
   rra
   bit 1, d
   ld a, b

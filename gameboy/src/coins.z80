@@ -1421,13 +1421,35 @@ coin_any_joypad_irq:
 
 coin_daa_oddball_af:
   jr .start
-  db "NYA daa with oddball AF",10
-  db "A few DAA results that",10
-  db "can't come from valid",10
-  db "BCD calculations",0
+  db "daa-daa with oddball AF",10
+  db "daa on AF values other",10
+  db "than valid BCD sums:",10
+  db "9a NH->00 ZC, 7a H->80,",10
+  db "00 NHC->9a NC->3a NC",0
 .start:
-  or a
-  ret
+
+  ld a, $FF
+  add a  ; Set HC flags
+  ld a, $9A
+  daa    ; rew. doesn't set Z flag for daa $9A NH
+  jr nz, .local_fail_nz  ; rew. only fails
+
+  ld a, $0D
+  add a  ; Set H flag
+  ld a, $7A  ; input: $7A H
+  daa    ; output: $80 (rew. & VBA: $80 H)
+  daa    ; output: $80 (rew. & VBA: $86)
+  add a  ; output: $00 ZC (rew. & VBA: $0C C)
+  jr nz, .local_fail_nz  ; rew. & VBA 1.7 fail
+
+  scf
+  sbc a    ; $FF NHC
+  ld a, 0  ; $00 NHC
+  daa      ; $9A NC (VBA: $9A NHC)
+  daa      ; $3A NC (rew. and VBA: $34 NC)
+  xor $3A
+.local_fail_nz:
+  jp pass_if_Z_flag
 
 coin_no_31:
   jr .start

@@ -59,8 +59,8 @@ in progress.
 28. At start, NR52=$F0 on SGB or $F1 elsewhere (breaks SGB detection
     in LSDJ)
 29. Joypad interrupt works at all
-30. `daa` produces correct results for some pathological AF (check
-    lesser emulators' exerciser plots)
+30. `daa` produces correct results for pathological AF:
+    $9A NH→$00 ZC, $7A H→$80, $00 NHC→$9A NC→$3A NC
 
 Unranked, to be tested at title screen and in menus:
 
