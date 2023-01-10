@@ -77,5 +77,9 @@ def main(argv=None):
         outfp.write(out)
 
 if __name__=='__main__':
-    main()
-##    main(["incruniq.py", "../obj/gb/Gus_portrait.chrgb", "test.iu"])
+    if 'idlelib' in sys.modules:
+        main("""
+./incruniq.py ../obj/gb/Gus_portrait.chrgb test.iu
+""".split())
+    else:
+        main()

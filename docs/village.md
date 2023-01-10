@@ -107,9 +107,11 @@ Locations
 ---------
 
 Mindy's adventure begins in a park along a trail.  The trail has
-three segments: from the playground to a trading post, from there
-to a river with a bridge out, and from there to a strip mall with a
-general store and a bus stop.
+three segments:
+from the playground to a trading post,
+from there to a pond beside a river with a bridge out,
+and from there to a strip mall with a general store and a bus stop.
+Each has ten coins to find.
 
 Buses are conventionally 2.5 m by 2.5 m by 12.5 m.  At the 1 m = 16
 pixels rough scale of the game, this amounts to the bus being drawn

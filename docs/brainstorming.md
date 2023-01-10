@@ -30,15 +30,22 @@ and reach more coins.
 - **Sneakers** sold by a leporichaun (anthropomorphic rabbit
   shoemaker in 18th-century clothes) named (name missing) at an
   outdoor market for 5 coins  
-  Cross gaps of one cell, ascend two cells, and descend three cells.
-  Ascend to hills behind you.  
+  Replacing your school shoes with athletic shoes lets you
+  cross gaps of one cell, ascend two cells, and descend three cells.
+  This lets you ascend to hills behind you without having to find
+  a ladder.  
   Once you've paid, you can ask the leporichaun his life story.
   Dialogue tree options lead to the ministry he was born into, why he
   left the organization to become a solitary shoemaker, and what he
   thinks of clurichauns (ex-Easter bunnies who've fallen into
   alcoholism).
-- **Hoop buoy** sold by a duck named (name missing) for 5 coins  
-  Float across the surface of water and ascend one cell from water.
+- **Hoop buoy** sold by an anthropomorphic duck named (name missing)
+  at a pond beside a river for 5 coins  
+  Float across the surface of water and ascend one cell from water.  
+  Once you've paid, the duck mentions taking care of her three nibs,
+  named Bimmy, Jimmy, and Timmy, and occasionally having to remind
+  them not to dawdle: "Quick quick!"
+  ("Nibs" are nephews or nieces, and "Bimmy" is short for William.)
 - **Bus pass** sold in the general store by a human clerk named
   (name missing) for 10 coins  
   At the end of the third stage is a snowman sitting on the side of
@@ -56,15 +63,18 @@ change for the game feel.
   A boot that covers both feet. After buying it, you are no longer
   as closely bound to the cell grid.  You can grab a bar and swing
   from it, either to get a boost or to emit a tone (I'm still looking
-  for what that does).  In exchange, you can no longer walk.  Instead
+  for what that does).
+  While the clapper is equipped, you can no longer walk.  Instead
   you hop like a kangaroo.  You can also fall, after which you are
   placed at the previous checkpoint.
 - **Ground effect hovering** sold by a (species missing) named (name
   missing) for 10 coins  
   Hover a couple pixels above the ground or water.  Jump height from
   ground increases as well to cross gaps of more cells.
+  Effective while clapper is equipped.
 - **Flight** sold by a (species missing) named (name missing) for 10
-  coins
+  coins  
+  Effective while clapper is equipped.
 
 [starting village]: ./village.md
 

@@ -21,7 +21,9 @@ of a 32K ROM.  I may have to use the DTE codec that I used for
 Coin list
 ---------
 A preliminary list for stages 1 and 2 is complete, and stage 3 is
-in progress.
+in progress.  Most coins in the first three stages covers behavior
+that differs little or none among Game Boy (DMG), Super Game Boy
+(SGB), and Game Boy Color (GBC) models.
 
 1. `add hl` flags
 2. `add sp` flags
@@ -39,13 +41,13 @@ in progress.
 12. `di halt` with TAC=IE=$04 and TIMA=IF=$00 sets IF bit 2
 13. `di halt inc d halt inc e` double-increments only E (halt bug)
 14. `di halt inc d halt inc e` calls no handler (VBA halt bug)
-15. After `ld a, 5 add a daa`, half-carry is clear
+15. `ld a, 5 add a daa` leaves half-carry clear
 16. Writing DIV every 1000 cycles or faster keeps APU length counter
     from expiring (suggested by LIJI)
 17. APU off clears readable registers
 18. NR52 bits 6-0 are read-only
 19. `push bc pop af push af pop de` sets DE=BC&$FFF0
-20. `inc hl` in mode 2 corrupts OAM only on DMG
+20. `inc hl` in mode 2 corrupts OAM only on DMG/SGB
 21. Wave RAM can't be read back during a wave note (cf. Demotronic
     "NO BOY" and Blargg dmg_sound 09)
 22. Alternating `ei di` calls no handler (VBA-M regression vs. VBA)
@@ -59,8 +61,8 @@ in progress.
 28. At start, NR52=$F0 on SGB or $F1 elsewhere (breaks SGB detection
     in LSDJ)
 29. Joypad interrupt works at all
-30. `daa` produces correct results for pathological AF:
-    $9A NH→$00 ZC, $7A H→$80, $00 NHC→$9A NC→$3A NC
+30. `daa` produces correct results for pathological values of AF:
+    $9A NH to $00 ZC, $7A H to $80, $00 NHC to $9A NC to $3A NC
 
 Unranked, to be tested at title screen and in menus:
 
@@ -68,16 +70,15 @@ Unranked, to be tested at title screen and in menus:
 - Asserting P14/P15 while holding a button causes joypad interrupt
   (suggested by Daid)
 
-Stage 4 is expected to focus on Game Boy Color differences.
+Stage 4 is expected to focus on GBC differences.
 
 - GBC palette can be written and read back during vblank only on GBC
 - Whether disabling sprites in LCDC changes mode 3 duration
 - Writing anything to STAT during mode 3 outside LYC causes an
   immediate extra interrupt only on DMG (suggested by organharvester)
 
-Stage 5 is expected to include some Super Game Boy differences.
-These are hard to test for because so much of the SGB is open-loop,
-passing no feedback to the Game Boy SoC.
+Stage 5 shall focus on SGB.  It can be hard to test because so much
+of the SGB is open-loop, passing no feedback to the Game Boy SoC.
 
 - `MLT_REQ` does not initiate multiplayer on GBC (GBC+SGB mode is
   not authentic)
@@ -91,17 +92,20 @@ Unranked:
 
 - Something something mid-scanline WX changes (suggested by LIJI)
 
-To make things easier for some emulator developers during extended
-periods of development hiatus due to the maintainer's day job,
-it has been suggested to prototype the Super Game Boy coins in a
-separate ROM and add them to Numism once complete.
+To make things easier for some emulator developers during long
+periods of development hiatus due to the day job of Numism's
+maintainer, it has been suggested to prototype SGB coins in a
+separate ROM and merge them once complete.
 
 Results
 -------
-Test each emulator in Game Boy, Super Game Boy, and Game Boy Color
-mode, and record the lowest score among supported modes.  Also
-record the highest score if at least twice the lowest.  If an
-emulator requires a boot ROM, use SameBoot.
+Test each emulator in DMG, SGB, and GBC mode, and record the lowest
+score among supported modes.
+Also record the highest score if at least twice the lowest or 10
+coins more than the lowest.
+Use SameBoot in emulators requiring a 256- or 2048-byte boot ROM, and
+use 256 KiB system software dumped from an authentic SGB accessory
+if required.
 
 Divergence between DMG and GBC behavior becomes more noticeable
 starting in stage 4.  Because the GBC features of No$gmb are

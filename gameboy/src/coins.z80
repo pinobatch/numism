@@ -627,7 +627,7 @@ measure_mode3:
   ; Schedule another interrupt at the end of drawing.
   ; Caution: On DMG, writing to STAT writes FF then the value.
   ; This causes an extra interrupt during mode 3 outside line LYC,
-  ; on which Road Rash (DMG version) and Xerd no Densetsu depend.
+  ; on which Road Rash (DMG version) and Legend of Zerd depend.
   ; But because we're in LYC, we're safe.
   ld [$FF00+C], a
 
