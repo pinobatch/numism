@@ -35,9 +35,9 @@ These are run in Wine 6.0 (Ubuntu 22.04):
 * [rew.](https://www.emuparadise.me/emulators/gb.php) 12STX
 * [VisualBoyAdvance](https://sourceforge.net/projects/vba) 1.7.2
 
-This is run in Mono:
+This is run in .NET 6:
 
-* [Mesen-SX](https://github.com/NovaSquirrel/Mesen-SX/) 2022-3-10
+* [Mesen](https://github.com/SourMesen/Mesen2) 2.0.0-preview1
 
 This is run in OpenJDK 17:
 
@@ -564,9 +564,8 @@ mode 2 on that line to the start of the following mode 0.
 
 - High-tier emulators match the Game Boy exactly.  
   42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
-- Mid-tier and lower-mid-tier emulators show some sort of variance
-  between 0 and 10 sprites.  
-  42 to 67 (VBA-M), 42 to 57 (mGBA), 42 to 70 (Mesen-S)
+- Mid-tier emulators show some variance between 0 and 10 sprites.  
+  42 to 67 (VBA-M), 42 to 57 (mGBA), 42 to 70 (Mesen)
 - Low-tier emulators show constant duration.  
   42 (rew.), 47 (VBA), 48 (KiGB)
 - Two emulators don't get the hint, not firing the second interrupt.  
@@ -600,16 +599,18 @@ ld [$FF00+C], a  ; write to IF
 
 ### Clocking APU via DIV
 
-The APU's sequencer controls the speed of sweep, envelope, and
-length counter.  It receives a 512 Hz clock from DIV.  So I wrote a
+The APU's sequencer controls the speed of sweep, envelope, and length
+counter.  It receives a 512 Hz clock from DIV, implemented as a
+falling edge detector on a DIV bit that stays low for 1024 M-cycles
+and high for 1024 M-cycles.  I wrote a
 coin that writes to DIV roughly every 660 cycles to keep DIV from
-reaching high enough to clock the APU's sequencer.  As expected,
-the usual suspects (VBA, Goomba, KiGB, rew., No$gmb) all fail.  It's
+counting high enough to clock the APU's sequencer.
+Low-tier emulators (VBA, Goomba, KiGB, rew., No$gmb) all fail.  It's
 also my first coin that distinguishes VBA-M (fail) from mGBA (pass).
 
 ### Echo RAM
 
-Echo RAM at $E000-$FDFF is a mirror of most of WRAM at $C000-$DFFF.
+Echo RAM at $E000-$FDFF is a mirror of most of WRAM at $C000-$DDFF.
 Some mappers incompletely decode SRAM at $A000 using A13, not A14.
 On these cartridges, writes to echo RAM go to both WRAM and SRAM,
 and reads from echo RAM produce a bus conflict as both memories
@@ -618,7 +619,7 @@ required licensed games to avoid reading or writing echo RAM.
 Yet in practice, it's safe on cartridges that completely
 decode SRAM or lack SRAM entirely.
 
-This exerciser shows that VBA 1.7 doesn't support echo RAM at all.
+This exerciser shows that VBA 1.7 doesn't support echo RAM.
 ```
 INST 70124E000000, AF 6900, BC A500, DE EFFF, HL CFFF
 ; disassembles to
@@ -647,8 +648,10 @@ ld [$CFD0], sp
 ld a, [de]
 ld b, a
 ```
-Gives B=FC on a Game Boy or B=44 in JSGB.  I'm not sure if I want to
-support a coin for this.
+Gives B=FC on a Game Boy or B=44 in JSGB.
+
+This is likely to break games using stack copy.  Because *Pokémon*
+uses stack copy, I doubt I'll make a coin for this.
 
 Other tests
 -----------
