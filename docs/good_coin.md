@@ -1,12 +1,26 @@
 What makes a good coin?
 =======================
 
+The reason for developing Numism is twofold: to promote production
+use of maintained emulators instead of historic discontinued
+emulators and to encourage emulator maintainers to fix easy defects.
+
 Many free or freeware console emulators fail accuracy test ROMs
-due to behavior differences from authentic hardware.  I seek
+due to behavior differences from authentic hardware.  Some emulators
+remain popular in particular games' ROM hacking scenes long after
+the emulator is no longer developed.  Casual users may be unaware
+of an emulator's lack of accuracy.
+
+Wide use of inaccurate emulators causes problems in two cases.
+Inaccuracy discourages developers and ROM hackers from making their
+work run correctly on an authentic console.  Or when a new game
+relies on a behavior that a particular emulator reproduces poorly,
+the user blames the game's developer rather than the emulator.
+
+I seek
 to survey current and notable historic emulators, research the
 precise behaviors underlying test failures, and produce "coins",
 or minimal test routines to highlight these differences.
-
 Each of up to 10 stages has 10 coins.  Each coin represents testing
 one hardware behavior that at least one stable emulator fails.
 Behaviors needed just to start popular games need not be tested.
@@ -48,7 +62,7 @@ RNG differences, in turn earlier than things causing only visual
 glitches.  Cases where an emulated game might write out of bounds
 to host memory should also rank early. Areas where an emulator is
 too lenient, causing homebrew games to appear to work but fail on
-hardware, generally rank later.  Things not used by any licensed
+hardware, may rank later.  Things not used by any licensed
 game or notable homebrew game, such as the PCM reflection registers
 in the Game Boy Color, might be too obscure for inclusion.
 
@@ -65,8 +79,8 @@ Emulicious) get right can rank near the end.
 
 Three classes of behaviors cannot be tested in this sort of
 framework: behaviors not visible to the CPU, behaviors of potentially
-hardware-damaging "killer pokes," and behaviors not testable in a
-single ROM image.
+hardware-damaging or emulator-crashing "killer pokes,"
+and behaviors not testable in a single ROM image.
 
 All tested behaviors must be visible to the CPU.  It cannot measure
 video output (such as palettes, priority, pixel response time, and

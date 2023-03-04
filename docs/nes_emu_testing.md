@@ -25,7 +25,7 @@ I regularly test in Mesen (Sour final), FCEUX 2.3.0 (New PPU),
 No$nes 1.2, and PocketNES 2013-07-01.  Occasionally I'll run
 something in loopyNES 11/21/99, NESticle x.xx, NESten 0.61 beta 1,
 Nintendulator 0.985, and rew. 12STX. Other emulators I'd like to test
-include puNES and iNES.
+include puNES, NESHawk, and iNES.
 
 Unlike No$gmb, No$nes takes a ROM path on the command line.
 It must be an absolute path with backslashes.  Save this as
