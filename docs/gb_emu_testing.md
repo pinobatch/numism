@@ -653,6 +653,46 @@ Gives B=FC on a Game Boy or B=44 in JSGB.
 This is likely to break games using stack copy.  Because *Pokémon*
 uses stack copy, I doubt I'll make a coin for this.
 
+### Controller OR mask
+
+On 2021-04-04, jvsTSX reported that this controller reading routine
+works in bgb and does not work in VBA 1.7.
+```
+ld a, $10
+ldh [rP1], a
+; wait 6
+ldh a, [rP1]
+xor $DF
+ld h, a
+swap h
+
+ld a, $20
+ldh [rP1], a
+; wait 6
+ldh a, [rP1]
+xor $EF
+add h
+```
+The routine relies on the OR mask $C0 when reading `rP1` ($FF00).
+Unlike SameBoy and VBA-M, VBA fails to apply this OR mask.
+```
+INST 77F5F17E74, AF 1000, HL FF00
+; disassembles to
+ld [hl], a  ; select buttons
+push af     ; wait 7 cycles
+pop af
+ld a, [hl]  ; read input
+ld [hl], h  ; release key matrix
+```
+Results
+
+- In SameBoy and VisualBoyAdvance-M:  
+  AF=1000 returns DF00 for A or DD00 for B+A; AF=2000 returns EF00
+- In VisualBoyAdvance 1.7:  
+  AF=1000 returns 1F00 for A or 1D00 for B+A; AF=2000 returns 2F00
+
+The non-audio OR mask coin includes `rP1`.
+
 Other tests
 -----------
 Things I can think off the top of my head to make exercisers for:
@@ -663,4 +703,3 @@ Things I can think off the top of my head to make exercisers for:
 - Values read and written to GBC palette ports in DMG and DMG-on-GBC,
   and DMG palette ports in GBC mode
 - What is DMG Sound _trying_ to test, and what is No$gmb failing?
-
