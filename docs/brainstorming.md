@@ -28,8 +28,8 @@ and reach more coins.
   Move on ground, crouch, ascend one cell, descend two cells, ascend
   and descend ladders, collect coins, and view fake coins.
 - **Sneakers** sold by a leporichaun (anthropomorphic rabbit
-  shoemaker in 18th-century clothes) named (name missing) at an
-  outdoor market for 5 coins  
+  shoemaker in 18th-century clothes) named Dandelion ("Danny" for
+  short) at an outdoor market for 5 coins  
   Replacing your school shoes with athletic shoes lets you
   cross gaps of one cell, ascend two cells, and descend three cells.
   This lets you ascend to hills behind you without having to find
