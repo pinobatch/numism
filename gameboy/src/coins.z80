@@ -911,7 +911,7 @@ coin_oam_bug:
   ld b, $A5
   call oamcmp_inc
   ld a, l
-  ld [debughex+0], a
+;  ld [debughex+0], a
   ret c
 
   xor a
@@ -954,7 +954,7 @@ coin_oam_bug:
   sbc a
   ld b, a  ; A=FF for difference, 00 for identical
   ld a, l
-  ld [debughex+1], a
+;  ld [debughex+1], a
 
   ld a, [initial_a]
   xor $11  ; A=0 for GBC, nonzero for mono (DMG/MGB/SGB)

@@ -17,6 +17,9 @@ genobjlist='vwf7_cp144p'
 twobitlist='coincels'
 pb16list='checkmark'
 iurlist='logo'
+oaat_objlist='header init ppuclear pads oneatatime coins sgb'
+
+allobjlist=$(printf '%s\n' $objlist $oaat_objlist | sort -u)
 
 mkdir -p obj/gb
 echo 'Force folder creation' > obj/gb/index.txt
@@ -32,19 +35,21 @@ for filename in $iurlist; do
   rgbgfx -c embedded -o "obj/gb/$filename.2b" "tilesets/$filename.png"
   python3 tools/incruniq.py "obj/gb/$filename.2b" "obj/gb/$filename.iur"
 done
-for filename in $objlist; do
+for filename in $allobjlist; do
   # need -h to make double-inc halts
   rgbasm -o "obj/gb/$filename.o" -h "src/$filename.z80"
 done
 for filename in $genobjlist; do
-  # need -h to make double-inc halts
   rgbasm -o "obj/gb/$filename.o" -h "obj/gb/$filename.z80"
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist)
 rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
+oaat_objlisto=$(printf "obj/gb/%s.o " $oaat_objlist $genobjlist)
+rgblink -o "$title-oneatatime.gb" -p 0xFF -m "$title-oneatatime.map" -n "$title-oneatatime.sym" $oaat_objlisto
 
 # per beware: don't add -s until SGB-related tests are ready
 cp "$title.gb" "$title-sram.gb"
 cp "$title.sym" "$title-sram.sym"
 rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -s "$title.gb"
+rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -s "$title-oneatatime.gb"
 rgbfix -jvt "$inttitle" -l0x33 '-mMBC5+RAM+BATTERY' -n0 -p0xFF -r2 -s "$title-sram.gb"

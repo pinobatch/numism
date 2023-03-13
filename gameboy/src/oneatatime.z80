@@ -1,0 +1,186 @@
+;
+; Simplified front end that displays a number, runs one coin,
+; and repeats.  Does not track pass or fail.  Helpful for developers
+; of early-stage GB emulators to find which coin freezes.
+;
+include "src/hardware.inc"
+include "src/global.inc"
+
+; this is needed to satisfy init, which attempts to clear this area
+section "lineImgBuf",wram0,align[8]
+lineImgBuf:: ds 256
+
+SECTION "main", ROM0
+
+DEF COINS_PER_STAGE equ 10
+DEF NUM_STAGES equ 4
+def WAIT_FRAMES equ 60
+
+main::
+  xor a
+  ldh [rIF],a
+  ldh [nmis],a
+
+  ld hl, coin_list
+  lb bc, 0, NUM_STAGES * COINS_PER_STAGE
+  ; B: completed coins (BCD); C: coins left (binary)
+
+  .coinloop:
+    ld a, b
+    add 1
+    daa
+    ld b, a
+    push bc
+    push hl
+    di
+    call draw_two_digits
+    
+    ; Wait a sec
+    ld c, WAIT_FRAMES
+    ld a, 144
+    ld hl, rLY
+    .waitnot144:
+      cp [hl]
+      jr z, .waitnot144
+    .wait144:
+      cp [hl]
+      jr nz, .wait144
+      dec c
+      jr nz, .waitnot144
+    
+    pop hl
+    push hl
+    ld a, [hl+]
+    ld h, [hl]
+    ld l, a
+    call jp_hl
+
+    ; if there are more coins, run them
+    pop hl
+    pop bc
+    inc hl
+    inc hl
+    dec c
+    jr nz, .coinloop
+  ld a, $0A
+  call draw_two_digits
+  ei
+  .done:
+    halt
+    jr .done
+
+jp_hl:
+  jp hl
+
+draw_two_digits:
+  push af
+  call lcd_off
+  call clear_scrn0_to_0
+  xor a
+  ldh [rSCX], a
+  ldh [rSCY], a
+  ld hl, $8000
+  ld c, 16
+  rst memset_tiny
+  cpl
+  ld c, 16
+  rst memset_tiny
+
+  pop af
+  push af
+  swap a
+  ldxy de, 5, 6
+  call .draw_one_digit
+  ldxy de, 11, 6
+  pop af
+  call .draw_one_digit
+
+  ld a, %11100100
+  ldh [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000
+  ldh [rLCDC], a
+  ret
+
+
+.draw_one_digit:
+  and $0F
+  add a
+  add a
+  add low(digits_data)
+  ld l, a
+  adc high(digits_data)
+  sub l
+  ld h, a
+  ld c, 4
+  .colloop:
+    ld a, [hl+]
+    ld b, a
+    push de
+    .tileloop:
+      srl b
+      jr nc, .no_tile
+        ld a, 1
+        ld [de], a
+      .no_tile:
+      ld a, e
+      add 32
+      ld e, a
+      adc d
+      sub e
+      ld d, a
+      ld a, b
+      or a
+      jr nz, .tileloop
+    pop de
+    inc e
+    dec c
+    jr nz, .colloop
+  ret
+
+section "digits_data", ROM0
+
+digits_data:
+  db %011110  ; 0
+  db %100001
+  db %100001
+  db %011110
+  db %000000  ; 1
+  db %000010
+  db %111111
+  db %000000
+  db %110010  ; 2
+  db %101001
+  db %101001
+  db %100110
+  db %010000  ; 3
+  db %100101
+  db %100101
+  db %011010
+  db %001100  ; 4
+  db %001010
+  db %001001
+  db %111111
+  db %010110  ; 5
+  db %100101
+  db %100101
+  db %011001
+  db %011110  ; 6
+  db %100101
+  db %100101
+  db %011000
+  db %000001  ; 7
+  db %110001
+  db %001101
+  db %000011
+  db %011010  ; 8
+  db %100101
+  db %100101
+  db %011010
+  db %000110  ; 9
+  db %101001
+  db %101001
+  db %011110
+  db %111111  ; K
+  db %001100
+  db %010010
+  db %100001
