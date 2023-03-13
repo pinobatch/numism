@@ -14,10 +14,10 @@ DEF WITH_DEBUGHEX equ 0
 DEF DEBUGHEX_TILEID equ $30
 DEF DEBUGHEX_NUMTILES equ 3
 
-section "passbits", WRAM0, ALIGN[2]
-; passbits[2*(S - 1) + 1]: bits 1-0 are stage S coins 1-2 (0=pass, 1=fail)
-; passbits[2*(S - 1)]: bits 7-0 are stage S coins 3-10
-passbits:: ds NUM_STAGES*2
+section "wPassBits", WRAM0, ALIGN[2]
+; wPassBits[2*(S - 1) + 1]: bits 1-0 are stage S coins 1-2 (0=pass, 1=fail)
+; wPassBits[2*(S - 1)]: bits 7-0 are stage S coins 3-10
+wPassBits:: ds NUM_STAGES*2
 
 section "continue_state", WRAM0
 cur_stage: ds 1
@@ -38,11 +38,11 @@ section "continue_run_tests", ROM0
 run_tests_in_stage_a::
   ld b, a
 
-  ; DE: pointer into passbits
+  ; DE: pointer into wPassBits
   add a
-  add low(passbits+1)
+  add low(wPassBits+1)
   ld e, a
-  adc high(passbits+1)
+  adc high(wPassBits+1)
   sub e
   ld d, a
 
@@ -76,6 +76,7 @@ run_tests_in_stage_a::
     pop de
 
     ; Record test result (0: pass; 1: fail)
+    ; these occupy the low bits
     ld a, [de]
     adc a
     ld [de], a
@@ -455,7 +456,7 @@ continue_read_pad:
   jr z, .irq_not_occurred_yet
     ; An IRQ has occurred.  Mark this in two ways: earn coin 29,
     ; and set read to True.
-    ld hl, passbits + 4  ; Seek to coins 23-30
+    ld hl, wPassBits + 4  ; Seek to coins 23-30
     res (30 - 29), [hl]
     ld a, $80  ; $80: has been determined not to support IRQ
     jr .have_new_capability
@@ -582,9 +583,9 @@ draw_coin_names_stage_a:
 
 draw_checkmarks_stage_a:
   add a
-  add low(passbits)
+  add low(wPassBits)
   ld l, a
-  add high(passbits)
+  add high(wPassBits)
   sub l
   ld h, a
   ld a, [hl+]  ; A: low bits

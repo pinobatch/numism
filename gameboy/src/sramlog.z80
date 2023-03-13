@@ -1,0 +1,219 @@
+
+def LF equ 10
+def CP_M_EOF equ 26
+def COINS_PER_STAGE equ 10
+def NUM_STAGES equ 3
+def _SRAM equ $A000
+
+section "sramlog_tmp", HRAM
+hSeenCoinsBCD: ds 1
+hTotalScoreBCD: ds 1
+
+section "sramlog", ROM0
+log_coins_to_sram::
+  ld hl, $000A
+  ld [hl], l
+
+  ld de, _SRAM
+  ld h, CP_M_EOF
+  ld bc, $2000
+  call memset
+
+  ld hl, coin_list
+  ld de, _SRAM
+  xor a
+  ldh [hSeenCoinsBCD], a
+  ldh [hTotalScoreBCD], a
+  .stageloop:
+    push hl  ; Stack: pointer into coin directory
+
+    ; Write number of stage
+    ld hl, word_stage
+    call stpcpy
+    ldh a, [hSeenCoinsBCD]
+    swap a
+    add "1"
+    assert NUM_STAGES < 10  ; will need to write 2 digits if so
+    ld [de], a
+    inc de
+    ld a, ":"
+    ld [de], a
+    inc de
+    ld a, " "
+    ld [de], a
+    inc de
+
+    ; Get set of failed coins for this stage
+    ; this occupies bits 9 (first) through 0 (last)
+    ldh a, [hSeenCoinsBCD]
+    rra
+    rra
+    rra
+    add low(wPassBits)
+    ld l, a
+    adc high(wPassBits)
+    sub l
+    ld h, a
+    ld a, [hl+]
+    ld h, [hl]  ; HL: failure bits
+    ld l, a
+
+    ; Count failed coins
+    push hl  ; Stack: failed coins, pointer into coin index
+    ld a, COINS_PER_STAGE
+    ld c, 16
+    .popcntloop:
+      add hl, hl  ; Set CF if failed
+      sbc 0  ; Subtract 1 if failed
+      dec c
+      jr nz, .popcntloop
+
+    ; Write count of coins not failed
+    ld c, a
+    ldh a, [hTotalScoreBCD]
+    or a
+    add c
+    daa  ; Scorekeeping
+    assert NUM_STAGES < 10  ; will need to count 3 digits if so
+    ldh [hTotalScoreBCD], a
+    ld a, c
+    cp 10
+    jr c, .popcnt_no_tens
+      ld a, "1"
+      ld [de], a
+      inc de
+      xor a
+    .popcnt_no_tens:
+    add "0"
+    ld [de], a
+    inc de
+    ld hl, word_out_of_ten
+    call stpcpy
+    pop bc  ; BC: failed coins; Stack: pointer into coin directory
+
+    .coinloop:
+      ldh a, [hSeenCoinsBCD]
+      add 1
+      daa
+      ldh [hSeenCoinsBCD], a
+      ; Write coin number
+      assert NUM_STAGES < 10  ; will need to write 3 digits if so
+      swap a
+      and $0F  ; get leading digit
+      jr z, .leading_digit_zero
+        xor " " ^ "0"
+      .leading_digit_zero:
+      xor " "
+      ld [de], a
+      inc de
+      ldh a, [hSeenCoinsBCD]
+      and $0F
+      xor "0"
+      ld [de], a
+      inc de
+
+      ; Write whether this stage was passed
+      ld hl, word_pass
+      bit (COINS_PER_STAGE-9), b
+      jr z, .word_is_pass
+        ld hl, word_fail
+      .word_is_pass:
+      sla c
+      rl b
+      call stpcpy
+
+      ; Write the name of the coin
+      pop hl
+      push hl
+      ld a, [hl+]
+      ld h, [hl]
+      ld l, a  ; HL: pointer to coin's jump instruction
+      inc hl
+      inc hl  ; HL: pointer to coin's name
+      call stpcpy_printable
+      ld a, LF
+      ld [de], a
+      inc de
+
+      ; Move to next coin
+      pop hl
+      inc hl
+      inc hl
+      push hl
+      ldh a, [hSeenCoinsBCD]
+      and $0F
+      jr nz, .coinloop
+
+    ; Move to next stage
+    ld a, LF
+    ld [de], a
+    inc de
+    ldh a, [hSeenCoinsBCD]
+    cp NUM_STAGES * 16
+    pop hl  ; HL: pointer into coin directory
+    jp c, .stageloop
+
+  ; Write total
+  ld hl, word_total
+  call stpcpy
+  ldh a, [hTotalScoreBCD]
+  swap a
+  and $0F
+  assert NUM_STAGES < 10  ; will need to write 3 digits if so
+  jr z, .total_less_than_ten
+    xor "0"
+    ld [de], a
+    inc de
+  .total_less_than_ten:
+  ldh a, [hTotalScoreBCD]
+  and $0F
+  xor "0"
+  ld [de], a
+  inc de
+
+  ; Finish file with newline, space padding, newline
+  ld a, LF
+  ld [de], a
+  inc de
+  ld a, " "
+  .space_fill_loop:
+    ld [de], a
+    inc de
+    bit 6, d
+    jr z, .space_fill_loop
+  dec de
+  ld a, LF
+  ld [de], a
+  ret
+
+;;
+; Copies bytes up to and including the first zero byte from HL to DE.
+; Leaves HL and DE pointing at the final zero.
+stpcpy_continue:
+  inc de
+stpcpy:
+  ld a, [hl+]
+  ld [de], a
+  or a
+  jr nz, stpcpy_continue
+  dec hl
+  ret
+
+;;
+; Copies bytes up to and including the first nonprintable (sub-$20)
+; byte from HL to DE.  Leaves HL and DE pointing at the final byte.
+stpcpy_printable_continue:
+  inc de
+stpcpy_printable:
+  ld a, [hl+]
+  ld [de], a
+  cp $20
+  jr nc, stpcpy_printable_continue
+  dec hl
+  ret
+
+word_stage: db "Stage ", 0
+word_out_of_ten: db "/10", LF, 0
+word_fail: db ". FAIL ", 0
+word_pass: db ". Pass ", 0
+word_total: db "Total score: ", 0

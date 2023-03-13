@@ -22,6 +22,8 @@ main::
   ld a, 3
   call run_tests_in_stage_a
 
+  call log_coins_to_sram
+
   jp show_stages
 
   ; Load title screen

@@ -12,7 +12,7 @@ set -e
 
 title=numism
 inttitle='NUMISM'
-objlist='header init ppuclear pads main unpb16 uniur coins continue vwflabels vwfdraw sgb'
+objlist='header init ppuclear pads main unpb16 uniur coins continue sramlog vwflabels vwfdraw sgb'
 genobjlist='vwf7_cp144p'
 twobitlist='coincels'
 pb16list='checkmark'
@@ -44,4 +44,7 @@ objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist)
 rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
 
 # per beware: don't add -s until SGB-related tests are ready
+cp "$title.gb" "$title-sram.gb"
+cp "$title.sym" "$title-sram.sym"
 rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -s "$title.gb"
+rgbfix -jvt "$inttitle" -l0x33 '-mMBC5+RAM+BATTERY' -n0 -p0xFF -r2 -s "$title-sram.gb"
