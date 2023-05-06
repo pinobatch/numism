@@ -2,9 +2,12 @@ include "src/hardware.inc"
 include "src/global.inc"
 
 ; wCoinTmp must be below $DE00 to be mirrored into echo RAM.
-; Thus I put it in WRAM0, not WRAMX.
-section "COINSWRAM", WRAM0
-wCoinTmp: ds 1
+; Thus I put it in WRAM0, not WRAMX.  Currently it's hardcoded
+; because I don't want it allocating anything in WRAMX banks 2-7.
+section "COINSWRAM0", WRAM0[$CFFF]
+wCoinTmp:: ds 1
+section "COINSWRAMX", WRAM0[$DFFF]
+wxCoinTmp:: ds 1
 
 section "COINS", ROM0, ALIGN[2]
 
@@ -268,7 +271,7 @@ pass_if_D_nonzero:
 
 ;;
 ; Turn on the APU; just don't route any channels to any speakers
-init_silent_apu:
+init_silent_apu::
   ld hl, rNR52
   xor a
   ld [hl], a
@@ -1353,7 +1356,7 @@ coin_mode_3_length:
 
   ; Measure with 10 sprites
   lb bc, 10, 8
-  call .test_with_full_load
+  call mode_3_test_with_full_load
   ld e, a
   add -73
   cp -9
@@ -1362,7 +1365,7 @@ coin_mode_3_length:
   ; Whatever 10 was, 16 needs to match
   push de
   lb bc, 16, 8
-  call .test_with_full_load
+  call mode_3_test_with_full_load
   pop de
   sub e
   cp 1  ; CF=1 if match
@@ -1372,7 +1375,7 @@ coin_mode_3_length:
   or a
   ret
 
-.test_with_full_load:
+mode_3_test_with_full_load::
   ; Put B sprites spaced 8 pixels apart
   ld hl, SOAM
   ld d, 8+8  ; X position
@@ -1507,103 +1510,4 @@ coin_daa_oddball_af:
 .local_fail_nz:
   jp pass_if_Z_flag
 
-
-; Stage 4: GBC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-section "STAGE4COINS", ROM0
-
-coin_no_31:
-  jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
-
-coin_no_32:
-  jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
-
-coin_stat_write_ff:
-  jr .start
-  db "NYA STAT briefly enables all",10
-  db "Writing 0 to FF41 in mode",10
-  db "0-2 or LY=LYC fires",10
-  db "interrupt on B&W only",10
-  db "'Road Rash? More like crash!'",0
-.start:
-  or a
-  ret
-
-coin_ram_capacity:
-  jr .start
-  db "NYA RAM capacity",10
-  db "B&W: 8K WRAM 8K VRAM",10
-  db "GBC: 32K WRAM 16K VRAM",10
-  db "(and WRAM bank 0 is 1)",0
-.start:
-  or a
-  ret
-
-coin_gbc_or_mask:
-  jr .start
-  db "NYA OR mask for GBC regs",10
-  db "Unused bits of GBC-only",10
-  db "registers read as 1;",10
-  db "all $FF on B&W system",0
-.start:
-  or a
-  ret
-
-coin_gbc_mode_3_length:
-  jr .start
-  db "NYA GBC mode 3 length",10
-  db "Disabling sprites in LCDC",10
-  db "reduces mode 3 length on",10
-  db "B&W only",0
-.start:
-  or a
-  ret
-
-; This is where I want to start making tests that behave differently
-; in GBC mode vs. DMG mode.  I'll start implementing these once I
-; allocate 40 coins.
-coin_wave_ram_retrigger:
-  jr .start
-  db "NYA Retrigger corrupts wave",10
-  db "Playing another note without",10
-  db "unlocking and relocking wave",10
-  db "RAM corrupts it on B&W only",0
-.start:
-  call init_silent_apu
-  or a
-  ret
-
-coin_gbc_palette_readback:
-  jr .start
-  db "NYA GBC CRAM readable",10
-  db "Can read palette during",10
-  db "vblank on GBC only",0
-.start:
-  or a
-  ret
-
-coin_gbc_palette_blocking:
-  jr .start
-  db "NYA GBC CRAM blkd writes",10
-  db "GBC CRAM is inaccessible",10
-  db "in mode 3 (and never",10
-  db "accessible on B&W)",0
-.start:
-  or a
-  ret
-
-coin_no_40:
-  jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
 

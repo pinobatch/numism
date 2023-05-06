@@ -12,12 +12,12 @@ set -e
 
 title=numism
 inttitle='NUMISM'
-objlist='header init ppuclear pads main unpb16 uniur coins continue sramlog vwflabels vwfdraw sgb'
+objlist='header init ppuclear pads main unpb16 uniur coins gbccoins continue sramlog vwflabels vwfdraw sgb'
 genobjlist='vwf7_cp144p'
 twobitlist='coincels'
 pb16list='checkmark'
 iurlist='logo'
-oaat_objlist='header init ppuclear pads oneatatime coins sgb'
+oaat_objlist='header init ppuclear pads oneatatime coins gbccoins sgb'
 
 allobjlist=$(printf '%s\n' $objlist $oaat_objlist | sort -u)
 
@@ -43,13 +43,13 @@ for filename in $genobjlist; do
   rgbasm -o "obj/gb/$filename.o" -h "obj/gb/$filename.z80"
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist)
-rgblink -o "$title.gb" -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
+rgblink -o "$title.gb" -d -p 0xFF -m "$title.map" -n "$title.sym" $objlisto
 oaat_objlisto=$(printf "obj/gb/%s.o " $oaat_objlist $genobjlist)
-rgblink -o "$title-oneatatime.gb" -p 0xFF -m "$title-oneatatime.map" -n "$title-oneatatime.sym" $oaat_objlisto
+rgblink -o "$title-oneatatime.gb" -d -p 0xFF -m "$title-oneatatime.map" -n "$title-oneatatime.sym" $oaat_objlisto
 
 # per beware: don't add -s until SGB-related tests are ready
 cp "$title.gb" "$title-sram.gb"
 cp "$title.sym" "$title-sram.sym"
 rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -sc "$title.gb"
-rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -s "$title-oneatatime.gb"
+rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -sc "$title-oneatatime.gb"
 rgbfix -jvt "$inttitle" -l0x33 '-mMBC5+RAM+BATTERY' -n0 -p0xFF -r2 -sc "$title-sram.gb"

@@ -1,0 +1,163 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+def vCoinTmp equ $9FFF
+
+; Stage 4: GBC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "STAGE4COINS", ROM0
+
+coin_no_31::
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_no_32::
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
+coin_stat_write_ff::
+  jr .start
+  db "NYA STAT briefly enables all",10
+  db "Writing 0 to FF41 in mode",10
+  db "0-2 or LY=LYC fires",10
+  db "interrupt on B&W only",10
+  db "'Road Rash? More like crash!'",0
+.start:
+  or a
+  ret
+
+coin_ram_capacity::
+  jr .start
+  db "RAM capacity",10
+  db "B&W: 8K WRAM 8K VRAM",10
+  db "GBC: 32K WRAM 16K VRAM",10
+  db "(and Dxxx bank 0 is 1)",0
+.start:
+
+  call lcd_off
+  ldh a, [hCapability]
+  and $80
+  rlca
+  ld d, a  ; D is $01 for GBC/GBA or $00 for DMG/SGB
+
+  ; Fill sentinel bytes of RAM with bank number
+  xor a
+  .fill_banks:
+    ldh [rSVBK], a
+    ld [wxCoinTmp], a  ; write 00 FF FE FD ... 02 01 to WRAMX
+    dec a
+    ldh [rSVBK], a
+    ldh [rVBK], a
+    ld [wCoinTmp], a   ; write FF FE FD FC ... 01 00 to WRAM0
+    ld [vCoinTmp], a   ; write FF FE FD FC ... 01 00 to VRAM
+    jr nz, .fill_banks
+
+  ; Test that each byte has the expected value
+  ld b, b
+  .test_banks:
+    ldh [rSVBK], a
+    ldh [rVBK], a
+    ld b, a  ; B: current bank number
+
+    ; VRAM bank should be current_bank & is_GBC
+    and d
+    ld hl, vCoinTmp
+    xor [hl]  ; Should be 0
+    ; WRAM0 bank should always be 0
+    ld hl, wCoinTmp
+    or [hl]  ; Should be 0
+    jr nz, .fail
+
+    ; WRAMX bank should be 1 if is_GBC == 0 or (bank & $07) == 0
+    ; or bank & $07 otherwise
+    or d
+    jr z, .force_bank_1
+      ld a, b
+      and $07
+      jr nz, .have_expected_wramx_bank
+    .force_bank_1:
+      inc a
+    .have_expected_wramx_bank:
+    ld hl, wxCoinTmp
+    xor [hl]  ; Should be 0
+    jr nz, .fail
+
+    ld a, b
+    dec a
+    jr nz, .test_banks
+
+  jr .pass
+.fail:
+  xor a
+  scf
+.pass:
+  ldh [rSVBK], a
+  ldh [rVBK], a
+  ret
+
+coin_gbc_or_mask::
+  jr .start
+  db "NYA OR mask for GBC regs",10
+  db "Unused bits of GBC-only",10
+  db "registers read as 1;",10
+  db "all $FF on B&W system",0
+.start:
+  or a
+  ret
+
+coin_gbc_mode_3_length::
+  jr .start
+  db "NYA GBC mode 3 length",10
+  db "Disabling sprites in LCDC",10
+  db "reduces mode 3 length on",10
+  db "B&W only",0
+.start:
+  or a
+  ret
+
+; This is where I want to start making tests that behave differently
+; in GBC mode vs. DMG mode.  I'll start implementing these once I
+; allocate 40 coins.
+coin_wave_ram_retrigger::
+  jr .start
+  db "NYA Retrigger corrupts wave",10
+  db "Playing another note without",10
+  db "unlocking and relocking wave",10
+  db "RAM corrupts it on B&W only",0
+.start:
+  call init_silent_apu
+  or a
+  ret
+
+coin_gbc_palette_readback::
+  jr .start
+  db "NYA GBC CRAM readable",10
+  db "Can read palette during",10
+  db "vblank on GBC only",0
+.start:
+  or a
+  ret
+
+coin_gbc_palette_blocking::
+  jr .start
+  db "NYA GBC CRAM blkd writes",10
+  db "GBC CRAM is inaccessible",10
+  db "in mode 3 (and never",10
+  db "accessible on B&W)",0
+.start:
+  or a
+  ret
+
+coin_no_40::
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+

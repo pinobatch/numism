@@ -26,7 +26,7 @@ sgb_wait::
 ; Super Game Boy detection ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;
-; Sets hCapability to 1 if the player number is 2 or 4.
+; Sets hCapability bit 0 ($01) if the player number is 2 or 4.
 ; rP1 must be $30 (key matrix released), such as after sgb_send or
 ; read_pad.  When this happens, SGB returns 4 - player number in
 ; bits 1-0, where 3 means player 1, 2 means player 2, etc.
@@ -36,7 +36,8 @@ capa_1_if_player_2:
   ldh a, [rP1]
   rra  ; players 1 or 3: carry set; players 2 or 4: carry clear
   ret c
-  ld a, $01
+  ldh [hCapability],a
+  or $01
   ldh [hCapability],a
   ret
 

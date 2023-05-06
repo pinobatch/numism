@@ -99,7 +99,7 @@ draw_two_digits:
   call .draw_one_digit
 
   ld a, %11100100
-  ldh [rBGP], a
+  call set_bgp
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000
   ldh [rLCDC], a
   ret

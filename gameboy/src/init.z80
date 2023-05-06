@@ -59,6 +59,11 @@ reset_handler::
   ld sp, stack_top + STACK_SIZE  ; Set up stack pointer (full descending)
   ld hl, initial_a
   ld [hl+], a
+  xor $11
+  cp 1
+  ld a, 0
+  rra
+  ldh [hCapability], a
   ldh a, [rNR52]
   ld [hl+], a
   ld [hl], b
@@ -71,7 +76,6 @@ reset_handler::
   xor a
   ldh [hCurKeys], a
   ldh [hNewKeys], a
-  ldh [hCapability], a
   ld [wJoyIRQCapability], a
   ldh [rLCDC], a  ; turn off rendering
   ldh [rSCY], a   ; clear scroll
