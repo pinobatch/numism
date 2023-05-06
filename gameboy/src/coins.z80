@@ -45,14 +45,14 @@ coin_list::
   ; stage 4: begin dmg/gbc differences
   dw coin_no_31
   dw coin_no_32
-  dw coin_no_33
-  dw coin_no_34
-  dw coin_no_35
-  dw coin_no_36
-  dw coin_no_37
+  dw coin_stat_write_ff
+  dw coin_ram_capacity
+  dw coin_gbc_or_mask
+  dw coin_gbc_mode_3_length
   dw coin_wave_ram_retrigger
   dw coin_gbc_palette_readback
-  dw coin_stat_write_ff
+  dw coin_gbc_palette_blocking
+  dw coin_no_40
 
 
 ; Controls whether tests using init_silent_apu are audible.
@@ -817,7 +817,7 @@ coin_apu_off_clear:
   rst memset_tiny
   call set_wave_ram_signature
 
-  ; Turn off the PPU and OR mask must be read back
+  ; Turn off the APU and OR mask must be read back
   xor a
   ldh [rNR52], a
   call pass_if_apu_equals_or_mask
@@ -892,8 +892,8 @@ coin_push_af_low_4:
 ;;
 ; This is a very rough test for the DMG OAM bug.
 ; It represents a couple firsts:
-; 1. In the game, it gives users of emulators other than Emulicious
-;    or SameBoy their first experience of a counterfeit coin.
+; 1. In the game, it gives users of emulators other than Emulicious,
+;    SameBoy, and bgb their first experience of a counterfeit coin.
 ; 2. It adjusts for different expected behavior on Game Boy
 ;    compared to Game Boy Color.  This foreshadows stage 4.
 coin_oam_bug:
@@ -1465,6 +1465,11 @@ coin_daa_oddball_af:
 .local_fail_nz:
   jp pass_if_Z_flag
 
+
+; Stage 4: GBC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "STAGE4COINS", ROM0
+
 coin_no_31:
   jr .start
   db "Always pass for now",0
@@ -1479,37 +1484,43 @@ coin_no_32:
   or a
   ret
 
-coin_no_33:
+coin_stat_write_ff:
   jr .start
-  db "Always pass for now",0
+  db "NYA STAT briefly enables all",10
+  db "Writing 0 to FF41 in mode",10
+  db "0-2 or LY=LYC fires",10
+  db "interrupt on B&W only",10
+  db "'Road Rash? More like crash!'",0
 .start:
   or a
   ret
 
-coin_no_34:
+coin_ram_capacity:
   jr .start
-  db "Always pass for now",0
+  db "NYA RAM capacity",10
+  db "B&W: 8K WRAM 8K VRAM",10
+  db "GBC: 32K WRAM 16K VRAM",10
+  db "(and WRAM bank 0 is 1)",0
 .start:
   or a
   ret
 
-coin_no_35:
+coin_gbc_or_mask:
   jr .start
-  db "Always pass for now",0
+  db "NYA OR mask for other regs",10
+  db "Unused bits of GBC-only",10
+  db "registers read as 1;",10
+  db "all $FF on B&W system",0
 .start:
   or a
   ret
 
-coin_no_36:
+coin_gbc_mode_3_length:
   jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
-
-coin_no_37:
-  jr .start
-  db "Always pass for now",0
+  db "NYA GBC mode 3 length",10
+  db "Disabling sprites in LCDC",10
+  db "reduces mode 3 length on",10
+  db "B&W only",0
 .start:
   or a
   ret
@@ -1537,12 +1548,19 @@ coin_gbc_palette_readback:
   or a
   ret
 
-coin_stat_write_ff:
+coin_gbc_palette_blocking:
   jr .start
-  db "NYA STAT briefly enables all",10
-  db "Writing 0 to FF41 during",10
-  db "mode 0, 1, 2, or LY=LYC",10
-  db "fires interrupt on B&W only",0
+  db "NYA GBC CRAM blkd writes",10
+  db "GBC CRAM is inaccessible",10
+  db "in mode 3 (and never",10
+  db "accessible on B&W)",0
+.start:
+  or a
+  ret
+
+coin_no_40:
+  jr .start
+  db "Always pass for now",0
 .start:
   or a
   ret

@@ -56,7 +56,7 @@ mode3len_test::
   ld b, a
   ldxy de, 13, 3
   call hblank_put_bc
-  
+
   ldh a, [new_keys]
   bit PADB_SELECT, a
   jr z, .forever
@@ -204,6 +204,9 @@ handle_input:
   and PADF_A
   jr nz, .a_held
 
+    ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800
+    ldh [rLCDC], a
+
     ; Unblink sprite under control in case moved
     inc l
     inc l
@@ -249,6 +252,15 @@ handle_input:
       inc [hl]
     .not_move_down:
 
+  ; B: show and hide objs
+  ldh a, [cur_keys]
+  and PADF_B
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  jr nz, .no_obj
+    or LCDCF_OBJON
+  .no_obj:
+  ldh [rLCDC], a
+
   ret
 
 mode3len_labels:
@@ -258,12 +270,14 @@ mode3len_labels:
   db "X:    Y:    PRIO:", $FF
   dwxy 1, 3
   db "MODE 3 TIME:", $FF
-  dwxy 1, 13
+  dwxy 1, 12
   db "L R:PICK OBJ", $FF
-  dwxy 1, 14
+  dwxy 1, 13
   db "U D:SET PRIORITY", $FF
-  dwxy 1, 15
+  dwxy 1, 14
   db "A DIR:MOVE OBJ", $FF
+  dwxy 1, 15
+  db "A B:HIDE ALL", $FF
   dwxy 1, 16
   db "SEL:MODE 3 LENGTH", $FF
   db $00

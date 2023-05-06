@@ -20,10 +20,19 @@ of a 32K ROM.  I may have to use the DTE codec that I used for
 
 Coin list
 ---------
-A preliminary list for stages 1 and 2 is complete, and stage 3 is
-in progress.  Most coins in the first three stages covers behavior
-that differs little or none among Game Boy (DMG), Super Game Boy
-(SGB), and Game Boy Color (GBC) models.
+Lists for the first three stages are complete.  Stage 4 is in
+planning and begins a focus on distinguishing behaviors of the
+original Game Boy (DMG) from later models.
+
+Stages:
+
+1. no$gmb
+2. VBA and rew.
+3. Mid-tier emulators
+4. Game Boy Color (GBC)-specific behaviors
+5. Super Game Boy (SGB)-specific behaviors
+
+Coins:
 
 1. `add hl` flags
 2. `add sp` flags
@@ -63,6 +72,19 @@ that differs little or none among Game Boy (DMG), Super Game Boy
 29. Joypad interrupt works at all
 30. `daa` produces correct results for pathological values of AF:
     $9A NH to $00 ZC, $7A H to $80, $00 NHC to $9A NC to $3A NC
+31. Want GBC-specific test
+32. Want GBC-specific test
+33. STAT=$00 during mode 3 outside LYC causes an immediate
+    extra interrupt only on DMG (suggested by organharvester)
+34. VRAM has banks 0 and 1 and WRAM has banks 1-7, only on GBC
+35. OR mask for GBC-specific registers varies by model, particularly
+    KEY1 (suggested by beware)
+36. Disabling sprites in LCDC changes mode 3 duration only on DMG
+37. Retriggering wave channel without turning off its DAC corrupts
+    wave RAM only on DMG
+38. GBC palette can be written and read, only on GBC
+39. GBC palette can be written and read on GBC only outside mode 3
+40. Want GBC-specific test
 
 Unranked, to be tested at title screen and in menus:
 
@@ -72,10 +94,7 @@ Unranked, to be tested at title screen and in menus:
 
 Stage 4 is expected to focus on GBC differences.
 
-- GBC palette can be written and read back during vblank only on GBC
-- Whether disabling sprites in LCDC changes mode 3 duration
-- Writing anything to STAT during mode 3 outside LYC causes an
-  immediate extra interrupt only on DMG (suggested by organharvester)
+- ROM can be read during OAM DMA from WRAM only on GBC
 
 Stage 5 shall focus on SGB.  It can be hard to test because so much
 of the SGB is open-loop, passing no feedback to the Game Boy SoC.
@@ -91,11 +110,16 @@ of the SGB is open-loop, passing no feedback to the Game Boy SoC.
 Unranked:
 
 - Something something mid-scanline WX changes (suggested by LIJI)
+- `di halt halt halt` keeps reading the last `halt` until something
+  changes the last `halt` to a non-`halt` opcode, such as VRAM
+  inaccessibility (see [double halt cancel] by nitro2k01)
 
 To make things easier for some emulator developers during long
 periods of development hiatus due to the day job of Numism's
 maintainer, it has been suggested to prototype SGB coins in a
 separate ROM and merge them once complete.
+
+[double halt cancel]: https://github.com/nitro2k01/little-things-gb/tree/main/double-halt-cancel
 
 Results
 -------
@@ -106,6 +130,7 @@ coins more than the lowest.
 Use SameBoot in emulators requiring a 256- or 2048-byte boot ROM, and
 use 256 KiB system software dumped from an authentic SGB accessory
 if required.
+Disregard coins not yet implemented, marked "NYA" or "Always pass".
 
 Divergence between DMG and GBC behavior becomes more noticeable
 starting in stage 4.  Because the GBC features of No$gmb are
