@@ -479,6 +479,8 @@ test_failed:
   scf
   ret
 
+def DEBUGHEX_VRAMBLOCKING equ 0
+
 ; We assume we can read and write in mode 1. Lots of games
 ; don't work otherwise.
 ; 
@@ -512,12 +514,16 @@ coin_vram_blocked_writes:
   ; Read back
   ld hl, $9F00
   call write_in_all_modes_readback
-;  ld [debughex+0], a
+  if DEBUGHEX_VRAMBLOCKING
+    ld [debughex+0], a
+  endc
   cp %00010100  ; VRAM: mode 3 blocked
   jr nz, .local_failed
   ld hl, _OAMRAM+$80
   call write_in_all_modes_readback
-;  ld [debughex+1], a
+  if DEBUGHEX_VRAMBLOCKING
+    ld [debughex+1], a
+  endc
   ; On Game Boy, Super Game Boy, and Game Boy pocket, the (invalid)
   ; writes to OAM mess up the previous valid writes due to the OAM
   ; bug.  Disregard the affected writes.
@@ -889,6 +895,8 @@ coin_push_af_low_4:
   jp nz, test_failed
   ret
 
+def DEBUGHEX_OAMBUG equ 0
+
 ;;
 ; This is a very rough test for the DMG OAM bug.
 ; It represents a couple firsts:
@@ -911,7 +919,9 @@ coin_oam_bug:
   ld b, $A5
   call oamcmp_inc
   ld a, l
-;  ld [debughex+0], a
+  if DEBUGHEX_OAMBUG
+    ld [debughex+0], a
+  endc
   ret c
 
   xor a
@@ -954,7 +964,9 @@ coin_oam_bug:
   sbc a
   ld b, a  ; A=FF for difference, 00 for identical
   ld a, l
-;  ld [debughex+1], a
+  if DEBUGHEX_OAMBUG
+    ld [debughex+1], a
+  endc
 
   ld a, [initial_a]
   xor $11  ; A=0 for GBC, nonzero for mono (DMG/MGB/SGB)
@@ -1172,17 +1184,22 @@ coin_echo_ram_write:
   scf
   ret
 
+def DEBUGHEX_ORMASK equ 0
+
 coin_other_or_mask:
   jr .start
   db "OR mask for other regs",10
   db "Unused bits of P1, SC, TAC,",10
-  db "IF, and STAT read as 1",10
+  db "IF, RP, and STAT read as 1",10
   db "but not OBP0/1 or IE;",10
   db "unmapped regs read $FF",0
 .start:
   ld hl, regs_with_ormask
   .with_ormask_loop:
     ld a, [hl+]
+    if DEBUGHEX_ORMASK
+      ld [debughex+0], a
+    endc
     ld c, a
     ld a, [hl+]
     ld d, a     ; D: mask
@@ -1190,6 +1207,9 @@ coin_other_or_mask:
     ld e, a     ; E: first write value
     ldh [c], a  ; Write first write value
     ldh a, [c]
+    if DEBUGHEX_ORMASK
+      ld [debughex+1], a
+    endc
     and d
     cp d
     jr nz, .fail_nz
@@ -1197,6 +1217,9 @@ coin_other_or_mask:
     xor d
     ldh [c], a  ; Second write value is first ^ mask
     ldh a, [c]
+    if DEBUGHEX_ORMASK
+      ld [debughex+1], a
+    endc
     and d
     cp d
     jr nz, .fail_nz
@@ -1204,19 +1227,28 @@ coin_other_or_mask:
     xor low(regs_wo_ormask)
     jr nz, .with_ormask_loop
 
-  ld d, $69  ; thue-morse comparison value
+  ld d, $69  ; thue-morse comparison value for regs without ormask
   .wo_ormask_loop:
     ld a, [hl+]
+    if DEBUGHEX_ORMASK
+      ld [debughex+0], a
+    endc
     ld c, a
     ld a, d
     ldh [c], a
     ldh a, [c]
+    if DEBUGHEX_ORMASK
+      ld [debughex+1], a
+    endc
     cp d
   .fail_nz:
     jp nz, test_failed
     cpl
     ldh [c], a
     ldh a, [c]
+    if DEBUGHEX_ORMASK
+      ld [debughex+1], a
+    endc
     cpl
     cp d
     jr nz, .fail_nz
@@ -1231,9 +1263,16 @@ coin_other_or_mask:
     ld a, [hl+]
     ld d, a  ; D: end of range
     .unmapped_loc_loop:
+      if DEBUGHEX_ORMASK
+        ld a, c
+        ld [debughex+0], a
+      endc
       xor a
       ldh [c], a
       ldh a, [c]
+      if DEBUGHEX_ORMASK
+        ld [debughex+1], a
+      endc
       inc a
       jr nz, .fail_nz
       ld a, c
@@ -1273,12 +1312,14 @@ coin_other_or_mask:
 def STATF_UNUSED equ $FF ^ (STATF_LYC|STATF_MODE10|STATF_MODE01|STATF_MODE00|STATF_LYCF|STATF_LCD)
 
 regs_with_ormask:
-  ;  reg     mask       wrvalue
+  ;  reg          mask       wrvalue
   db low(rP1),    %11000000, %11111111
-  db low(rSC),    %01111110, %01111110
+  db low(rSC),    %01111100, %01111100
   db low(rTAC),   %11111000, %11111000
   db low(rIF),    %11100000, %11100000
   db low(rSTAT),  STATF_UNUSED, STATF_UNUSED
+  db low(rKEY1),  %01111110, %01111110
+  db low(rRP),    %00101100, %00101100  ; SameBoy src says CGB E has 0 in bit 4; others have 1
 regs_wo_ormask:
   db low(rOBP0), low(rOBP1), low(rIE)
 regs_unmapped:
@@ -1287,8 +1328,9 @@ regs_unmapped:
   db $08, $0E
   db $15, $15
   db $1F, $1F
-  db $27, $29
-  db $4C, $4E
+  db $27, $2F
+  db $4C, $4C
+  db $4E, $4E
 regs_unmapped_end:
 
 
@@ -1507,7 +1549,7 @@ coin_ram_capacity:
 
 coin_gbc_or_mask:
   jr .start
-  db "NYA OR mask for other regs",10
+  db "NYA OR mask for GBC regs",10
   db "Unused bits of GBC-only",10
   db "registers read as 1;",10
   db "all $FF on B&W system",0

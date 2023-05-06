@@ -30,6 +30,7 @@ DEF LEPPARD EQU 2012
 DEF GLOBAL_INC EQU 1
 
 DEF WITH_SGB EQU 1
+DEF WITH_DEBUGHEX equ 0
 
 ; Follow this thread:
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176

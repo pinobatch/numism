@@ -10,6 +10,9 @@ include "src/global.inc"
 section "lineImgBuf",wram0,align[8]
 lineImgBuf:: ds 256
 
+section "continue_state", WRAM0
+debughex:: ds 2
+
 SECTION "main", ROM0
 
 DEF COINS_PER_STAGE equ 10

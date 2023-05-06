@@ -50,6 +50,6 @@ rgblink -o "$title-oneatatime.gb" -p 0xFF -m "$title-oneatatime.map" -n "$title-
 # per beware: don't add -s until SGB-related tests are ready
 cp "$title.gb" "$title-sram.gb"
 cp "$title.sym" "$title-sram.sym"
-rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -s "$title.gb"
+rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -sc "$title.gb"
 rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -s "$title-oneatatime.gb"
-rgbfix -jvt "$inttitle" -l0x33 '-mMBC5+RAM+BATTERY' -n0 -p0xFF -r2 -s "$title-sram.gb"
+rgbfix -jvt "$inttitle" -l0x33 '-mMBC5+RAM+BATTERY' -n0 -p0xFF -r2 -sc "$title-sram.gb"

@@ -11,6 +11,14 @@ main::
   ldh [rIF],a
   ldh [nmis],a
 
+
+  if WITH_DEBUGHEX
+  ld hl, debughex
+  ld [hl], $C0
+  inc hl
+  ld [hl], $DE
+  endc
+
   ; During the copyright screen (once I get it in), we'll have
   ; up to 4 seconds to run tests.
   xor a

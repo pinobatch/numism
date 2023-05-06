@@ -78,7 +78,7 @@ Coins:
     extra interrupt only on DMG (suggested by organharvester)
 34. VRAM has banks 0 and 1 and WRAM has banks 1-7, only on GBC
 35. OR mask for GBC-specific registers varies by model, particularly
-    KEY1 (suggested by beware)
+    KEY1, SC, and RP (suggested by beware)
 36. Disabling sprites in LCDC changes mode 3 duration only on DMG
 37. Retriggering wave channel without turning off its DAC corrupts
     wave RAM only on DMG

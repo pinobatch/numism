@@ -10,7 +10,6 @@ DEF COINS_PER_STAGE equ 10
 DEF NUM_STAGES equ 4
 
 ; Displays 2 bytes of intermediate output from coins in the last stage
-DEF WITH_DEBUGHEX equ 0
 DEF DEBUGHEX_TILEID equ $30
 DEF DEBUGHEX_NUMTILES equ 3
 
@@ -54,13 +53,6 @@ run_tests_in_stage_a::
   dec de
   ld a, $10000 >> COINS_PER_STAGE
   ld [de], a
-
-  if WITH_DEBUGHEX
-  ld hl, debughex
-  ld [hl], $C0
-  inc hl
-  ld [hl], $DE
-  endc
 
   ld a, b
   call get_coin_list_stage_a  ; HL points into coin_list
@@ -161,9 +153,9 @@ putnibble::
   ret
 
 show_stages::
-  ; Clear pixels in VWF canvas
-  call lcd_off
+  call clear_gbc_attr
 
+  ; Clear pixels in VWF canvas
   ld de, CHRRAM1
   ld h, e
   ld bc, $1000
@@ -275,8 +267,8 @@ show_stages::
   ld a, STATF_LYC
   ldh [rSTAT], a
   ld a, %01101100  ; white, black, dark gray, light gray
-  ldh [rBGP], a
-  ldh [rOBP0], a
+  call set_bgp
+  call set_obp0
   ld a, 7
   ldh [rWX], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
