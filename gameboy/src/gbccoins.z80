@@ -3,7 +3,7 @@ include "src/global.inc"
 
 def vCoinTmp equ $9FFF
 
-; Stage 4: GBC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Stage 4: Game Boy Color ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 section "STAGE4COINS", ROM0
 
@@ -59,7 +59,6 @@ coin_ram_capacity::
     jr nz, .fill_banks
 
   ; Test that each byte has the expected value
-  ld b, b
   .test_banks:
     ldh [rSVBK], a
     ldh [rVBK], a
@@ -111,28 +110,93 @@ coin_gbc_or_mask::
   or a
   ret
 
+
+def DEBUGHEX_GBC_MODE_3_LENGTH equ 0
+
 coin_gbc_mode_3_length::
   jr .start
-  db "NYA GBC mode 3 length",10
-  db "Disabling sprites in LCDC",10
-  db "reduces mode 3 length on",10
-  db "B&W only",0
+  db "Spriteless mode 3 length",10
+  db "Disabling objects in LCDC",10
+  db "shortens mode 3 on B&W only",0
 .start:
-  or a
-  ret
+  call lcd_on_blank
 
-; This is where I want to start making tests that behave differently
-; in GBC mode vs. DMG mode.  I'll start implementing these once I
-; allocate 40 coins.
+  ; DMG treats LCDCF_OBJON false as all sprites out of range,
+  ; leading to a short mode 3.
+  ; GBC treats LCDCF_OBJON false as all transparent, leading to
+  ; mode 3 as long as it was if LCDCF_OBJON were true.
+  ld a, LCDCF_ON|LCDCF_BGON  ; no sprites!
+  ldh [stat_lcdc_value], a
+  ldh [vblank_lcdc_value], a
+  lb bc, 10, 8
+  call mode_3_test_with_full_load
+  if DEBUGHEX_GBC_MODE_3_LENGTH
+    ld [debughex+0], a
+  endc
+  cp 50    ; CF = 1 for short mode 3, 0 for long mode 3
+  ccf
+  rr b     ; bit 7 = 0 for short mode 3, 1 for long mode 3
+  ld a, [hCapability]  ; bit 7 = 0 to expect short, 1 to expect long
+  xor b    ; bit 7 = 0 for match, 1 for mismatch
+  adc a    ; move to CF
+  jp lcd_off_and_return
+
+def WAVE_RAM_RETRIGGER_AUDIBLE equ 0
+def DEBUGHEX_WAVE_RAM_RETRIGGER equ 0
+
 coin_wave_ram_retrigger::
   jr .start
-  db "NYA Retrigger corrupts wave",10
-  db "Playing another note without",10
-  db "unlocking and relocking wave",10
-  db "RAM corrupts it on B&W only",0
+  db "Retrigger corrupts wave",10
+  db "Playing a wave note without",10
+  db "turning DAC off and on",10
+  db "changes byte 0 on B&W only",0
 .start:
   call init_silent_apu
-  or a
+  call load_sawtooth_wave  ; first byte is $00; rest is nonzero
+
+  ld b, 256-64
+  .period_loop:
+
+    ; Play a high-pitched tone
+    ld hl, rNR30
+    if WAVE_RAM_RETRIGGER_AUDIBLE
+      ld a, $A0
+    else
+      ld a, $80
+    endc
+    ld [hl+], a  ; enable DAC
+    ld [hl+], a  ; length counter
+    ld [hl+], a  ; volume
+    ld [hl], b   ; initial period
+    ld a, $87
+    ldh [rNR34], a  ; trigger + high period
+    ld [hl], $100-2  ; second period
+
+    ; Wait a bit and retrigger it
+    ld c, 40
+    .cdloop:
+      dec c
+      jr nz, .cdloop
+    ldh [rNR34], a  ; retrigger
+
+    xor a
+    ldh [rNR30], a  ; disable DAC
+    inc b
+    jr nz, .period_loop
+
+  ; At this point, the first byte should have been overwritten
+  ; several times on DMG or not at all on GBC.  Set B bit 7 to true
+  ; if we expect it to still be 0.
+  ldh a, [hCapability]
+  ld b, a  ; bit 7 = 1 to expect zero or 0 to expect nonzero
+  ldh a, [_AUD3WAVERAM]
+  if DEBUGHEX_WAVE_RAM_RETRIGGER
+    ld [debughex+0], a
+  endc
+  cp 1   ; CF = 1 if 0 or 0 if nonzero
+  rra    ; move to bit 7
+  xor b  ; bit 7 = 0 if match or 1 if wrong
+  adc a  ; move to CF
   ret
 
 coin_gbc_palette_readback::

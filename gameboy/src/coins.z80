@@ -396,21 +396,22 @@ coin_lyc_to_hint:
 .start:
   call lcd_on_blank
   call measure_mode3
+  cp 4  ; If A < 4 then there was only one interrupt
+lcd_off_and_return::
   push af
   call lcd_off
   pop af
-  cp 4  ; If A < 4 then there was only one interrupt
   ret
 
 ;;
 ; Turns on the LCD with OAM cleared to 0, LYC=64, scrolling at X=0,
 ; all-white BGP, and IE set to vblank only
-lcd_on_blank:
+lcd_on_blank::
   call lcd_off
   ld hl, _OAMRAM     ; clear all of OAM to 0
   ld c, $A0
   rst memset_tiny
-lcd_on_blank_keep_oam:
+lcd_on_blank_keep_oam::
   ld a, 64
   ldh [rLYC], a
   xor a
@@ -1015,7 +1016,7 @@ coin_wave_ram_locked:
   db 34,"NO BOY! NO DEMO!",34,0
 .start:
   call zerofill_apu
-  call load_sawtooth
+  call load_sawtooth_wave
   if APU_NOT_SILENT
     ld a, $77
     ldh [rNR51], a
@@ -1058,7 +1059,7 @@ pass_and_turn_off_apu:
   ldh [rNR52], a
   ret
 
-load_sawtooth:
+load_sawtooth_wave::
   ld hl, _AUD3WAVERAM
   xor a
   ldh [rNR30], a  ; $00: give wave RAM to CPU; $80: give it to APU
@@ -1375,6 +1376,16 @@ coin_mode_3_length:
   or a
   ret
 
+;;
+; Measures the duration of mode 3 on a scanline with several sprites
+; spaced 8 pixels apart.
+; @param B sprite count (1-40)
+; @param C Horizontal position of leftmost sprite
+; @param rLCDC bit 7 must be true
+; @param vblank_lcdc_value value to write to rLCDC before the test
+; @param stat_lcdc_value value to write to rLCDC during OAM scan
+; of the scanline under test, usually the same as vblank_lcdc_value
+; @return number of NOPs executed before interrupt
 mode_3_test_with_full_load::
   ; Put B sprites spaced 8 pixels apart
   ld hl, SOAM

@@ -262,8 +262,8 @@ show_stages::
 
   ; Now everything that doesn't depend on the stage number is in,
   ; so turn on display
-  ld a,IEF_VBLANK|IEF_STAT
-  ldh [rIE],a  ; enable IRQs
+  ld a, 8*COINNAMES_Y
+  ldh [rLYC], a
   ld a, STATF_LYC
   ldh [rSTAT], a
   ld a, %01101100  ; white, black, dark gray, light gray
@@ -274,11 +274,11 @@ show_stages::
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [stat_lcdc_value], a
   ldh [rWY], a  ; Keep window out of the way until it's time
-  ld a, 8*COINNAMES_Y
-  ldh [rLYC], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [vblank_lcdc_value], a
   ldh [rLCDC], a
+  ld a,IEF_VBLANK|IEF_STAT
+  ldh [rIE],a  ; enable IRQs
 
   call continue_read_pad
   xor a
