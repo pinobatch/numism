@@ -42,22 +42,97 @@ coin_dma_copy_speed::
 
   ; Compare the duration
   ld a, [hl]
-  sub b  ; A: actual duration
-  sub c  ; A: 0-1 if match
-  cp 2
-  ccf    ; CF: 0 if match
+  sub b   ; A: actual duration
+  sub c   ; A: 0-1 if match
+  add -2  ; CF: 0 if match
   jp lcd_off_and_return
+
+def DEBUGHEX_STATBUG equ 1
+
+; bit 4: 1 if mode 0 is clean (DMG: no)
+; bit 3: 1 if mode 1 is clean (DMG: no)
+; bit 2: 1 if mode 2 is clean (all: yes)
+; bit 1: 1 if mode 3 is clean (all: yes)
+; bit 0: 1 if mode 3 LYC is clean (DMG: no)
+def STATBUG_EXPECT_DMG equ %00110
+def STATBUG_EXPECT_CGB equ %11111
 
 coin_stat_write_ff::
   jr .start
-  db "NYA STAT briefly enables all",10
-  db "Writing 0 to FF41 in mode",10
-  db "0-2 or LY=LYC fires",10
+  db "STAT momentary enable",10
+  db "Writing 0 to FF41 in hblank,",10
+  db "vblank, or LY=LYC fires",10
   db "interrupt on B&W only",10
   db "'Road Rash? More like crash!'",0
 .start:
-  or a
+  call lcd_on_blank
+  xor a
+  ld d, a
+  ld e, a
+  ldh [rSTAT], a
+  ld a, IEF_STAT|IEF_VBLANK
+  ldh [rIE], a
+  ei
+
+  call write_statbug_mode_E  ; mode 0 (hblank): somewhere
+  inc e
+  call write_statbug_mode_E  ; mode 1: near bottom of frame
+  inc e
+
+  ; calc84maniac understands SameBoy source as having only the first
+  ; dot of mode 2 actually count as mode 2 for interrupt purposes.
+  ; I model this as mode 2's STAT bug period being an extension of
+  ; mode 0's STAT bug period that's too short to target.
+  call write_statbug_mode_E  ; mode 2: near top of frame (no statbug)
+  inc e
+  call write_statbug_mode_E  ; mode 3: near top of frame (no statbug)
+  ld hl, rLY
+  ldh a, [rLYC]
+  .lywait_lyc:
+    cp [hl]
+    jr nz, .lywait_lyc
+  call write_statbug_mode_E  ; mode 3 on LY=LYC (statbug in SB not bgb)
+
+  if DEBUGHEX_STATBUG
+    ld a, d
+    ld [debughex+0], a
+  endc
+  ldh a, [hCapability]
+  add a
+  sbc a  ; 00 for DMG, FF for CGB
+  and STATBUG_EXPECT_CGB^STATBUG_EXPECT_DMG
+  xor STATBUG_EXPECT_DMG
+  xor d  ; 00 for match, nonzero for fail
+  add -1
+  jp lcd_off_and_return
+
+
+;;
+; Waits for a mode in STAT and then writes a value.
+; To write a value and it's ones' complement, use write_D_notD_mode_E
+; @param E mode to wait for
+; @param HL address to write
+; @return D shifted left by 1 with stack red zone 
+write_statbug_mode_E:
+  lb bc, STATF_LCD, low(rSTAT)
+  ld hl, sp-1
+  .wait0loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr z, .wait0loop
+  .wait1loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr nz, .wait1loop
+  ld [hl], h  ; initialize red zone
+  ldh [c], a  ; trigger a STAT bug
+  ld a, [hl]  ; read whether IRQ happened
+  add a
+  rl d
   ret
+
 
 coin_ram_capacity::
   jr .start
@@ -162,8 +237,7 @@ coin_gbc_mode_3_length::
   if DEBUGHEX_GBC_MODE_3_LENGTH
     ld [debughex+0], a
   endc
-  cp 50    ; CF = 1 for short mode 3, 0 for long mode 3
-  ccf
+  add -50  ; CF = 0 for short mode 3, 1 for long mode 3
   rr b     ; bit 7 = 0 for short mode 3, 1 for long mode 3
   ld a, [hCapability]  ; bit 7 = 0 to expect short, 1 to expect long
   xor b    ; bit 7 = 0 for match, 1 for mismatch

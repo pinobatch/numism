@@ -17,8 +17,7 @@ work run correctly on an authentic console.  Or when a new game
 relies on a behavior that a particular emulator reproduces poorly,
 the user blames the game's developer rather than the emulator.
 
-I seek
-to survey current and notable historic emulators, research the
+I seek to survey current and notable historic emulators, research the
 precise behaviors underlying test failures, and produce "coins",
 or minimal test routines to highlight these differences.
 Each of up to 10 stages has 10 coins.  Each coin represents testing
@@ -74,6 +73,15 @@ accuracy would be later on the list, as they're less practical to
 achieve in emulators for microcontrollers or retro PCs or consoles.
 Things only best-of-breed emulators (Mesen, higan, SameBoy, and
 Emulicious) get right can rank near the end.
+
+Prefer behaviors that an emulator under a free software license can
+replicate.  When a console uses copyrighted system software,
+emulators often provide reimplemented system software or high-level
+emulation of its functionality.  This may cause some registers
+to start at different values or certain routines to finish
+faster or slower, which doesn't affect real-time play even if
+it desynchronizes a tool-assisted speedrun (TAS).  If notable
+games don't depend on a system software difference, don't test it.
 
 ### Ease of testing
 

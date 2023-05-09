@@ -75,7 +75,7 @@ Coins:
 31. Retriggering wave channel without turning off its DAC corrupts
     wave RAM only on DMG
 32. Copying 114 tiles with DMA takes 8 scanlines
-33. STAT=$00 during mode 3 outside LYC causes an immediate
+33. STAT=$00 during hblank, vblank, or LY=LYC causes an immediate
     extra interrupt only on DMG (suggested by organharvester)
 34. VRAM has banks 0 and 1 and WRAM has banks 1-7, only on GBC
 35. OR mask for GBC-specific registers varies by model, particularly
@@ -99,7 +99,6 @@ Unranked, to be tested at title screen and in menus:
 Stage 4 is expected to focus on GBC differences.
 
 - ROM can be read during OAM DMA from WRAM only on GBC
-- How long an immediate VRAM DMA takes
 - How much time HDMA takes from a scanline
 
 Stage 5 shall focus on SGB.  It can be hard to test because so much
@@ -149,18 +148,18 @@ paywalled, we do not list results for No$gmb past stage 3.
 
 Emulator     | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Notes
 ------------ | ------: | ------: | ------: | ------: | -----
-emulicious   |  10/10  |  10/10  |  10/10  |         | No SGB
-sameboy      |  10/10  |  10/10  |  10/10  |         |
-bgb          |  10/10  |  10/10  |  10/10  |         |
-mesen2       |  10/10  |  10/10  |  10/10  |         | SGB low-level emulation
-gambatte     |  10/10  |   9/10  |  10/10  |         |
-mgba         |  10/10  |   9/10  |   8/10  |         |
-vba-m        |  10/10  |   8/10  |   5/10  |         |
-gnuboy       |   6/10  |   4/10  |   7/10  |         |
-kigb         |   3/10  |   6/10  |   6/10  |         |
-goomba       |   5/10  |   5/10  |   3/10  |         |
+sameboy      |  10/10  |  10/10  |  10/10  |   7/7   |
+emulicious   |  10/10  |  10/10  |  10/10  |   6/7   | No SGB
+bgb          |  10/10  |  10/10  |  10/10  |   6/7   |
+mesen2       |  10/10  |  10/10  |  10/10  |   5/7   | SGB low-level emulation
+gambatte     |  10/10  |   9/10  |   9/10  |   7/7   |
+mgba         |  10/10  |   9/10  |   8/10  |   5/7   |
+vba-m        |  10/10  |   8/10  |   5/10  |   6/7   |
+kigb         |   3/10  |   6/10  |   6/10  |   6/7   |
+gnuboy       |   6/10  |   5/10  |   6/10  |   2/7   |
+peanut-gb    |   4/10  |   5/10  |   2/10  |   6/7   |
+goomba       |   5/10  |   6/10  |   3/10  |   2/7   |
+vba          |   6/10  |   1/10  |   2/10  |   3/7   |
 no$gmb       |   0/10  |   7/10  |   4/10  |**$**/10 | GBC paywall
-peanut-gb    |   4/10  |   5/10  |   2/10  |         |
-vba          |   6/10  |   1/10  |   3/10  |         |
-jsgb         |   3/10  |   3/10  |   3/10  |         | Four pauses for `di halt`
-rew.         |   2/10  |   2/10  |   4/10  |         |
+jsgb         |   3/10  |   3/10  |   3/10  |   3/7   | Four pauses for `di halt`
+rew.         |   2/10  |   2/10  |   4/10  |   3/7   |

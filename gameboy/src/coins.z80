@@ -405,7 +405,8 @@ lcd_off_and_return::
 
 ;;
 ; Turns on the LCD with OAM cleared to 0, LYC=64, scrolling at X=0,
-; all-white BGP, and IE set to vblank only
+; all-white BGP, and IE set to vblank only.  If using STAT, caller
+; should set STAT and IE to the appropriate value.
 lcd_on_blank::
   call lcd_off
   ld hl, _OAMRAM     ; clear all of OAM to 0
@@ -416,11 +417,12 @@ lcd_on_blank_keep_oam::
   ldh [rLYC], a
   xor a
   ldh [rSCX], a
-  ldh [rBGP], a    ; hide everything during test
+  ldh [rBGP], a    ; hide everything during test (on DMG)
   inc a
   ldh [rIE], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
   ldh [stat_lcdc_value], a
+  ldh [vblank_lcdc_value], a
   ldh [rLCDC], a
   ret
 
