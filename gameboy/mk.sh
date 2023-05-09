@@ -51,5 +51,5 @@ rgblink -o "$title-oneatatime.gb" -d -p 0xFF -m "$title-oneatatime.map" -n "$tit
 cp "$title.gb" "$title-sram.gb"
 cp "$title.sym" "$title-sram.sym"
 rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -sc "$title.gb"
-rgbfix -jvt "$inttitle" -l0x33 -m0 -n0 -p0xFF -r0 -sc "$title-oneatatime.gb"
+rgbfix -jvt "$inttitle 1AAT" -l0x33 -m0 -n0 -p0xFF -r0 -sc "$title-oneatatime.gb"
 rgbfix -jvt "$inttitle" -l0x33 '-mMBC5+RAM+BATTERY' -n0 -p0xFF -r2 -sc "$title-sram.gb"

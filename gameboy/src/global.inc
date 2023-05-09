@@ -32,6 +32,21 @@ DEF GLOBAL_INC EQU 1
 DEF WITH_SGB EQU 1
 DEF WITH_DEBUGHEX equ 0
 
+; default names for DMA regs are confusing because they apply
+; to non-HDMA as well
+
+  IF DEF(HARDWARE_INC)
+def rDMASRCLO equ rHDMA2  ; bits 7-4 specify A7-4
+def rDMASRCHI equ rHDMA1  ; bits 4-0 specify A12-8
+def rDMADSTLO equ rHDMA4  ; bits 7-4 specify A7-4
+def rDMADSTHI equ rHDMA3  ; A15-8; must be 00-7F or A0-DF
+; 00-7F: copy 1-128 tiles now
+; 80-FF: copy 1-128 tiles during next hblanks
+; Each 16-byte tile takes 32 dots. This is 8 single-speed cycles
+; or 16 double-speed cycles.
+def rDMASTART equ rHDMA5
+  ENDC
+
 ; Follow this thread:
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176
 DEF hLocals EQU $FF80

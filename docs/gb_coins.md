@@ -72,19 +72,23 @@ Coins:
 29. Joypad interrupt works at all
 30. `daa` produces correct results for pathological values of AF:
     $9A NH to $00 ZC, $7A H to $80, $00 NHC to $9A NC to $3A NC
-31. Want GBC-specific test
-32. Want GBC-specific test
+31. Retriggering wave channel without turning off its DAC corrupts
+    wave RAM only on DMG
+32. Copying 114 tiles with DMA takes 8 scanlines
 33. STAT=$00 during mode 3 outside LYC causes an immediate
     extra interrupt only on DMG (suggested by organharvester)
 34. VRAM has banks 0 and 1 and WRAM has banks 1-7, only on GBC
 35. OR mask for GBC-specific registers varies by model, particularly
     KEY1, SC, and RP (suggested by beware)
-36. Disabling sprites in LCDC changes mode 3 duration only on DMG
-37. Retriggering wave channel without turning off its DAC corrupts
-    wave RAM only on DMG
-38. GBC palette can be written and read, only on GBC
-39. GBC palette can be written and read on GBC only outside mode 3
-40. Want GBC-specific test
+36. Disabling sprites in LCDC shortens mode 3 only on DMG
+37. *Your GBC test here*
+38. *Your GBC test here*
+39. GBC palette can be written and read, storing all 8 bits of all
+    128 bytes, auto-incrementing on writes to $80-$FF (not on $00-$7F
+    or reads), only on GBC (suggested by sylvie/zlago)
+40. GBC palette can be written and read on GBC only outside mode 3,
+    and write increments address even in mode 3 (suggested by
+    nitro2k01 and sylvie/zlago)
 
 Unranked, to be tested at title screen and in menus:
 
@@ -95,6 +99,8 @@ Unranked, to be tested at title screen and in menus:
 Stage 4 is expected to focus on GBC differences.
 
 - ROM can be read during OAM DMA from WRAM only on GBC
+- How long an immediate VRAM DMA takes
+- How much time HDMA takes from a scanline
 
 Stage 5 shall focus on SGB.  It can be hard to test because so much
 of the SGB is open-loop, passing no feedback to the Game Boy SoC.
@@ -113,6 +119,11 @@ Unranked:
 - `di halt halt halt` keeps reading the last `halt` until something
   changes the last `halt` to a non-`halt` opcode, such as VRAM
   inaccessibility (see [double halt cancel] by nitro2k01)
+- Consider a stage of GBC double speed tests: CPU speed, timer/DIV
+  speed, APU speed, mode 3 length, GDMA vs. HDMA vs. OAM DMA speed
+- Seen in SameBoy source: Do length counters on DMG (only) accept
+  writes while the APU is off?
+- Does `halt` pause GBC DMA?
 
 To make things easier for some emulator developers during long
 periods of development hiatus due to the day job of Numism's

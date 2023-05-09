@@ -4,22 +4,49 @@ include "src/global.inc"
 def vCoinTmp equ $9FFF
 
 ; Stage 4: Game Boy Color ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; TODO: Once this stage is full, reorder the routines to match their
+; final on-screen ordering
 
 section "STAGE4COINS", ROM0
 
-coin_no_31::
+coin_dma_copy_speed::
   jr .start
-  db "Always pass for now",0
+  db "DMA block copy speed",10
+  db "Copying 114 tiles to VRAM",10
+  db "in vblank takes 8 lines",10
+  db "(B&W: no-op)",0
 .start:
-  or a
-  ret
+  call lcd_on_blank
+  ei
+  rst wait_vblank_irq
 
-coin_no_32::
-  jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
+  ld a, [hCapability]
+  and $80
+  swap a
+  ld c, a  ; C: expected duration (DMG: 0; CGB: 8)
+
+  ; Do the copy
+  xor a
+  ldh [rDMASRCLO], a
+  ldh [rDMADSTLO], a
+  ld a, $C0
+  ldh [rDMASRCHI], a
+  ld a, $88
+  ldh [rDMADSTHI], a
+  ld a, 114-1
+  ld hl, rLY
+  ld b, [hl]
+  ldh [rDMASTART], a
+  nop
+
+  ; Compare the duration
+  ld a, [hl]
+  sub b  ; A: actual duration
+  sub c  ; A: 0-1 if match
+  cp 2
+  ccf    ; CF: 0 if match
+  jp lcd_off_and_return
 
 coin_stat_write_ff::
   jr .start
@@ -35,9 +62,10 @@ coin_stat_write_ff::
 coin_ram_capacity::
   jr .start
   db "RAM capacity",10
-  db "B&W: 8K WRAM 8K VRAM",10
   db "GBC: 32K WRAM 16K VRAM",10
-  db "(and Dxxx bank 0 is 1)",0
+  db "(FF70=0 is 1); B&W: 8K+8K",10
+  db "'HEY TOUGH GUY! THINK YOU",10
+  db "CAN SPOOF ME THAT WAY?'",0
 .start:
 
   call lcd_off
@@ -120,6 +148,7 @@ coin_gbc_mode_3_length::
   db "shortens mode 3 on B&W only",0
 .start:
   call lcd_on_blank
+  ei
 
   ; DMG treats LCDCF_OBJON false as all sprites out of range,
   ; leading to a short mode 3.
@@ -141,6 +170,13 @@ coin_gbc_mode_3_length::
   adc a    ; move to CF
   jp lcd_off_and_return
 
+coin_no_37::
+  jr .start
+  db "Always pass for now",0
+.start:
+  or a
+  ret
+
 def WAVE_RAM_RETRIGGER_AUDIBLE equ 0
 def DEBUGHEX_WAVE_RAM_RETRIGGER equ 0
 
@@ -148,8 +184,8 @@ coin_wave_ram_retrigger::
   jr .start
   db "Retrigger corrupts wave",10
   db "Playing a wave note without",10
-  db "turning DAC off and on",10
-  db "changes byte 0 on B&W only",0
+  db "turning DAC off and on can",10
+  db "change byte 0 on B&W only",0
 .start:
   call init_silent_apu
   call load_sawtooth_wave  ; first byte is $00; rest is nonzero
@@ -158,6 +194,7 @@ coin_wave_ram_retrigger::
   .period_loop:
 
     ; Play a high-pitched tone
+    ; (inspired by "10-wave trigger while on.gb" by blargg)
     ld hl, rNR30
     if WAVE_RAM_RETRIGGER_AUDIBLE
       ld a, $A0
@@ -199,29 +236,337 @@ coin_wave_ram_retrigger::
   adc a  ; move to CF
   ret
 
-coin_gbc_palette_readback::
-  jr .start
-  db "NYA GBC CRAM readable",10
-  db "Can read palette during",10
-  db "vblank on GBC only",0
-.start:
-  or a
-  ret
-
-coin_gbc_palette_blocking::
-  jr .start
-  db "NYA GBC CRAM blkd writes",10
-  db "GBC CRAM is inaccessible",10
-  db "in mode 3 (and never",10
-  db "accessible on B&W)",0
-.start:
-  or a
-  ret
-
-coin_no_40::
+coin_no_38::
   jr .start
   db "Always pass for now",0
 .start:
   or a
   ret
 
+
+coin_gbc_palette_readback::
+  jr .start
+  db "CRAM readable",10
+  db "Write and read palette in",10
+  db "vblank, increment on write if",10
+  db "address>=$80, wrap $BF-$80",10
+  db "(B&W: read $FF)",0
+.start:
+  call lcd_on_blank
+  ei
+  rst wait_vblank_irq
+
+  ; Fill palette. This takes about 800 cycles
+  lb bc, -64, low(rBCPS)
+  ld hl, rOCPS
+  ld a, $80
+  ldh [c], a
+  ld [hl], b  ; exploit us some mirroring
+  inc c  ; C = low(rBCPD)
+  inc l  ; L = low(rOCPD)
+  .fill1_loop:
+    ldh [c], a
+    add 19
+    ld [hl], a
+    add 19
+    inc b
+    jr nz, .fill1_loop
+
+  ; That leaves about 300 cycles to check that the first written
+  ; byte can be read back after wraparound and that reading does not
+  ; auto-increment.  On DMG, all reads should return $FF.
+  ldh a, [c]  ; read first rBCPD
+  ld d, a
+  ldh a, [c]  ; read second rBCPD
+  cp d
+  jr nz, .fail1
+  cp $FF
+  rl b
+  xor $80
+  cp 1
+  rl b
+
+  ld a, [hl]  ; read first rOCPD
+  cp [hl]     ; read second rOCPD
+  jr nz, .fail1
+  cp $FF
+  rl b
+  xor $80 + 19
+  cp 1
+  rl b
+
+  ; Results are in bits of B
+  ; bit 3: BCPD was not FF; bit 2: BCPD was correct
+  ; bit 1: OCPD was not FF; bit 0: OCPD was correct
+  ; We want 00 for DMG or 0F for GBC.
+  ldh a, [hCapability]
+  add a
+  sbc a  ; FF for GBC
+  and $0F
+  xor b
+  jr z, .nofail1
+  .fail1:
+    scf
+    jr .ret1
+  .nofail1:
+  or b
+  jr z, .ret1  ; Pass on DMG and keep going on GBC
+
+  ; One possible misinterpretation that can leak through the above
+  ; test is if wrapping around once turns off autoincrement for
+  ; both reads and writes rather than reads never having it.
+  ld a, b
+  .autoinc_fluke_loop:
+    ldh [rBCPS], a
+    ldh [rOCPS], a
+    ld b, a
+    ldh a, [c]
+    ld d, a
+    ldh a, [c]
+    xor d
+    jr nz, .fail1
+    ld a, [hl]
+    xor [hl]
+    jr nz, .fail1
+    ld a, b
+    add $43
+    jr nc, .autoinc_fluke_loop
+
+  ; Set first entry to white to avoid a visible flash while testing
+  ; wraparound (write to $FF wrapping to $C0 and $C1, read $C1)
+  ld a, $FF
+  ldh [rBCPS], a
+  ldh [c], a
+  ldh [c], a
+  ld a, $7F
+  ldh [c], a
+  ld a, $81
+  ldh [rBCPS], a
+  ld a, [c]
+  cp $7F
+  jr nz, .fail1
+
+  ; Frame 2: Set first entry to white to avoid a visible flash,
+  ; then ensure 32 of the 64 bytes of each palette can be read back
+  rst wait_vblank_irq
+  ld a, $80 + 4 * 19
+  ld b, $82
+  call readback_half_palette
+  jr nz, .fail1
+
+  ; Make sure $00-$7F writes don't autoincrement
+  ld hl, rOCPS
+  call palette_ensure_no_007f_autoinc
+  jr nz, .fail1
+  ld hl, rBCPS
+  call palette_ensure_no_007f_autoinc
+  jr nz, .fail1
+  or a
+.ret1:
+  jp lcd_off_and_return
+
+readback_half_palette:
+  ld e, 32
+  ld c, low(rBCPD)
+  ld hl, rOCPD
+  .loop:
+    ld d, a
+    ld a, b
+    ldh [rOCPS], a
+    ldh [rBCPS], a
+    ldh a, [c]
+    cp d
+    ret nz
+    add 19
+    cp [hl]
+    ret nz
+    add 19
+    inc b
+    dec e
+    jr nz, .loop
+  ret
+
+;;
+; @param HL either BCPS or OCPS
+; @return ZF set if read back values are all is as expected
+palette_ensure_no_007f_autoinc:
+  ld a, $b0
+  ld [hl+], a  ; seek to palette[$30]
+  ld [hl], a
+  ld [hl], a
+  ld [hl-], a  ; palette [$30...$32] = b0 b0 b0
+  ld a, $31
+  ld [hl+], a  ; seek to palette[$31]
+  ld [hl], a
+  ld [hl], a   ; palette[$31] = 31 twice
+  cp [hl]
+  ret nz
+  inc a
+  dec hl
+  ld [hl+], a  ; seek to palette[$32]
+  ld a, [hl]
+  cp $b0
+  ret  
+
+coin_cram_blocked_writes::
+  jr .start
+  db "CRAM access blocking",10
+  db "Palette writes in mode 3",10
+  db "only advance the address;",10
+  db "reads give $FF",0
+.start:
+  call lcd_on_blank
+  ei
+  rst wait_vblank_irq
+
+  ; Initial load
+  ld c, low(rOCPS)
+  ld hl, rOCPD
+  ld a, $B0
+  ldh [c], a
+  ld [hl], $01
+  ld [hl], $02
+  ld [hl], $03
+  ld [hl], $04
+  ld [hl], $05
+
+  ; Early exit for DMG
+  ldh [c], a
+  ldh a, [hCapability]
+  rla
+  ccf
+  sbc a    ; A = $00 if GBC, $FF if DMG
+  or $01   ; A = expected value $01 if GBC, $FF if DMG
+  cp [hl]  ; Compare to value read back
+  jr nz, .fail1  ; if different, we're on the wrong model
+  inc a          ; A = $00 if DMG
+  jr z, .ret1    ; if that's the case, we're done here
+
+  ; Complete initial load
+  ld a, $A0
+  ldh [c], a
+  ld [hl], $06
+  ld [hl], $07
+  ld [hl], $08
+  ld [hl], $09
+  ld [hl], $0A
+  ; OBJ CRAM contents:
+  ; 20: 06 07 08 09 0A
+  ; 30: 01 02 03 04 05
+  ; address at 35 with autoincrement
+
+  ; Seek in mode 3 to $30 with autoincrement.  Seeking should
+  ; not depend on CRAM blocking.
+  dec l
+  lb de, $F0, STATF_LCD
+  call write_D_mode_E
+  inc l
+  ; Write $0B, $0C, blocked, blocked, $0F
+  lb de, $0B, STATF_HBL
+  call write_D_mode_E
+  lb de, $0C, STATF_OAM
+  call write_D_mode_E
+  lb de, $0D, STATF_LCD
+  call write_D_mode_E
+  ld [hl], $0E
+  lb de, $0F, STATF_HBL
+  call write_D_mode_E
+  ; At 30-34 should be 0B 0C 03 04 FF. Verify this in vblank.
+  ; 01 02 03 04 05 means seeking in mode 3 failed because the data
+  ; went to 25-29 instead of 30-34.
+  ; 0B 0C 0D 0E 0F means CRAM blocking is not handled.
+
+  rst wait_vblank_irq
+  ld hl, rOCPS
+  ; when reading back values w/o waiting for a mode,
+  ; reverse (HL address, C data) is smaller
+  ld c, low(rOCPD)
+  ld [hl], $30
+  ldh a, [c]
+  cp $0B
+  jr nz, .fail1
+  ld [hl], $31
+  ldh a, [c]
+  cp $0C
+  jr nz, .fail1
+  ld [hl], $32
+  ldh a, [c]
+  cp $03
+  jr nz, .fail1
+  ld [hl], $33
+  ldh a, [c]
+  cp $04
+  jr nz, .fail1
+  ld [hl], $34
+  ldh a, [c]
+  cp $0F
+  jr z, .nofail1
+  .fail1:
+    scf
+  .ret1:
+    jp lcd_off_and_return
+  .nofail1:
+
+  ; Check read behavior during CRAM blocking
+  ; Seek to $20 and read $06 in modes 0 and 2 and $FF in mode 3
+  ; then seek to $20 and read $06 in mode 0
+  ld a, $20
+  ld [hl+], a  ; write address and go back to usual HL=data
+  lb de, $06, STATF_HBL
+  call read_D_mode_E
+  jr nz, .fail1
+  ld e,       STATF_OAM
+  call read_D_mode_E
+  jr nz, .fail1
+  lb de, $FF, STATF_LCD
+  call read_D_mode_E
+  jr nz, .fail1
+  ld a, $21  ; again, write address during mode 3
+  ldh [rOCPS], a
+  lb de, $07, STATF_HBL
+  call read_D_mode_E
+  jr nz, .fail1
+  jr .ret1
+
+;;
+; Waits for a mode in STAT and then writes a value.
+; To write a value and it's ones' complement, use write_D_notD_mode_E
+; @param E mode to wait for
+; @param HL address to write
+; @param D value to write
+write_D_mode_E:
+  lb bc, STATF_LCD, low(rSTAT)
+  .wait0loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr z, .wait0loop
+  .wait1loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr nz, .wait1loop
+  ld [hl], d
+  ret
+
+;;
+; Waits for a mode in STAT and then reads a value.
+; @param E mode to wait for
+; @param HL address to read
+; @param D value to expect
+; @return A: read XOR expected; ZF: true if same
+read_D_mode_E:
+  lb bc, STATF_LCD, low(rSTAT)
+  .wait0loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr z, .wait0loop
+  .wait1loop:
+    ld a, [$FF00+c]
+    xor e
+    and b
+    jr nz, .wait1loop
+  ld a, [hl]
+  xor d
+  ret

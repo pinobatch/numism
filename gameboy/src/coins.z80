@@ -46,16 +46,16 @@ coin_list::
   dw coin_any_joypad_irq
   dw coin_daa_oddball_af
   ; stage 4: begin dmg/gbc differences
-  dw coin_no_31
-  dw coin_no_32
+  dw coin_wave_ram_retrigger
+  dw coin_dma_copy_speed
   dw coin_stat_write_ff
   dw coin_ram_capacity
   dw coin_gbc_or_mask
   dw coin_gbc_mode_3_length
-  dw coin_wave_ram_retrigger
+  dw coin_no_37
+  dw coin_no_38
   dw coin_gbc_palette_readback
-  dw coin_gbc_palette_blocking
-  dw coin_no_40
+  dw coin_cram_blocked_writes
 
 
 ; Controls whether tests using init_silent_apu are audible.
@@ -541,25 +541,27 @@ coin_vram_blocked_writes:
 
 write_in_all_modes:
   lb de, "0", 0
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "1", STATF_VBL
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "2", STATF_OAM
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "3", STATF_LCD
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "O", STATF_OAM
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "P", STATF_LCD
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "H", 0
-  call write_in_mode_E
+  call write_D_notD_mode_E
   lb de, "V", STATF_VBL
   ; fall through
 ;;
+; Writes a byte followed by its complement
 ; @param D byte to write
 ; @param E mode to write in
-write_in_mode_E:
+; @param HL address to write to (caution: L < $FE)
+write_D_notD_mode_E:
   lb bc, STATF_LCD, low(rSTAT)
   .wait0loop:
     ld a, [$FF00+c]
@@ -582,7 +584,7 @@ write_in_mode_E:
 write_in_all_modes_readback:
   push hl
   ei
-  call wait_vblank_irq
+  rst wait_vblank_irq
   pop hl
   ld b, 1
   .loop:

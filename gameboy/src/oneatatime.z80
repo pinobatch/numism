@@ -17,7 +17,7 @@ SECTION "main", ROM0
 
 DEF COINS_PER_STAGE equ 10
 DEF NUM_STAGES equ 4
-def WAIT_FRAMES equ 60
+def WAIT_FRAMES equ 20;60
 
 main::
   xor a
@@ -101,6 +101,7 @@ draw_two_digits:
   ld a, %11100100
   call set_bgp
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8000
+  ldh [vblank_lcdc_value], a
   ldh [rLCDC], a
   ret
 
