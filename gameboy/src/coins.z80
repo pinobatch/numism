@@ -203,7 +203,7 @@ apu_or_mask_values:
   db $FF,$3F,$00,$FF,$BF
   db $7F,$FF,$9F,$FF,$BF
   db $FF,$FF,$00,$00,$BF
-  db $00,$00 ;,$70
+  db $00,$00
 apu_or_mask_values_end:
 
 ;;
@@ -1197,8 +1197,8 @@ def DEBUGHEX_ORMASK equ 0
 coin_other_or_mask:
   jr .start
   db "OR mask for other regs",10
-  db "Unused bits of P1, SC, TAC,",10
-  db "IF, RP, and STAT read as 1",10
+  db "Unused bits of P1, TAC,",10
+  db "IF, and STAT read as 1",10
   db "but not OBP0/1 or IE;",10
   db "unmapped regs read $FF",0
 .start:
@@ -1322,23 +1322,22 @@ def STATF_UNUSED equ $FF ^ (STATF_LYC|STATF_MODE10|STATF_MODE01|STATF_MODE00|STA
 regs_with_ormask:
   ;  reg          mask       wrvalue
   db low(rP1),    %11000000, %11111111
-  db low(rSC),    %01111100, %01111100
   db low(rTAC),   %11111000, %11111000
   db low(rIF),    %11100000, %11100000
   db low(rSTAT),  STATF_UNUSED, STATF_UNUSED
-  db low(rKEY1),  %01111110, %01111110
-  db low(rRP),    %00101100, %00101100  ; SameBoy src says CGB E has 0 in bit 4; others have 1
 regs_wo_ormask:
   db low(rOBP0), low(rOBP1), low(rIE)
 regs_unmapped:
   ; low, high
   db $03, $03
   db $08, $0E
-  db $15, $15
-  db $1F, $1F
   db $27, $2F
-  db $4C, $4C
+  db $4C, $4C  ; DMG: nothing; GBC: GB/GBC mode select, always true
   db $4E, $4E
+  db $51, $54  ; DMG: nothing; GBC: write-only DMA address
+  db $57, $67
+  db $6D, $6F
+  db $78, $7F
 regs_unmapped_end:
 
 

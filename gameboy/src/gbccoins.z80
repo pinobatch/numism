@@ -47,7 +47,7 @@ coin_dma_copy_speed::
   add -2  ; CF: 0 if match
   jp lcd_off_and_return
 
-def DEBUGHEX_STATBUG equ 1
+def DEBUGHEX_STATBUG equ 0
 
 ; bit 4: 1 if mode 0 is clean (DMG: no)
 ; bit 3: 1 if mode 1 is clean (DMG: no)
@@ -203,16 +203,93 @@ coin_ram_capacity::
   ldh [rVBK], a
   ret
 
+def DEBUGHEX_GBC_ORMASK equ 0
+
 coin_gbc_or_mask::
   jr .start
-  db "NYA OR mask for GBC regs",10
-  db "Unused bits of GBC-only",10
-  db "registers read as 1;",10
-  db "all $FF on B&W system",0
+  db "OR mask for GBC registers",10
+  db "Unused bits of SVBK, VBK,",10
+  db "KEY1, SC, BCPS, OCPS, RP ",10
+  db "read as 1; more are unused",10
+  db "on B&W",0
 .start:
-  or a
+  ; Registers with GBC-specific functionality that may include an
+  ; OR-maskable read not tested elsewhere
+  ; rSC (FF02), rKEY1 (FF4D), rVBK (FF4F), rHDMA* (FF51-FF54),
+  ; rRP (FF56), rBCPS (FF58), rOCPS (FF5A), rSVBK (FF70)
+  ;
+  ; rHDMA5 is supposedly readable, but it only matters during
+  ; an ongoing HDMA, and HDMA is for a later stage
+  ;
+  ; Caution for RP (infrared):
+  ; SameBoy src says CGB E has 0 in bit 4, while others have 1
+  ldh a, [hCapability]
+  ld e, a
+  ld hl, gbc_regs_exact
+  ld b, b
+  .regloop:
+    ld a, [hl+]  ; Read register address
+    if DEBUGHEX_GBC_ORMASK
+      ld [debughex+0], a
+    endc
+    ld c, a
+    ld a, [hl+]  ; Read value to write
+    ldh [c], a
+    ld a, [hl+]  ; Read GBC value
+    ld b, a
+    ld a, [hl+]  ; Read DMG value
+    bit 7, e
+    jr nz, .use_gbc_value
+      ld b, a
+    .use_gbc_value:
+    ldh a, [c]
+    if DEBUGHEX_GBC_ORMASK
+      ld [debughex+1], a
+    endc
+    cp b
+    jr nz, .fail
+    ld a, l
+    xor low(gbc_regs_exact_end)
+    jr nz, .regloop
+
+  if DEBUGHEX_GBC_ORMASK
+    ld a, low(rRP)
+    ld [debughex+0], a
+    xor a
+  endc
+  ldh [rRP], a
+  ldh a, [rRP]
+  if DEBUGHEX_GBC_ORMASK
+    ld [debughex+1], a
+  endc
+  cp $FF    ; calculate DMG result
+  bit 7, e
+  ret z     ; and use it if on DMG
+  ; Otherwise we're on GBC.  Disregard bit 4 because CGB E clears it.
+  or %00010000
+  xor $3E
+  add -1
+  ret
+.fail:
+  scf
   ret
 
+; gbc_regs_with_ormask
+; 1. Write wrvalue to register
+; 2. Read appropriate target value (DMG or GBC)
+; 3. Read rdvalue from reg
+; 4. If rdvalue != target, fail
+gbc_regs_exact:
+  ; register      wrvalue    gbcvalue   dmgvalue
+  db low(rSVBK),  %00000000, %11111000, %11111111
+  db low(rVBK),   %00000000, %11111110, %11111111
+  db low(rKEY1),  %00000000, %01111110, %11111111
+  db low(rSC),    %00000000, %01111100, %01111110
+  db low(rBCPS),  %00000000, %01000000, %11111111
+  db low(rOCPS),  %00000000, %01000000, %11111111
+gbc_regs_exact_end:
+; rRP is handled separately because bit 4 is insignificant,
+; differing on CGB E vs. all other CGB revisions.
 
 def DEBUGHEX_GBC_MODE_3_LENGTH equ 0
 
