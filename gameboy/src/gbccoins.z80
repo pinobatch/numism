@@ -95,7 +95,7 @@ coin_stat_write_ff::
 
   if DEBUGHEX_STATBUG
     ld a, d
-    ld [debughex+0], a
+    ld [debughex+1], a
   endc
   ldh a, [hCapability]
   add a
@@ -112,7 +112,7 @@ coin_stat_write_ff::
 ; To write a value and it's ones' complement, use write_D_notD_mode_E
 ; @param E mode to wait for
 ; @param HL address to write
-; @return D shifted left by 1 with stack red zone 
+; @return D shifted left by 1 with bit 0 from stack red zone
 write_statbug_mode_E:
   lb bc, STATF_LCD, low(rSTAT)
   ld hl, sp-1
@@ -226,7 +226,6 @@ coin_gbc_or_mask::
   ldh a, [hCapability]
   ld e, a
   ld hl, gbc_regs_exact
-  ld b, b
   .regloop:
     ld a, [hl+]  ; Read register address
     if DEBUGHEX_GBC_ORMASK
@@ -380,7 +379,7 @@ coin_wave_ram_retrigger::
   adc a  ; move to CF
   ret
 
-DEBUGHEX_OAM_DMA_ROM_BLOCKING = 0
+def DEBUGHEX_OAM_DMA_ROM_BLOCKING equ 0
 
 coin_oam_dma_rom_blocking::
   jr .start
@@ -413,13 +412,56 @@ coin_oam_dma_rom_blocking::
   add $FF
   ret
 
-coin_no_38::
+coin_apu_on_clears_length::
   jr .start
-  db "Always pass for now",0
+  db "APU on clears length",10
+  db "Length counter can be set",10
+  db "with APU off on B&W only",0
 .start:
-  or a
-  ret
 
+  ; Turn off APU, write length, turn on APU
+  xor a
+  ldh [rNR11], a
+  ld hl, rNR52
+  ld [hl], a
+  ld a, $BE
+  ldh [rNR11], a
+  ld a, $88
+  ld [hl-], a
+  cpl
+  ld [hl-], a
+  ld [hl-], a
+
+  ; Play a note with this length
+  ld hl, rNR12
+  ld a, $B7
+  ld [hl+], a
+  ld [hl+], a
+  ld a, $C7
+  ld [hl], a
+
+  ; Verify in NR52 that the note played
+  ldh a, [rNR52]
+  rra
+  ccf
+  ret c
+
+  ; Wait enough cycles for it to end on DMG
+  ld bc, -6000
+  .waitloop:
+    inc c
+    jr nz, .waitloop
+    inc b
+    jr nz, .waitloop
+
+  ; should have stopped on DMG and still be playing on GBC
+  ldh a, [hCapability]
+  ld b, a  ; B bit 7: on GBC
+  ldh a, [rNR52]
+  rrca     ; A bit 7: still playing
+  xor b
+  add a
+  ret
 
 coin_gbc_palette_readback::
   jr .start
@@ -583,7 +625,7 @@ palette_ensure_no_007f_autoinc:
   ld [hl+], a  ; seek to palette[$32]
   ld a, [hl]
   cp $b0
-  ret  
+  ret
 
 coin_cram_blocked_writes::
   jr .start

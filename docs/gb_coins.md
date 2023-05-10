@@ -83,7 +83,8 @@ Coins:
 36. Disabling sprites in LCDC shortens mode 3 only on DMG
 37. During OAM DMA from WRAM, reading ROM produces valid data on GBC
     and whatever the DMA unit is reading on DMG
-38. *Your GBC test here*
+38. DMG receives writes to length counters while APU is turned
+    off in NR52, and GBC does not
 39. GBC palette can be written and read, storing all 8 bits of all
     128 bytes, auto-incrementing on writes to $80-$FF (not on $00-$7F
     or reads) with wrapping, only on GBC (suggested by sylvie/zlago)
@@ -96,11 +97,6 @@ Unranked, to be tested at title screen and in menus:
 - Joypad interrupt happens at different LY values (Telling LYs?)
 - Asserting P14/P15 while holding a button causes joypad interrupt
   (suggested by Daid)
-
-Stage 4 is expected to focus on GBC differences.
-
-- ROM can be read during OAM DMA from WRAM only on GBC
-- How much time HDMA takes from a scanline
 
 Stage 5 shall focus on SGB.  It can be hard to test because so much
 of the SGB is open-loop, passing no feedback to the Game Boy SoC.
@@ -121,9 +117,14 @@ Unranked:
   inaccessibility (see [double halt cancel] by nitro2k01)
 - Consider a stage of GBC double speed tests: CPU speed, timer/DIV
   speed, APU speed, mode 3 length, GDMA vs. HDMA vs. OAM DMA speed
-- Seen in SameBoy source: Do length counters on DMG (only) accept
-  writes while the APU is off?
 - Does `halt` pause GBC DMA?
+- How much time HDMA takes from a scanline
+- APU length counters do not automatically reload per note the
+  way TIMA reloads from TMA.  If NRx1 is not rewritten, a second
+  consecutive note lasts the maximum length: 1 s (wave) or 1/4 s
+  (pulse or noise).
+- APU length counters continue to tick after rewriting NRx1, so long
+  as the length counter isn't paused by turning off NRx4 bit 6.
 
 To make things easier for some emulator developers during long
 periods of development hiatus due to the day job of Numism's

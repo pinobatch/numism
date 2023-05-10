@@ -53,7 +53,7 @@ coin_list::
   dw coin_gbc_or_mask
   dw coin_gbc_mode_3_length
   dw coin_oam_dma_rom_blocking
-  dw coin_no_38
+  dw coin_apu_on_clears_length
   dw coin_gbc_palette_readback
   dw coin_cram_blocked_writes
 
