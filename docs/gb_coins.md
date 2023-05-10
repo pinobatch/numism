@@ -81,11 +81,12 @@ Coins:
 35. OR mask for GBC-specific registers varies by model, particularly
     KEY1, SC, and RP (suggested by beware)
 36. Disabling sprites in LCDC shortens mode 3 only on DMG
-37. *Your GBC test here*
+37. During OAM DMA from WRAM, reading ROM produces valid data on GBC
+    and whatever the DMA unit is reading on DMG
 38. *Your GBC test here*
 39. GBC palette can be written and read, storing all 8 bits of all
     128 bytes, auto-incrementing on writes to $80-$FF (not on $00-$7F
-    or reads), only on GBC (suggested by sylvie/zlago)
+    or reads) with wrapping, only on GBC (suggested by sylvie/zlago)
 40. GBC palette can be written and read on GBC only outside mode 3,
     and write increments address even in mode 3 (suggested by
     nitro2k01 and sylvie/zlago)

@@ -52,7 +52,7 @@ coin_list::
   dw coin_ram_capacity
   dw coin_gbc_or_mask
   dw coin_gbc_mode_3_length
-  dw coin_no_37
+  dw coin_oam_dma_rom_blocking
   dw coin_no_38
   dw coin_gbc_palette_readback
   dw coin_cram_blocked_writes
@@ -409,7 +409,7 @@ lcd_off_and_return::
 ; should set STAT and IE to the appropriate value.
 lcd_on_blank::
   call lcd_off
-  ld hl, _OAMRAM     ; clear all of OAM to 0
+  ld hl, _OAMRAM     ; clear live OAM to 0
   ld c, $A0
   rst memset_tiny
 lcd_on_blank_keep_oam::

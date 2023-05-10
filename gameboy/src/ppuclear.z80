@@ -156,6 +156,14 @@ memset::
 SECTION "rom_ppuclear", ROM0
 
 ;;
+; Fills the display list with zero ($00) bytes.
+lcd_clear_all_oam::
+  ld hl, SOAM
+  xor a
+  ld c, 160
+  jp memset_tiny
+
+;;
 ; Moves sprites in the display list from SOAM+[oam_used] through
 ; SOAM+$9C offscreen by setting their Y coordinate to 0, which is
 ; completely above the screen top (16).

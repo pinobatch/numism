@@ -30,13 +30,6 @@ include "src/global.inc"
 ; So put "shut BGB up" commands behind a conditional.
 bgbcompat equ 1
 
-; Like the NES and Super NES, DMA on the Game Boy takes access to RAM
-; and ROM away from the CPU.  But unlike those two, the CPU continues
-; to run.  So store a tiny subroutine in HRAM (tightly coupled
-; memory) to keep the CPU busy until OAM DMA is done.
-section "hram_init", HRAM[$FFF4]
-run_dma:: ds 11
-
 ; For the purpose of hLocals, see a fairly long rant in global.inc
 section "hram_locals", HRAM[hLocals]
   ds locals_size
@@ -82,12 +75,10 @@ reset_handler::
   ldh [rSCX], a   ; clear scroll
   ldh [rNR52], a  ; disable (and reset) audio
   if bgbcompat
-    ; BGB triggers spurious "reading uninitialized WRAM" exceptions
+    ; BGB triggers pedantic "reading uninitialized WRAM" exceptions
     ; when DMAing the X, tile number, and attribute of an OAM entry
     ; whose Y is offscreen.
-    ld hl,SOAM
-    ld c,160
-    rst memset_tiny
+    call lcd_clear_all_oam
     ld hl,lineImgBuf
     ld c,136
     rst memset_tiny
@@ -100,10 +91,9 @@ reset_handler::
   ldh [stat_lcdc_value], a
 
   ; Copy the sprite DMA routine to HRAM
-  ld hl,hramcode_start
-  ld de,run_dma
-  ld bc,hramcode_end-hramcode_start
-  call memcpy
+  ld hl, hramcode_LOAD
+  ld de, hramcode_RUN
+  call memcpy_pascal16
   call run_dma
 
   ; Detect Super Game Boy
@@ -116,47 +106,34 @@ reset_handler::
 
   jp main
 
+section "HRAMCODE_src", ROM0
 ;;
-; Copies BC bytes from HL to DE.
-; @return A: last byte copied; HL at end of source;
-; DE at end of destination; B=C=0
-memcpy::
-  ; Increment B if C is nonzero
-  dec bc
-  inc b
-  inc c
+; While OAM DMA is running, the CPU keeps fetching instructions
+; while ROM and WRAM are inaccessible.  A program needs to jump to
+; HRAM and busy-wait 160 cycles until OAM DMA finishes.
+hramcode_LOAD:
+  dw hramcode_RUN_end-hramcode_RUN
+load "HRAMCODE", HRAM
+hramcode_RUN:
+
+;;
+; Copy a display list from shadow OAM to OAM
+; @param HL address to read once while copying is in progress
+; @return A = value read from [HL]
+run_dma::
+  ld a,SOAM >> 8
+  ldh [rDMA],a
+  ld b,40
+  ld a, [hl]
 .loop:
-  ld a, [hl+]
-  ld [de],a
-  inc de
-  dec c
-  jr nz,.loop
   dec b
   jr nz,.loop
   ret
 
-section "hramcode", ROM0
-;;
-; The routine gets copied to high RAM.  While OAM DMA is running,
-; both ROM and WRAM are inaccessible; only HRAM is readable.
-; But unlike on the NES, the CPU continues to fetch and execute
-; instructions.  So a program needs to run 160 mcycles' worth of
-; code from HRAM until this finishes.  Thus to present a display
-; list, the program will call run_dma, not hramcode_start.
-hramcode_start:
-  ld a,SOAM >> 8
-  ldh [rDMA],a
-  ld a,40
-.loop:
-  dec a
-  jr nz,.loop
-  ret
-hramcode_end:
+hramcode_RUN_end:
+endl
 
-; If we stuff these in their own sections, RGBLINK might be able to
-; pack them between the unused IRQ/RST vectors, at least until we
-; figure out which to make into RSTs.
-
+; Small routines to attempt to pack into small unused spaces
 
 section "memset_tiny",ROM0[memset_tiny]
 ;;
@@ -175,4 +152,35 @@ memset_inc::
   inc a
   dec c
   jr nz,memset_inc
+  ret
+
+section "memcpy", ROM0
+;;
+; Copy a string preceded by a 2-byte length from HL to DE.
+; @param HL source address
+; @param DE destination address
+memcpy_pascal16::
+  ld a, [hl+]
+  ld c, a
+  ld a, [hl+]
+  ld b, a
+  ; fall through to memcpy
+
+;;
+; Copies BC bytes from HL to DE.
+; @return A: last byte copied; HL at end of source;
+; DE at end of destination; B=C=0
+memcpy::
+  ; Increment B if C is nonzero
+  dec bc
+  inc b
+  inc c
+.loop:
+  ld a, [hl+]
+  ld [de],a
+  inc de
+  dec c
+  jr nz,.loop
+  dec b
+  jr nz,.loop
   ret

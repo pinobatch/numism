@@ -321,13 +321,6 @@ coin_gbc_mode_3_length::
   adc a    ; move to CF
   jp lcd_off_and_return
 
-coin_no_37::
-  jr .start
-  db "Always pass for now",0
-.start:
-  or a
-  ret
-
 def WAVE_RAM_RETRIGGER_AUDIBLE equ 0
 def DEBUGHEX_WAVE_RAM_RETRIGGER equ 0
 
@@ -385,6 +378,39 @@ coin_wave_ram_retrigger::
   rra    ; move to bit 7
   xor b  ; bit 7 = 0 if match or 1 if wrong
   adc a  ; move to CF
+  ret
+
+DEBUGHEX_OAM_DMA_ROM_BLOCKING = 0
+
+coin_oam_dma_rom_blocking::
+  jr .start
+  db "OAM DMA ROM blocking",10
+  db "During OAM DMA from WRAM,",10
+  db "ROM is readable on GBC;",10
+  db "B&W reads what the DMA",10
+  db "unit is reading",0
+.start:
+  call lcd_clear_all_oam
+
+  ; run_dma has been modified to read [HL] during DMA
+  ld hl, .start
+  call run_dma
+  ld c, a
+  if DEBUGHEX_OAM_DMA_ROM_BLOCKING
+    ld [debughex+0], a
+  endc
+  ; GBC puts ROM and WRAM on separate buses.  DMG puts them on the
+  ; same bus, and reads from ROM return whatever shadow OAM value
+  ; the DMA unit is reading at the time.  So on GBC, it will have
+  ; read the ROM value, and on DMG, it will have read $00 (the
+  ; value written by lcd_clear_all_oam).
+  ldh a, [hCapability]
+  and $80  ; $80: GBC; $00: DMG
+  jr z, .notGBC
+    ld a, [hl]  ; reread the byte
+  .notGBC:
+  xor c
+  add $FF
   ret
 
 coin_no_38::
