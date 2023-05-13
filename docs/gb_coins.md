@@ -123,8 +123,9 @@ Unranked:
   way TIMA reloads from TMA.  If NRx1 is not rewritten, a second
   consecutive note lasts the maximum length: 1 s (wave) or 1/4 s
   (pulse or noise).
-- APU length counters continue to tick after rewriting NRx1, so long
-  as the length counter isn't paused by turning off NRx4 bit 6.
+- APU length counters continue to tick after rewriting NRx1, even
+  after the length counter has stopped the note, so long as the
+  length counter isn't paused by turning off NRx4 bit 6.
 
 To make things easier for some emulator developers during long
 periods of development hiatus due to the day job of Numism's
