@@ -6,6 +6,7 @@ SECTION "main", ROM0
 DEF COINCELS_TILE equ $23
 DEF LOGO_IDOT_XY equ $982B
 DEF SHOW_TITLE_SCREEN equ 0
+DEF MIN_STAGES_FOR_BORDER equ 2
 
 main::
   xor a
@@ -35,9 +36,13 @@ main::
 
   call log_coins_to_sram
 
-  ld hl, $2000
-  ld [hl], bank(sgb_send_main_border)
-  call sgb_send_main_border
+  call count_completed_stages
+  cp MIN_STAGES_FOR_BORDER
+  jr c, .no_sgb_border
+    ld hl, $2000
+    ld [hl], bank(sgb_send_main_border)
+    call sgb_send_main_border
+  .no_sgb_border:
   call lcd_on_blank
   call sgb_unfreeze
 

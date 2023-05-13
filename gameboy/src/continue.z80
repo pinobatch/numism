@@ -107,6 +107,53 @@ get_coin_list_stage_a:
   ld h, a
   ret
 
+def ALLOWED_MISSES_STAGE_1 equ 5
+def ALLOWED_MISSES_TOTAL equ 10
+
+section "continue_grading", ROM0
+count_completed_stages::
+  ld b, b
+  ld hl, wPassBits
+  ld c, ALLOWED_MISSES_STAGE_1
+  ; a: bits left in current byte of pass bits
+  ; hl: pointer to next byte of pass bits
+  ; b: 
+  ; c: allowed misses left
+  .byteloop:
+    ld a, [hl+]
+    .bitloop:
+      add a
+      jr nc, .no_dec_misses
+        dec c
+      .no_dec_misses:
+      or a
+      jr nz, .bitloop
+    ; exhausted all bits?
+    bit 7, c
+    jr nz, .failed_before_hl
+    ; At the start of stage 1 and stage 2 we get 5 misses.
+    ; If this is the start of stage 2, award the second 5 misses.
+    ld a, l
+    sub low(wPassBits)
+    cp 2
+    jr nz, .not_add_bonus
+      ld a, ALLOWED_MISSES_TOTAL - ALLOWED_MISSES_STAGE_1
+      add c
+      ld c, a
+      jr .byteloop
+    .not_add_bonus:
+    cp NUM_STAGES*2
+    jr c, .byteloop
+  rra
+  ret
+.failed_before_hl:
+  ld a, l
+  sub low(wPassBits) + 1
+  or a
+  rra
+  ld b, b
+  ret
+
 ; Displaying test results ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; VRAM map
