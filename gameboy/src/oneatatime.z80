@@ -15,9 +15,7 @@ debughex:: ds 2
 
 SECTION "main", ROM0
 
-DEF COINS_PER_STAGE equ 10
-DEF NUM_STAGES equ 4
-def WAIT_FRAMES equ 20;60
+def WAIT_FRAMES equ 20
 
 main::
   xor a

@@ -1,0 +1,84 @@
+include "src/hardware.inc"
+include "src/global.inc"
+
+; Stage 5: Super Game Boy and joypads ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; TODO: once full, reorder routines to match their on-screen ordering
+
+section "STAGE5COINS", ROM0
+
+coin_no_sgbc::
+  jr .start
+  db "No such thing as SGBC",10
+  db "GBC (A=$11) doesn't support",10
+  db "SGB multiplayer (MLT_REQ)",0
+.start:
+  ldh a, [hCapability]
+  and $81
+  cp $81
+  ccf
+  ret
+
+coin_no_42::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_43::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_44::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_45::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_46::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_47::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_48::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_49::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+
+coin_no_50::
+  jr .start
+  db "Always pass",0
+.start:
+  or a
+  ret
+

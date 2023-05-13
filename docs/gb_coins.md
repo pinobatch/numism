@@ -20,9 +20,9 @@ of a 32K ROM.  I may have to use the DTE codec that I used for
 
 Coin list
 ---------
-Lists for the first three stages are complete.  Stage 4 is in
-planning and begins a focus on distinguishing behaviors of the
-original Game Boy (DMG) from later models.
+Lists for the first four stages are complete.  Stage 4 begins a focus
+on distinguishing behaviors of the original Game Boy (DMG) from later
+models.
 
 Stages:
 
@@ -67,8 +67,8 @@ Coins:
 26. Approximate mode 3 duration with 0, 10, and 16 sprites
 27. 4 kHz timer turning on and off every 12 cycles eventually counts
     up past $FF
-28. At start, NR52=$F0 on SGB or $F1 elsewhere (breaks SGB detection
-    in LSDJ)
+28. At start, NR52=$F0 on SGB or $F1 elsewhere (LSDJ detects SGB via
+    NR52, vs. official software using `MLT_REQ`)
 29. Joypad interrupt works at all
 30. `daa` produces correct results for pathological values of AF:
     $9A NH to $00 ZC, $7A H to $80, $00 NHC to $9A NC to $3A NC
@@ -91,6 +91,17 @@ Coins:
 40. GBC palette can be written and read on GBC only outside mode 3,
     and write increments address even in mode 3 (suggested by
     nitro2k01 and sylvie/zlago)
+41. `MLT_REQ` does not initiate multiplayer on GBC (GBC+SGB mode
+    is not authentic)
+42. *(Your SGB test here)*
+43. *(Your SGB test here)*
+44. *(Your SGB test here)*
+45. *(Your SGB test here)*
+46. *(Your SGB test here)*
+47. *(Your SGB test here)*
+48. *(Your SGB test here)*
+49. *(Your SGB test here)*
+50. *(Your SGB test here)*
 
 Unranked, to be tested at title screen and in menus:
 
@@ -101,8 +112,6 @@ Unranked, to be tested at title screen and in menus:
 Stage 5 shall focus on SGB.  It can be hard to test because so much
 of the SGB is open-loop, passing no feedback to the Game Boy SoC.
 
-- `MLT_REQ` does not initiate multiplayer on GBC (GBC+SGB mode is
-  not authentic)
 - P1 rise time differences among DMG/MGB, SGB, and GBC/GBA
 - Joypad interrupt timing is predictable on SGB/SGB2 (at least in
   60 Hz) and not so on handhelds
@@ -134,6 +143,58 @@ separate ROM and merge them once complete.
 
 [double halt cancel]: https://github.com/nitro2k01/little-things-gb/tree/main/double-halt-cancel
 
+Why GBC first?
+--------------
+Despite that SGB was released before GBC, I put GBC in stage 4
+and SGB later because the audience is likelier to care about GBC.
+
+First, more GBC units than SGB units exist.  Game Boy sales after
+March 1999 total 41.3 million per [bandit2's analysis].  In addition,
+every Game Boy Advance (81.5 million) that isn't a Game Boy micro
+(2.4 million) plays GBC software.  Though SGB sales figures are
+hard to find, this exceeds SGB even if I greatly overestimate
+one SGB accessory for every Super NES console (49.1 million).
+
+Second, SGB's enhancement is underwhelming, as described in a series
+of [articles by Christine Love].  In most games, it consists of
+colored mood lighting for the entire playfield, a border around the
+screen, and (if you're lucky) same-screen multiplayer or music using
+the Super NES's sampler chip.  GBC, by contrast, upgrades the CPU
+and memory and adds a practical way to assign colors to parts of
+the screen as it scrolls.  (*Space Invaders* is a notable exception,
+as its arcade mode closes the SGB front end and runs natively as a
+Super NES program.)
+
+Most late Game Boy games are GBC exclusive.  All SGB enhanced games,
+by contrast, play on DMG at least in single player.
+
+Most SGB enhancements are [open-loop].  The GB program sends a
+16-byte packet to the SGB front end and trusts that the front end
+received it.  Because most packets provide no feedback from the SGB
+to the GB, many behaviors are testable only by viewing on-screen
+results. These are best tested in a screenshot comparison harness,
+such as [Daid's shootout], not here.
+
+Many emulators have a high-level emulation (HLE) of SGB enhancement
+that includes colorization, border, and possibly multiplayer.
+Instead of emulating the processors in the Super NES Control Deck,
+they process packets in native code.  Low-level emulators (LLE) rely
+on a dump of Nintendo's copyrighted SGB system software.  Each user
+legally must make a copy of SGB system software from an authentic
+SGB accessory.  A few HLEs optionally include sound enhancement,
+which still relies on Nintendo's copyrighted Kankichi sound driver.
+
+The combination of familiarity, noticeability, library size,
+open-loop design, hardware complexity, and copyright compliance
+makes testable SGB support less common in emulators than GBC support.
+Emulicious, for example, emulates GBC and not SGB.  The only known
+emulator with SGB and no GBC is the freeware version of no$gmb.
+
+[bandit2's analysis]: https://www.reddit.com/r/nintendo/comments/4dp6z0/lifetime_sales_of_the_game_boy_and_game_boy_color/
+[articles by Christine Love]: https://blog.loveconquersallgames.com/post/2350461718/fuck-the-super-game-boy-introduction
+[open-loop]: https://en.wikipedia.org/wiki/Open-loop_controller
+[Daid's shootout]: https://daid.github.io/GBEmulatorShootout/
+
 Results
 -------
 Test each emulator in DMG, SGB, and GBC mode, and record the lowest
@@ -143,7 +204,8 @@ coins more than the lowest.
 Use SameBoot in emulators requiring a 256- or 2048-byte boot ROM, and
 use 256 KiB system software dumped from an authentic SGB accessory
 if required.
-Disregard coins not yet implemented, marked "NYA" or "Always pass".
+Disregard coins not yet implemented, with names beginning "NYA"
+or "Always pass".
 
 Divergence between DMG and GBC behavior becomes more noticeable
 starting in stage 4.  Because the GBC features of No$gmb are

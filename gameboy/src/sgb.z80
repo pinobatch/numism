@@ -36,7 +36,7 @@ capa_1_if_player_2:
   ldh a, [rP1]
   rra  ; players 1 or 3: carry set; players 2 or 4: carry clear
   ret c
-  ldh [hCapability],a
+  ldh a, [hCapability]
   or $01
   ldh [hCapability],a
   ret

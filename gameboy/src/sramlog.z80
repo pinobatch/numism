@@ -1,8 +1,5 @@
+include "src/global.inc"
 
-def LF equ 10
-def CP_M_EOF equ 26
-def COINS_PER_STAGE equ 10
-def NUM_STAGES equ 3
 def _SRAM equ $A000
 
 section "sramlog_tmp", HRAM

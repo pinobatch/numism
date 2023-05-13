@@ -32,6 +32,12 @@ DEF GLOBAL_INC EQU 1
 DEF WITH_SGB EQU 1
 DEF WITH_DEBUGHEX equ 0
 
+DEF COINS_PER_STAGE equ 10
+DEF NUM_STAGES equ 5
+
+def LF equ 10
+def CP_M_EOF equ 26
+
 ; default names for DMA regs are confusing because they apply
 ; to non-HDMA as well
 

@@ -12,12 +12,12 @@ set -e
 
 title=numism
 inttitle='NUMISM'
-objlist='header init ppuclear pads main unpb16 uniur coins gbccoins continue sramlog vwflabels vwfdraw sgb'
+objlist='header init ppuclear pads main unpb16 uniur coins gbccoins sgbcoins continue sramlog vwflabels vwfdraw sgb'
 genobjlist='vwf7_cp144p'
 twobitlist='coincels'
 pb16list='checkmark'
 iurlist='logo'
-oaat_objlist='header init ppuclear pads oneatatime coins gbccoins sgb'
+oaat_objlist='header init ppuclear pads oneatatime coins gbccoins sgbcoins sgb'
 
 allobjlist=$(printf '%s\n' $objlist $oaat_objlist | sort -u)
 
