@@ -207,24 +207,24 @@ if required.
 Disregard coins not yet implemented, with names beginning "NYA"
 or "Always pass".
 
-Divergence between DMG and GBC behavior becomes more noticeable
+Divergence among models becomes more noticeable
 starting in stage 4.  Because the GBC features of No$gmb are
-paywalled, we do not list results for No$gmb past stage 3.
+paywalled, we do not list GBC mode results for No$gmb.
 
-Emulator     | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Notes
------------- | ------: | ------: | ------: | ------: | -----
-sameboy      |  10/10  |  10/10  |  10/10  |   7/7   |
-emulicious   |  10/10  |  10/10  |  10/10  |   6/7   | No SGB
-bgb          |  10/10  |  10/10  |  10/10  |   6/7   |
-mesen2       |  10/10  |  10/10  |  10/10  |   5/7   | SGB low-level emulation
-gambatte     |  10/10  |   9/10  |   9/10  |   7/7   |
-mgba         |  10/10  |   9/10  |   8/10  |   5/7   |
-vba-m        |  10/10  |   8/10  |   5/10  |   6/7   |
-kigb         |   3/10  |   6/10  |   6/10  |   6/7   |
-gnuboy       |   6/10  |   5/10  |   6/10  |   2/7   |
-peanut-gb    |   4/10  |   5/10  |   2/10  |   6/7   |
-goomba       |   5/10  |   6/10  |   3/10  |   2/7   |
-vba          |   6/10  |   1/10  |   2/10  |   3/7   |
-no$gmb       |   0/10  |   7/10  |   4/10  |**$**/10 | GBC paywall
-jsgb         |   3/10  |   3/10  |   3/10  |   3/7   | Four pauses for `di halt`
-rew.         |   2/10  |   2/10  |   4/10  |   3/7   |
+Emulator             | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Notes
+-------------------- | ------: | ------: | ------: | ------: | ------: | -----
+sameboy v0.15.8      |  10/10  |  10/10  |  10/10  |   9/10  |   1/1   |
+gambatte r747        |  10/10  |   9/10  |  10/10  |  10/10  |   1/1   |
+emulicious 2023-05   |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   | DMG/GBC
+bgb 1.5.10           |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   |
+mesen2 2023-05-12    |  10/10  |  10/10  |  10/10  |   7/10  |   1/1   | SGB low-level emulation
+mgba 0.11.0          |  10/10  |   9/10  |   8/10  |   7/10  |   1/1   |
+vba-m 2.1.5-fda429fc |  10/10  |   8/10  |   6/10  |   8/10  |   1/1   |
+kigb v2.05           |   3/10  |   6/10  |   6/10  |   7/10  |   1/1   |
+xgnuboy 1.0.3        |   6/10  |   6/10  |   5/10  |   3/10  |   1/1   | DMG/GBC
+peanut-gb 1.2.0      |   4/10  |   5/10  |   2/10  |   6/10  |   1/1   | DMG only
+goomba 12-14-14      |   6/10  |   6/10  |   3/10  |   4/10  |   1/1   |
+vba 1.7.2            |   6/10  |   1/10  |   2/10  |   4/10  |   1/1   |
+no$gmb 2.5           |   0/10  |   7/10  |   4/10  |   4/10  |   1/1   | DMG/SGB
+jsgb v0.02           |   3/10  |   3/10  |   3/10  |   3/10  |   1/1   | DMG only; click Run after each of four pauses for `di halt`
+rew. 12stx           |   2/10  |   2/10  |   4/10  |   3/10  |   1/1   |

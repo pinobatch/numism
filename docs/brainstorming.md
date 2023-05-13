@@ -19,6 +19,8 @@ actuator and then standing back up.
 
 ### Movement upgrades
 
+![Mindy walking back and forth on a platform, showing follow-through](Mindy_walk_and_turn.gif)
+
 Early on, your movement is grid-aligned, as in so-called "cinematic"
 platformers, and you can't die.  If you cannot cross an obstacle,
 you'll just stop.  Buying upgrades helps you cross more obstacles
@@ -93,7 +95,7 @@ of 1990s collectathon platformers.
 
 - [Gotta Catch Them All](https://allthetropes.org/wiki/Gotta_Catch_Them_All)
 - [Cash Gate](https://allthetropes.org/wiki/Cash_Gate)
-- [You Must Be This Tall to Enter](https://allthetropes.org/wiki/You_Must_Be_This_Tall_to_Enter)
+- [Ability Required to Proceed](https://allthetropes.org/wiki/Ability_Required_to_Proceed)
 - [Invisible Grid](https://allthetropes.org/wiki/Invisible_Grid)
 
 ### Art style inspirations

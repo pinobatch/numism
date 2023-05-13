@@ -4,11 +4,67 @@ include "src/global.inc"
 def vCoinTmp equ $9FFF
 
 ; Stage 4: Game Boy Color ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; TODO: Once this stage is full, reorder the routines to match their
-; final on-screen ordering
 
 section "STAGE4COINS", ROM0
+
+def WAVE_RAM_RETRIGGER_AUDIBLE equ 0
+def DEBUGHEX_WAVE_RAM_RETRIGGER equ 0
+
+coin_wave_ram_retrigger::
+  jr .start
+  db "Retrigger corrupts wave",10
+  db "Playing a wave note without",10
+  db "turning DAC off and on can",10
+  db "change byte 0 on B&W only",0
+.start:
+  call init_silent_apu
+  call load_sawtooth_wave  ; first byte is $00; rest is nonzero
+
+  ld b, 256-64
+  .period_loop:
+
+    ; Play a high-pitched tone
+    ; (inspired by "10-wave trigger while on.gb" by blargg)
+    ld hl, rNR30
+    if WAVE_RAM_RETRIGGER_AUDIBLE
+      ld a, $A0
+    else
+      ld a, $80
+    endc
+    ld [hl+], a  ; enable DAC
+    ld [hl+], a  ; length counter
+    ld [hl+], a  ; volume
+    ld [hl], b   ; initial period
+    ld a, $87
+    ldh [rNR34], a  ; trigger + high period
+    ld [hl], $100-2  ; second period
+
+    ; Wait a bit and retrigger it
+    ld c, 40
+    .cdloop:
+      dec c
+      jr nz, .cdloop
+    ldh [rNR34], a  ; retrigger
+
+    xor a
+    ldh [rNR30], a  ; disable DAC
+    inc b
+    jr nz, .period_loop
+
+  ; At this point, the first byte should have been overwritten
+  ; several times on DMG or not at all on GBC.  Set B bit 7 to true
+  ; if we expect it to still be 0.
+  ldh a, [hCapability]
+  ld b, a  ; bit 7 = 1 to expect zero or 0 to expect nonzero
+  ldh a, [_AUD3WAVERAM]
+  if DEBUGHEX_WAVE_RAM_RETRIGGER
+    ld [debughex+0], a
+  endc
+  cp 1   ; CF = 1 if 0 or 0 if nonzero
+  rra    ; move to bit 7
+  xor b  ; bit 7 = 0 if match or 1 if wrong
+  adc a  ; move to CF
+  ret
 
 coin_dma_copy_speed::
   jr .start
@@ -106,7 +162,6 @@ coin_stat_write_ff::
   add -1
   jp lcd_off_and_return
 
-
 ;;
 ; Waits for a mode in STAT and then writes a value.
 ; To write a value and it's ones' complement, use write_D_notD_mode_E
@@ -132,7 +187,6 @@ write_statbug_mode_E:
   add a
   rl d
   ret
-
 
 coin_ram_capacity::
   jr .start
@@ -280,7 +334,7 @@ coin_gbc_or_mask::
 ; 4. If rdvalue != target, fail
 gbc_regs_exact:
   ; register      wrvalue    gbcvalue   dmgvalue
-  db low(rSVBK),  %00000000, %11111000, %11111111
+  db low(rSVBK),  %00000000, %11111000, %11111111  ; F8 and F9 are distinct
   db low(rVBK),   %00000000, %11111110, %11111111
   db low(rKEY1),  %00000000, %01111110, %11111111
   db low(rSC),    %00000000, %01111100, %01111110
@@ -320,65 +374,6 @@ coin_gbc_mode_3_length::
   adc a    ; move to CF
   jp lcd_off_and_return
 
-def WAVE_RAM_RETRIGGER_AUDIBLE equ 0
-def DEBUGHEX_WAVE_RAM_RETRIGGER equ 0
-
-coin_wave_ram_retrigger::
-  jr .start
-  db "Retrigger corrupts wave",10
-  db "Playing a wave note without",10
-  db "turning DAC off and on can",10
-  db "change byte 0 on B&W only",0
-.start:
-  call init_silent_apu
-  call load_sawtooth_wave  ; first byte is $00; rest is nonzero
-
-  ld b, 256-64
-  .period_loop:
-
-    ; Play a high-pitched tone
-    ; (inspired by "10-wave trigger while on.gb" by blargg)
-    ld hl, rNR30
-    if WAVE_RAM_RETRIGGER_AUDIBLE
-      ld a, $A0
-    else
-      ld a, $80
-    endc
-    ld [hl+], a  ; enable DAC
-    ld [hl+], a  ; length counter
-    ld [hl+], a  ; volume
-    ld [hl], b   ; initial period
-    ld a, $87
-    ldh [rNR34], a  ; trigger + high period
-    ld [hl], $100-2  ; second period
-
-    ; Wait a bit and retrigger it
-    ld c, 40
-    .cdloop:
-      dec c
-      jr nz, .cdloop
-    ldh [rNR34], a  ; retrigger
-
-    xor a
-    ldh [rNR30], a  ; disable DAC
-    inc b
-    jr nz, .period_loop
-
-  ; At this point, the first byte should have been overwritten
-  ; several times on DMG or not at all on GBC.  Set B bit 7 to true
-  ; if we expect it to still be 0.
-  ldh a, [hCapability]
-  ld b, a  ; bit 7 = 1 to expect zero or 0 to expect nonzero
-  ldh a, [_AUD3WAVERAM]
-  if DEBUGHEX_WAVE_RAM_RETRIGGER
-    ld [debughex+0], a
-  endc
-  cp 1   ; CF = 1 if 0 or 0 if nonzero
-  rra    ; move to bit 7
-  xor b  ; bit 7 = 0 if match or 1 if wrong
-  adc a  ; move to CF
-  ret
-
 def DEBUGHEX_OAM_DMA_ROM_BLOCKING equ 0
 
 coin_oam_dma_rom_blocking::
@@ -412,6 +407,8 @@ coin_oam_dma_rom_blocking::
   add $FF
   ret
 
+def APU_ON_CLEARS_LENGTH_AUDIBLE equ 0
+
 coin_apu_on_clears_length::
   jr .start
   db "APU on clears length",10
@@ -428,7 +425,11 @@ coin_apu_on_clears_length::
   ldh [rNR11], a
   ld a, $88
   ld [hl-], a
-  cpl
+  if APU_ON_CLEARS_LENGTH_AUDIBLE
+    cpl
+  else
+    xor a
+  endc
   ld [hl-], a
   ld [hl-], a
 
@@ -462,6 +463,9 @@ coin_apu_on_clears_length::
   xor b
   add a
   ret
+
+; the CRAM test took a surprisingly large fraction of the ROM
+; a lot of emulators failed
 
 coin_gbc_palette_readback::
   jr .start
@@ -567,6 +571,7 @@ coin_gbc_palette_readback::
 
   ; Frame 2: Set first entry to white to avoid a visible flash,
   ; then ensure 32 of the 64 bytes of each palette can be read back
+  ; (N.B. do NOT clear bit 7 of odd bytes)
   rst wait_vblank_irq
   ld a, $80 + 4 * 19
   ld b, $82
