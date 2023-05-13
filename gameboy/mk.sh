@@ -12,7 +12,7 @@ set -e
 
 title=numism
 inttitle='NUMISM'
-objlist='header init ppuclear pads main unpb16 uniur coins gbccoins sgbcoins continue sramlog vwflabels vwfdraw sgb'
+objlist='header init ppuclear pads main unpb16 uniur coins gbccoins sgbcoins continue sramlog vwflabels vwfdraw sgb sgbborder'
 genobjlist='vwf7_cp144p'
 twobitlist='coincels'
 pb16list='checkmark'
@@ -25,6 +25,7 @@ mkdir -p obj/gb
 echo 'Force folder creation' > obj/gb/index.txt
 
 python3 tools/vwfbuild.py tilesets/vwf7_cp144p.png obj/gb/vwf7_cp144p.z80
+python3 tools/borderconv.py tilesets/Elembis_border.png obj/gb/Elembis.border
 for filename in $twobitlist $pb16list; do
   rgbgfx -c embedded -o "obj/gb/$filename.2b" "tilesets/$filename.png"
 done

@@ -201,7 +201,10 @@ sgb_load_trn_tilemap::
 ; A and B, and turns rendering back off.
 sgb_send_trn_ab::
   ld l, a
+  xor a
+  ldh [rSTAT], a
   ld a,LCDCF_ON|LCDCF_BGON|LCDCF_BG8000|LCDCF_BG9800
+  ldh [vblank_lcdc_value], a
   ldh [rLCDC],a
   ld a, l
   call sgb_send_ab

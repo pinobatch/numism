@@ -5,6 +5,7 @@ SECTION "main", ROM0
 
 DEF COINCELS_TILE equ $23
 DEF LOGO_IDOT_XY equ $982B
+DEF SHOW_TITLE_SCREEN equ 0
 
 main::
   xor a
@@ -34,7 +35,13 @@ main::
 
   call log_coins_to_sram
 
-  jp show_stages
+  ld hl, $2000
+  ld [hl], bank(sgb_send_main_border)
+  call sgb_send_main_border
+  call lcd_on_blank
+  call sgb_unfreeze
+
+  if SHOW_TITLE_SCREEN
 
   ; Load title screen
   call lcd_off
@@ -57,6 +64,7 @@ main::
   ld a, %01101100
   ldh [rBGP], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ldh [vblank_lcdc_value], a
   ldh [rLCDC], a
   ei
 .waitloop:
@@ -70,6 +78,8 @@ main::
   ldh a, [hNewKeys]
   and PADF_A|PADF_START
   jr z, .waitloop
+
+  endc
 
   jp show_stages
 
@@ -99,9 +109,6 @@ logo_cycle_spinning_coin:
   ld [hl], a
   ret
 
-
-
-
 logo_iur: incbin "obj/gb/logo.iur"
 coincels_2b: incbin "obj/gb/coincels.2b"
 titlelabels:
@@ -109,4 +116,4 @@ titlelabels:
   db 8, 64, "I'm at the emu test", 10
   db 8, 72, "I'm at the combination", 10
   db 8, 80, "platform game and emu test", 10
-  db 8, 128, $7F, " 2020 Damian Yerrick", 0
+  db 8, 128, $7F, " 2023 Damian Yerrick", 0

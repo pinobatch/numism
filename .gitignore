@@ -19,6 +19,7 @@ rew.ini
 nes/numism.nes
 nes/map.txt
 nes/obj/nes/*.s
+gameboy/obj/gb/*.border
 reporting/.cache
 reporting/sortshootout.html
 world/.cache
