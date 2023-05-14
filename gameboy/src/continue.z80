@@ -112,7 +112,6 @@ def ALLOWED_MISSES_TOTAL equ 10
 
 section "continue_grading", ROM0
 count_completed_stages::
-  ld b, b
   ld hl, wPassBits
   ld c, ALLOWED_MISSES_STAGE_1
   ; a: bits left in current byte of pass bits
@@ -151,7 +150,6 @@ count_completed_stages::
   sub low(wPassBits) + 1
   or a
   rra
-  ld b, b
   ret
 
 ; Displaying test results ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
