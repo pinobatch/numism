@@ -300,7 +300,7 @@ coin_gbc_or_mask::
       ld [debughex+1], a
     endc
     xor b
-    jr nz, .fail_a_nonzero
+    jr nz, .pass_iff_a_00
     ld a, l
     xor low(gbc_regs_exact_end)
     jr nz, .regloop
@@ -321,11 +321,8 @@ coin_gbc_or_mask::
   ; Otherwise we're on GBC.  Disregard bit 4 because CGB E clears it.
   or %00010000
   xor $3E
-.fail_a_nonzero:
+.pass_iff_a_00:
   add -1
-  ret
-.fail:
-  scf
   ret
 
 ; gbc_regs_with_ormask

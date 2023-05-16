@@ -54,12 +54,6 @@ main::
   ld hl, CHRRAM2
   call load_logo
 
-  ; Load the spinning coin
-  ld hl, coincels_2b
-  ld de, CHRRAM2+COINCELS_TILE*$10
-  ld bc, 5*$10
-  call memcpy
-
   ld hl, titlelabels
   ld de, $880
   call vwfDrawLabels
@@ -75,9 +69,7 @@ main::
 .waitloop:
   rst wait_vblank_irq
 
-  ld b, COINCELS_TILE
-  ld hl, LOGO_IDOT_XY
-  call logo_cycle_spinning_coin
+  call logo_cycle_spinning_coin_above_i
 
   call read_pad
   ldh a, [hNewKeys]
@@ -88,16 +80,72 @@ main::
 
   jp show_stages
 
+def COINCELS_CHR_DST equ COINCELS_TILE*$10
 ;;
 ; @param HL place to put logo tiles: $8000 or $9000
 load_logo::
+  push hl
   ld de, logo_iur
   call unpack_iu_file
+
+  ; Load the spinning coin
+  pop de
+  ld a, d
+  or high(COINCELS_CHR_DST)
+  ld d, a
+  ld a, e
+  or low(COINCELS_CHR_DST)
+  ld e, a
+  ld hl, coincels_2b
+  ld bc, 5*$10
+  call memcpy
+
+
+  ldh a, [hCapability]
+  rra
+  jr nc, .no_sgb_palette
+    ld hl, sgbpalette_pal01
+    call sgb_send
+    call sgb_send
+  .no_sgb_palette:
+
+  ldh a, [hCapability]
+  add a
+  jr nc, .no_gbc_palette
+    call clear_gbc_attr
+    ld a, 1
+    ldh [rVBK], a
+    ld [LOGO_IDOT_XY], a
+    xor a
+    ldh [rVBK], a
+
+    ld hl, logo_palette_gbc
+    ld a, $80
+    lb bc, logo_palette_gbc.obj-logo_palette_gbc, LOW(rBCPS)
+    call set_gbc_palette
+    ld a, $80
+    lb bc, logo_palette_gbc.end-logo_palette_gbc.obj, LOW(rOCPS)
+    call set_gbc_palette
+  .no_gbc_palette:
+
   ld hl, SCRN_TMP
   ldxy de, 0, 2
   lb bc, 20, 3
   jp load_nam
 
+logo_hide_spinning_coin_above_i::
+  ld hl, LOGO_IDOT_XY
+  ld [hl], 0
+  ret
+
+logo_stop_spinning_coin_above_i::
+  ld hl, LOGO_IDOT_XY
+  ld [hl], COINCELS_TILE
+  ret
+
+logo_cycle_spinning_coin_above_i::
+  ld b, COINCELS_TILE
+  ld hl, LOGO_IDOT_XY
 logo_cycle_spinning_coin:
   ; 0, 1, 2, 3, 4, 3, 2, 1... 
   ldh a, [nmis]
@@ -113,6 +161,46 @@ logo_cycle_spinning_coin:
   add b
   ld [hl], a
   ret
+
+sgbpalette_pal01:
+  db ($00<<3)|1  ; PAL01
+  drgb $ffffff  ; 20 majority of screen: money green
+  drgb $88bb00  ; 29
+  drgb $336600  ; 19
+  drgb $000000  ; 0F
+  drgb $ffda49  ; spinning ooin
+  drgb $af8a00  ;
+  drgb $5a4a00  ;
+  db $00
+sgbpalette_attr:
+  db ($04<<3)|1 ; ATTR_BLK
+  db 2
+  db %111  ; outside, border, inside
+  db %00000001 ; outside and border 0, inside 1
+  db 10, 0, 12, 2  ; the coin
+  db %011  ; border, inside
+  db %00000101 ; border & inside 1
+  db 12, 2, 14, 4  ; the "s" in Numism is for Super Game Boy
+.end:
+  ds 16-(.end-sgbpalette_attr), $00
+
+logo_palette_gbc:
+  ; GBC mode disregards BGP.  Instead, palette order
+  ; (white, black, dark, light) is baked into the palette data.
+  drgb $ffffff  ; 20 majority of screen: money green
+  drgb $000000  ; 0F
+  drgb $339900  ; 19
+  drgb $66ff00  ; 29
+  drgb $ffffff
+  drgb $5a4a00  ; spinning ooin
+  drgb $af8a00  ;
+  drgb $ffda49  ;
+.obj:
+  drgb $ffffff
+  drgb $000000
+  drgb $666666
+  drgb $b2b2b2
+.end:
 
 logo_iur: incbin "obj/gb/logo.iur"
 coincels_2b: incbin "obj/gb/coincels.2b"

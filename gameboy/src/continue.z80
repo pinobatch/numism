@@ -16,12 +16,18 @@ section "wPassBits", WRAM0, ALIGN[2]
 wPassBits:: ds NUM_STAGES*2
 
 section "continue_state", WRAM0
-cur_stage: ds 1
-cursor_y: ds 1
+; Stage variables
+; cur < completed: spin; cur == completed: stop; cur > completed: hide
+wCompletedStages: ds 1
+wCurStage: ds 1
+
+; Cursor movement within a stage and drawing
+cursor_y: ds 1  ; Vertical position within stage
 wnd_progress: ds 1
 wnd_y: ds 1
-cur_coin_desc: ds 1
-wanted_coin_desc: ds 1
+cur_coin_desc: ds 1  ; Coin ID whose description is in video memory
+wanted_coin_desc: ds 1  ; Coin ID to request drawing
+; Nonzero to request opening description; zero to request closing
 want_coin_out: ds 1
 
 ; Contentious coins write tracing data here
@@ -195,6 +201,9 @@ putnibble::
   ret
 
 show_stages::
+  call count_completed_stages
+  ld [wCompletedStages], a
+
   call clear_gbc_attr
 
   ; Clear pixels in VWF canvas
@@ -309,8 +318,8 @@ show_stages::
   ld a, STATF_LYC
   ldh [rSTAT], a
   ld a, %01101100  ; white, black, dark gray, light gray
-  call set_bgp
-  call set_obp0
+  ldh [rBGP], a
+  ldh [rOBP0], a
   ld a, 7
   ldh [rWX], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_BG8800|LCDCF_BG9800|LCDCF_WIN9C00
@@ -331,9 +340,19 @@ show_stages::
   ei
 
 .set_stage_to_a:
-  ld [cur_stage], a
+  ld [wCurStage], a
   push af
   rst wait_vblank_irq
+
+  ; Draw coin if stage is selectable
+  call logo_hide_spinning_coin_above_i
+  pop af
+  push af
+  ld b, a
+  ld a, [wCompletedStages]
+  cp b
+  call nc, logo_stop_spinning_coin_above_i
+
   ld a, BLANK_TILE
   ldxy hl, 2, 0, _SCRN1  ; Hide coin title bar during screen transition
   ld c, 15
@@ -356,7 +375,7 @@ show_stages::
   ldh a, [hNewKeys]
   ld b, a
 
-  ld hl, cur_stage
+  ld hl, wCurStage
   ld a, [hl]
   bit PADB_LEFT, b
   jr z, .not_left
@@ -421,6 +440,11 @@ show_stages::
 
   rst wait_vblank_irq
   call run_dma
+  ld a, [wCompletedStages]
+  ld b, a
+  ld a, [wCurStage]
+  cp b
+  call c, logo_cycle_spinning_coin_above_i
   ld a, [wnd_y]
   ldh [rWY], a
   ldh a, [hNewKeys]
@@ -654,12 +678,13 @@ draw_checkmarks_ca:
 ;
 
 move_coin_desc_window:
-  ld hl, cur_stage
+  ld hl, wCurStage
   ld a, [hl]
   add a  ; set wanted coin to A*10+cursor_y
   add a
   add [hl]
   add a
+  assert wCurStage + 1 == cursor_y
   inc hl  ; ld hl, cursor_y
   add [hl]
   ld hl, wanted_coin_desc
