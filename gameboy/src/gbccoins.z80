@@ -299,18 +299,18 @@ coin_gbc_or_mask::
     if DEBUGHEX_GBC_ORMASK
       ld [debughex+1], a
     endc
-    cp b
-    jr nz, .fail
+    xor b
+    jr nz, .fail_a_nonzero
     ld a, l
     xor low(gbc_regs_exact_end)
     jr nz, .regloop
 
+  ; xor a
+  ldh [rRP], a
   if DEBUGHEX_GBC_ORMASK
     ld a, low(rRP)
     ld [debughex+0], a
-    xor a
   endc
-  ldh [rRP], a
   ldh a, [rRP]
   if DEBUGHEX_GBC_ORMASK
     ld [debughex+1], a
@@ -321,6 +321,7 @@ coin_gbc_or_mask::
   ; Otherwise we're on GBC.  Disregard bit 4 because CGB E clears it.
   or %00010000
   xor $3E
+.fail_a_nonzero:
   add -1
   ret
 .fail:
@@ -341,6 +342,11 @@ gbc_regs_exact:
   db low(rBCPS),  %00000000, %01000000, %11111111
   db low(rOCPS),  %00000000, %01000000, %11111111
 gbc_regs_exact_end:
+; SVBK values F8 and F9 are distinct despite that they both map WRAM
+; bank 1 into $D000.  If you write 00 and get back F9, the unlicensed
+; game Jin Yong Qun Xia Zhuan has no sound.  F8 works as expected.
+; https://github.com/mgba-emu/mgba/issues/2921
+;
 ; rRP is handled separately because bit 4 is insignificant,
 ; differing on CGB E vs. all other CGB revisions.
 

@@ -201,15 +201,13 @@ Test each emulator in DMG, SGB, and GBC mode, and record the lowest
 score among supported modes.
 Also record the highest score if at least twice the lowest or 10
 coins more than the lowest.
+If an emulator puts a model behind a paid upgrade, disregard the
+score for that model.
 Use SameBoot in emulators requiring a 256- or 2048-byte boot ROM, and
 use 256 KiB system software dumped from an authentic SGB accessory
 if required.
 Disregard coins not yet implemented, with names beginning "NYA"
 or "Always pass".
-
-Divergence among models becomes more noticeable
-starting in stage 4.  Because the GBC features of No$gmb are
-paywalled, we do not list GBC mode results for No$gmb.
 
 Emulator             | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Notes
 -------------------- | ------: | ------: | ------: | ------: | ------: | -----
@@ -217,8 +215,9 @@ sameboy v0.15.8      |  10/10  |  10/10  |  10/10  |   9/10  |   1/1   |
 gambatte r747        |  10/10  |   9/10  |  10/10  |  10/10  |   1/1   |
 emulicious 2023-05   |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   | DMG/GBC
 bgb 1.5.10           |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   |
-mesen2 2023-05-12    |  10/10  |  10/10  |  10/10  |   7/10  |   1/1   | SGB is LLE
+mesen2 2023-05-15    |  10/10  |  10/10  |  10/10  |  10/10  |   1/1   | SGB is LLE
 mgba 0.11.0          |  10/10  |   9/10  |   8/10  |   7/10  |   1/1   |
+binjgb v0.1.11       |   9/10  |   9/10  |   9/10  |   6/10  |   1/1   | GBC only
 vba-m 2.1.5-fda429fc |  10/10  |   8/10  |   6/10  |   8/10  |   1/1   |
 ares 132             |   9/10  |   9/10  |   8/10  |   6/10  |   1/1   | SGB is LLE
 kigb v2.05           |   3/10  |   6/10  |   6/10  |   7/10  |   1/1   |
