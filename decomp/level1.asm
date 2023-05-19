@@ -10,20 +10,9 @@ wStackStart:
 section "main", ROM0
 
 main:
-  ; load tile set: white, black, dark gray
-  ld hl, $9000
-  xor a
-  ld c, 16
-  rst memset_tiny
-  cpl
-  ld c, 16
-  rst memset_tiny
-  ld c, 16
-  .loadtile2:
-    cpl
-    ld [hl+], a
-    dec c
-    jr nz, .loadtile2
+  ld hl, level1chr_2b
+  ld de, $9000
+  call memcpy_pascal16
 
   ; now try loading a tilemap
   ld hl, level1
@@ -109,7 +98,6 @@ map_decode_one_col:
 ;;
 ; Draws wMapCol to tilemap at DE
 blit_one_col:
-  ld b, b
   ld bc, wMapCol
   .blkloop:
     ld a, [bc]
@@ -148,56 +136,68 @@ blit_one_col:
 
 section "leveldata", ROM0
 level1:
-  dw %000001000000000
+  dw %0000001000000000
   db 1
-  dw %000001000000000
-  db 1
-  dw %000000010000000
-  db 1
-  dw %000000010000000
-  db 1
-  dw %000000010000000
-  db 1
-  dw %000000100000000
-  db 16
-  dw %000000010000000
-  db 1
-  dw %000000100000000
-  db 17
-  dw %000000010000000
-  db 1
-  dw %000000010000000
-  db 1
+  dw %0100000010000000
+  db 12,1
+  dw %0100000100000000
+  db 13,16
+  dw %0100000010000000
+  db 13,1
+  dw %0100000100000000
+  db 14,17
+  dw %0000001000000000
+  db 19
+  dw %0000001000000000
+  db 15
+  dw %0000100100000000
+  db 3, 1
+  dw %1010000000000000
+  db 12, 8
+  dw %1110000000000000
+  db 14, 12, 9
 
 mt_next:
-  db 0, 2, 2, 0, 0, 0, 0, 0
-  db 0, 0, 0, 0, 0, 0, 0, 0
-  db 1, 1
+  db 0, 2, 2, 4, 4, 0, 0, 0
+  db 10, 11, 1, 1, 0, 0, 0, 1
+  db 1, 1, 1, 20, 1
 
 section "metatile_defs", ROM0, align[2]
 metatile_defs:
-  db 0, 0, 0, 0
-  db 1, 1, 2, 2
-  db 2, 2, 2, 2
-  db 0, 0, 0, 0
+  db $00,$00,$00,$00  ; sky
+  db $4E,$4D,$03,$03  ; ground top
+  db $03,$03,$03,$03  ; ground inside
+  db $08,$09,$18,$19  ; ladder top
 
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
+  db $18,$19,$18,$19  ; ladder inside
+  db $00,$00,$00,$00
+  db $00,$00,$00,$00
+  db $00,$00,$00,$00
 
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
+  db $10,$11,$20,$21  ; bushtl
+  db $12,$13,$22,$23  ; bushtr
+  db $30,$31,$0C,$03  ; bushbl
+  db $32,$33,$03,$0F  ; bushbr
 
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
-  db 0, 0, 0, 0
+  db $00,$04,$00,$14  ; cloudL
+  db $05,$06,$15,$16  ; cloudC
+  db $07,$00,$17,$00  ; cloudR
+  db $28,$29,$38,$39  ; smbush
 
-  db 1, 0, 1, 0
-  db 0, 2, 0, 2
+  db $00,$46,$00,$3F  ; flower1
+  db $00,$47,$00,$3F  ; flower2
+  db $00,$2F,$00,$3F  ; flower3
+  db $00,$2C,$00,$3F  ; flower4
+
+  db $00,$3C,$00,$3F  ; flower4 extended
+
+section "bgchr", ROMX, BANK[1]
+
+level1chr_2b:
+  dw .end-.start
+.start:
+  incbin "level1chr.2b"
+.end:
 
 ; Administrative stuff ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -249,3 +249,33 @@ memset_tiny::
   jr nz,memset_tiny
   ret
 
+section "memcpy", ROM0
+;;
+; Copy a string preceded by a 2-byte length from HL to DE.
+; @param HL source address
+; @param DE destination address
+memcpy_pascal16::
+  ld a, [hl+]
+  ld c, a
+  ld a, [hl+]
+  ld b, a
+  ; fall through to memcpy
+
+;;
+; Copies BC bytes from HL to DE.
+; @return A: last byte copied; HL at end of source;
+; DE at end of destination; B=C=0
+memcpy::
+  ; Increment B if C is nonzero
+  dec bc
+  inc b
+  inc c
+.loop:
+  ld a, [hl+]
+  ld [de],a
+  inc de
+  dec c
+  jr nz,.loop
+  dec b
+  jr nz,.loop
+  ret
