@@ -1,0 +1,14 @@
+1. make rectangular allocator
+2. 
+3. decode column: store bitmap and values separately
+4. decode column: write back column to circular buffer based on
+   X position mod 16
+5. decode column: store left and right positions in value list
+6. decode column: decode values either top to bottom or bottom to top
+7. 
+8. draw column: draw left or right half of a column
+9. draw column: use VRAM-safe writing
+10. draw column: use autotiling based on matching value in adjacent
+   column in circular buffer
+11. 
+12. 
