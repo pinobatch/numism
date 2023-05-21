@@ -30,7 +30,7 @@ shelf c080-cfff
   array mapVicinity[16][16]
 
 ; this 64 by 16 byte shelf has top and bottom tracks
-shelf c040-cf7f
+shelf c040[16][64]
   array wRed[12][32]
   array wYellow[8][20]
   array wGreen[6][24]
@@ -82,18 +82,26 @@ Allocation is defined by a text file in a domain-specific language.
 Indentation is not significant.  Text on each line starting with a
 semicolon (`;`) is ignored as a comment.
 
-    shelf c040-cfff       ; variables to put in unswitched work RAM
+    shelf c040[16][64]
 
 The `shelf` command defines a rectangular subset of work RAM into
-which arrays are placed.  The following 4-digit hexadecimal numbers
-separated by a hyphen specify its top left and bottom right corners.
-For example, `shelf c040-cfff` defines a shelf consisting
-of address ranges C040-C0FF, C140-C1FF, C240-C2FF, ..., CF40-CFFF.
+which arrays are placed.  Its argument is a hexadecimal start address
+followed by the height in rows and width in bytes in square brackets.
+For example, `c040[16][64]` defines a shelf consisting of address
+ranges C040-C07F, C140-C17F, C240-C27F, ..., CF40-CF7F, or 16 rows
+by 64 bytes per row.
+
+    shelf c040-cf7f
+
+This equivalent form defines a shelf by its top left and bottom right
+corner addresses as hexadecimal numbers separated by a hyphen.
 
     array wActors[12][32]
 
 The `array` command adds a rectangle of 12 rows, each 32 bytes long,
-to the most recent shelf.
+to the most recent shelf.  Arrays are packed along the top and bottom
+of a shelf.  Their widths must not exceed twice the width of the
+shelf.  If you have more arrays than that, make an additional shelf.
 
 There's no way to align a single array at an address with a given
 number of zero least significant bits, such as 5 bits (32-byte
@@ -184,6 +192,11 @@ declRE = re.compile(r"""
 \s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # height
 \s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # width
 """, re.VERBOSE|re.IGNORECASE)
+shelfWidthHeightRE = re.compile(r"""
+(\$?[0-9a-f]+)                                    # base
+\s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # height
+\s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # width
+""", re.VERBOSE|re.IGNORECASE)
 bytes_sizes = {'bytes': 1, 'words': 2, 'longs': 4, 'alias': 0}
 
 def parse_int(s):
@@ -191,28 +204,47 @@ def parse_int(s):
     if s.startswith("$"): return int(s[1:], 16)
     return int(s, 10)
 
+def parse_shelf_rect(s):
+    start_end = [x.strip() for x in s.split('-', 1)]
+    if len(start_end) == 2:
+        start, end = (int(x.lstrip('$'), 16) for x in start_end)
+        starthi, startlo = start // 0x100, start % 0x100
+        endhi, endlo = end // 0x100, end % 0x100
+        if starthi > endhi:
+            raise ValueError("shelf start high byte %2x is more than end high byte %2x"
+                             % (starthi, endhi))
+        if startlo > endlo:
+            raise ValueError("shelf start low byte %2x is more than end low byte %2x"
+                             % (startlo, endlo))
+        width, height = endlo - startlo + 1, endhi - starthi + 1
+        return startlo, starthi, width, height
+
+    m = shelfWidthHeightRE.fullmatch(s)
+    if m is not None:
+        start, height, width = m.groups()
+        start = int(start, 16)
+        starthi, startlo = start // 0x100, start % 0x100
+        height = parse_int(height)
+        width = parse_int(width)
+        return startlo, starthi, width, height
+
+    raise ValueError("expected addr-addr or addr[height][width]; got %s"
+                     % (s,))
+
 def load_shelves_file(lines):
     shelves = []
     for linenum, line in enumerate(lines):
         line = line.split(';', 1)[0].strip().split(None, 1)
         if not line: continue
         if line[0] == 'shelf':
-            start_end = [x.strip() for x in line[1].split('-', 1)]
-            if len(start_end) != 2:
-                raise ValueError("%d: expected two addresses separated by -; got %s"
-                                 % (linenum + 1, line[1]))
-            start, end = (int(x, 16) for x in start_end)
-            starthi, startlo = start // 0x100, start % 0x100
-            endhi, endlo = end // 0x100, end % 0x100
-            if starthi > endhi:
-                raise ValueError("%d: shelf start high byte %2x is more than end high byte %2x"
-                                 % (linenum + 1, starthi, endhi))
-            if startlo > endlo:
-                raise ValueError("%d: shelf start low byte %2x is more than end low byte %2x"
-                                 % (linenum + 1, startlo, endlo))
+            try:
+                result = parse_shelf_rect(line[1])
+                startlo, starthi, width, height = result
+            except Exception as e:
+                raise ValueError("%d: %s" % (linenum + 1, str(e)))
             shelves.append(ShelfCmd(
                 linenum=linenum, arrays=[], left=startlo, top=starthi,
-                width=endlo - startlo + 1, height=endhi - starthi + 1
+                width=width, height=height
             ))
             continue
 
