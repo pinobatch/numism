@@ -8,12 +8,12 @@ import os, sys, argparse, re, warnings
 from collections import namedtuple
 from itertools import chain
 
-# The enclosed instruction book #####################################
+# The enclosed instruction book and command line parsing ############
 
 helpTop = """Allocates memory in 256-byte spaced arrays."""
 version = '%(prog)s 0.01'
 
-exampleFile = """; Example configuration file
+exampleFile = """; Example allocation definitions
 
 ; this 128 by 16 byte shelf has only a top track
 shelf c080-cfff
@@ -51,30 +51,32 @@ video terminals, such as the Digital VT102.  The majority of the
 A terminal deals mostly with a screen's worth of tilemap data.
 Each element in a tilemap may have a character ID and an attribute,
 not a particularly complex structure.  A real-time game, by contrast,
-also processes actors with more state variables.  These include a
+processes records with more state variables.  These include a
 character's position, velocity, frame of animation, health, and more.
 
 Random reads and writes of members in a record, such as properties
 of an actor in a game's actor pool, are slow on an 8080 processor.
-This is because the processor lacks an indexed addressing mode and
-thus has to calculate each member's address in software using add
-instructions.  (Z80 adds an indexed mode using a relatively slow
-prefixed encoding. This is absent on the original 8080 and the SM83.)
+Because the processor lacks an indexed addressing mode, it has to
+calculate each member's address in software using add instructions,
+which costs cycles and increases register pressure.  (Z80 adds an
+indexed mode using a relatively slow prefixed encoding.  This is
+absent on the original 8080 and the SM83.)
 
-One workaround involves aligning the actors to start exactly 256
+One workaround involves aligning records to start exactly 256 (0x100)
 bytes apart in work RAM.  This means the low byte of the address of
-a given property is the same across all actors.  Given the high byte
-of an actor's address, the program can access a property by loading
+a given property is the same across all records.  Given the high byte
+of a record's address, the program can access a property by loading
 the low byte of the address into an address register pair (BC, DE,
 or HL) and reading or writing that address.
 
 This approach requires work RAM's size to be at least 256 times the
-entity count.  In practice, it works best with at least 4 KiB of work
-RAM, which is more than in ColecoVision, SG-1000, or the Pac-Man
-arcade system.  Fortunately, the systems that we target (MSX, Master
-System, Genesis sound, and Game Boy) all have 8 KiB or more work RAM.
+count of records of any given type.  In practice, it works best
+with 4 KiB or more work RAM, which is more than in ColecoVision,
+SG-1000, or the Pac-Man arcade system.  Fortunately, the systems
+that we target (MSX, Master System, Genesis sound, and Game Boy)
+all have 8 KiB or more work RAM.
 """),
-   ('lang', """Configuration language
+   ('lang', """Language to define allocations
 
 Allocation is defined by a text file in a domain-specific language.
 Indentation is not significant.  Text on each line starting with a
@@ -123,19 +125,13 @@ the following field or as an end label for the preceding field.
 
 class ManualAction(argparse.Action):
 
-    def __init__(self,
-                 option_strings,
-                 dest=argparse.SUPPRESS,
-                 default=argparse.SUPPRESS,
-                 choices=[],
+    def __init__(self, option_strings, dest=argparse.SUPPRESS,
+                 default=argparse.SUPPRESS, choices=[],
                  help="show manual page and exit"):
         super(ManualAction, self).__init__(
-            option_strings=option_strings,
-            dest=dest,
-            default=default,
-            nargs='?',
-            choices=choices,
-            help=help)
+            option_strings=option_strings, dest=dest, default=default,
+            nargs='?', choices=choices, help=help
+        )
 
     def __call__(self, parser, namespace, values, option_string=None):
         if values is None:
@@ -145,14 +141,13 @@ class ManualAction(argparse.Action):
                 print("    --manual %-20s%s" % (name, txt))
         else:
             candidates = [
-                (name, txt) for name, txt in manual_pages
-                if name.startswith(values)
+                row for row in manual_pages if row[0].startswith(values)
             ]
             if len(candidates) == 0:
-                parser.error("no such page %(values)s; try %(prog)s --manual"
-                             % {'values': values, 'prog': parser._prog})
+                parser.error("no such page %s; try %s --manual"
+                             % (values, parser._prog))
             if len(candidates) > 1:
-                parser.error("ambiguous title %(prog)s matches %(matches)s; try %(prog)s --manual"
+                parser.error("ambiguous title %(values)s matches %(matches)s; try %(prog)s --manual"
                              % {'values': values, 'prog': parser._prog,
                                 'matches': ', '.join(name for name, txt in candidates)})
             sys.stdout.write(candidates[0][1])
@@ -162,9 +157,9 @@ def parse_argv(argv):
     manual_page_names = [name for name, contents in manual_pages]
     p = argparse.ArgumentParser(description=helpTop)
     p.add_argument("--manual", action=ManualAction, choices=manual_page_names,
-                   help="print a page from the manual and exit")
+                   help="print a page from the manual or a list of pages and exit")
     p.add_argument("input",
-                   help="configuration file "
+                   help="array definitions file "
                    "(- for stdin, example for test file)")
     p.add_argument("-o", "--output", default="-",
                    help="write assembly language output here "
@@ -173,7 +168,7 @@ def parse_argv(argv):
                    help="write intermediate results to stderr")
     return p.parse_args(argv[1:])
 
-# File parsing ######################################################
+# Parsing definitions ###############################################
 
 ShelfCmd = namedtuple('ShelfCmd', [
     'linenum', 'left', 'top', 'width', 'height', 'arrays'
@@ -199,7 +194,7 @@ def parse_int(s):
 def load_shelves_file(lines):
     shelves = []
     for linenum, line in enumerate(lines):
-        line = line.split(';', 1)[0].split(None, 1)
+        line = line.split(';', 1)[0].strip().split(None, 1)
         if not line: continue
         if line[0] == 'shelf':
             start_end = [x.strip() for x in line[1].split('-', 1)]
@@ -270,6 +265,20 @@ def load_shelves_file(lines):
 
     return shelves
 
+# Packing the rectangles ############################################
+#
+# Based on the algorithm that David Colson calls PackRectsNaiveRows:
+# sort the rectangles by decreasing height then pack each onto the
+# first row with room.
+# https://www.david-colson.com/2020/03/10/exploring-rect-packing.html
+#
+# This "ridiculously simple" algorithm makes rows roughly trapezoidal
+# in shape, with three rectilinear sides and the fourth with stairs.
+# Packing a second row upside down lets us mate the rows' stairs
+# together, and then we push the two together until they touch.
+#
+# Want more rows? Add more shelves!
+
 PackShelfResult = namedtuple("PackShelfResult", [
     "top_arrays", "bottom_arrays", "min_gap", "closest_pair"
 ])
@@ -325,6 +334,8 @@ def pack_shelf(shelf):
     return PackShelfResult(
         top_arrays, bottom_arrays, min_gap, (closest_top, closest_bottom)
     )
+
+# Output ############################################################
 
 def print_packing(arrays, file=sys.stdout):
     print("\n".join(
