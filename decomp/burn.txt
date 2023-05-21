@@ -1,14 +1,20 @@
-1. make rectangular allocator
-2. 
-3. decode column: store bitmap and values separately
-4. decode column: write back column to circular buffer based on
-   X position mod 16
-5. decode column: store left and right positions in value list
-6. decode column: decode values either top to bottom or bottom to top
-7. 
-8. draw column: draw left or right half of a column
-9. draw column: use VRAM-safe writing
-10. draw column: use autotiling based on matching value in adjacent
-   column in circular buffer
-11. 
-12. 
+decode column
+
+- integrate rectallocate
+- store bitmap and values separately
+- write back column to circular buffer based on X position mod 16
+- store left and right positions in value list
+- decode values either top to bottom or bottom to top
+
+draw column
+
+- draw left or right half of a column
+- use VRAM-safe writing
+- use autotiling based on matching value in adjacent column in circular buffer
+
+test ROM
+
+- tile 0 is transparent and used for playfield
+- tile 0 is opaque and tile 2 is used for playfield
+- tile 0 is transparent and tile 2 is used for playfield
+- tile 0 is checkerboard and tile 2 is used for playfield

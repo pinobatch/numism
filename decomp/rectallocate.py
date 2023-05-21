@@ -4,12 +4,9 @@ Rectangular RAM allocator
 Copyright 2023 Damian Yerrick
 (insert zlib license here)
 """
-import os, sys, argparse, re
+import os, sys, argparse, re, warnings
 from collections import namedtuple
-try:
-    from PIL import Image
-except ImportError:
-    Image = None
+from itertools import chain
 
 # The enclosed instruction book #####################################
 
@@ -18,7 +15,8 @@ version = '%(prog)s 0.01'
 
 exampleFile = """; Example configuration file
 
-shelf c040-cfff
+; this 128 by 16 byte shelf has only a top track
+shelf c080-cfff
   array wActors[12][24]
     bytes class
     bytes frame
@@ -30,7 +28,14 @@ shelf c040-cfff
     bytes facing
     bytes health
   array mapVicinity[16][16]
-    
+
+; this 64 by 16 byte shelf has top and bottom tracks
+shelf c040-cf7f
+  array wRed[12][32]
+  array wYellow[8][20]
+  array wGreen[6][24]
+  array wCyan[4][10]
+  array wBlue[3][16]
 """
 
 manual_pages = [
@@ -60,14 +65,14 @@ One workaround involves aligning the actors to start exactly 256
 bytes apart in work RAM.  This means the low byte of the address of
 a given property is the same across all actors.  Given the high byte
 of an actor's address, the program can access a property by loading
-the low byte of the address into an address register pair (BC, DE, or
-HL) and reading or writing that address.
+the low byte of the address into an address register pair (BC, DE,
+or HL) and reading or writing that address.
 
 This approach requires work RAM's size to be at least 256 times the
 entity count.  In practice, it works best with at least 4 KiB of work
 RAM, which is more than in ColecoVision, SG-1000, or the Pac-Man
-arcade system.)  Fortunately, the systems that we target (Master
-System, Genesis sound, and Game Boy) all have 8 KiB of work RAM.
+arcade system.  Fortunately, the systems that we target (MSX, Master
+System, Genesis sound, and Game Boy) all have 8 KiB or more work RAM.
 """),
    ('lang', """Configuration language
 
@@ -88,6 +93,11 @@ of address ranges C040-C0FF, C140-C1FF, C240-C2FF, ..., CF40-CFFF.
 The `array` command adds a rectangle of 12 rows, each 32 bytes long,
 to the most recent shelf.
 
+There's no way to align a single array at an address with a given
+number of zero least significant bits, such as 5 bits (32-byte
+alignment).  The easiest way to do that is to make a separate shelf
+for arrays sensitive to alignment.
+
     words 1, YPos         ;  2 bytes
     words XPos            ;  2 bytes
     bytes 1, YSize        ;  1 byte
@@ -98,15 +108,15 @@ to the most recent shelf.
     longs 4, MovementData ; 16 bytes
 
 Optionally, the `bytes`, `words`, and `longs` commands can be used
-to define the address of 1-byte, 2-byte, or 4-byte fields within a
-row.  (This syntax is inspired by ISSOtm's rgbds-structs macro pack.)
-For example, when a field named `XPos` is added to an array named
-`wActors`, the label `wActors_XPos` is defined as the starting
-address of the `XPos` field of the first row of the array, and code
-can use `ld l, low(wActors_YPos)` to seek to this field.  Each field
-name may be preceded by a count and a comma.  The `alias` command
-allocates a 0-byte field, which can be used as an alias for the
-following field or as an end label for the preceding field.
+to define the address of a number of 1-byte, 2-byte, or 4-byte fields
+within a row.  (This syntax is inspired by ISSOtm's rgbds-structs
+macro pack.)  For example, when a field named `XPos` is added to an
+array named `wActors`, the label `wActors_XPos` is defined as the
+starting address of the `XPos` field of the first row of the array,
+and code can use `ld l, low(wActors_YPos)` to seek to this field.
+Each field name may be preceded by a count and a comma.  The `alias`
+command allocates a 0-byte field, which can be used as an alias for
+the following field or as an end label for the preceding field.
 """),
     ('example', exampleFile),
 ]
@@ -153,9 +163,14 @@ def parse_argv(argv):
     p = argparse.ArgumentParser(description=helpTop)
     p.add_argument("--manual", action=ManualAction, choices=manual_page_names,
                    help="print a page from the manual and exit")
-    p.add_argument("input", help="configuration file")
+    p.add_argument("input",
+                   help="configuration file "
+                   "(- for stdin, example for test file)")
     p.add_argument("-o", "--output", default="-",
-                   help="output file in assembly language")
+                   help="write assembly language output here "
+                   "(default: - for stdout)")
+    p.add_argument("-v", "--verbose", action="store_true",
+                   help="write intermediate results to stderr")
     return p.parse_args(argv[1:])
 
 # File parsing ######################################################
@@ -255,16 +270,172 @@ def load_shelves_file(lines):
 
     return shelves
 
+PackShelfResult = namedtuple("PackShelfResult", [
+    "top_arrays", "bottom_arrays", "min_gap", "closest_pair"
+])
+PackShelfArray = namedtuple("PackShelfArray", [
+    "array", "left", "top", "right", "bottom"
+])
+
+def pack_shelf(shelf):
+    # sort arrays in this shelf by decreasing height
+    arrays = sorted(shelf.arrays,
+                    key=lambda x: (x.height, x.width), reverse=True)
+    if len(arrays) == 0:
+        return PackShelfResult([], [], shelf.height, (None, None))
+
+    # pack the arrays into the top or bottom track, first fit
+    # top track is pressed against the top left of the shelf
+    # bottom track is pressed against the bottom right of the shelf
+    top_arrays, top_width, bottom_arrays, bottom_width = [], 0, [], 0
+    for array in arrays:
+        if array.width + top_width <= shelf.width:
+            l, t, b = top_width, 0, array.height
+            top_width += array.width
+            r = top_width
+            top_arrays.append(PackShelfArray(array, l, t, r, b))
+        elif array.width + bottom_width <= shelf.width:
+            r, b = shelf.width - bottom_width, shelf.height
+            l, t = r - array.width, b - array.height
+            bottom_arrays.append(PackShelfArray(array, l, t, r, b))
+            bottom_width += array.width
+        else:
+            raise ValueError("%d: array size %d does not fit on shelf's top (%d/%d used) or bottom (%d/%d used)"
+                             % (array.linenum, array.width, top_width, shelf_width, bottom_width, shelf_width))
+
+    # find the smallest gap between the tracks
+    closest_top = max(top_arrays, key=lambda x: x.array.height)
+    min_gap, closest_bottom = shelf.height - closest_top.array.height, None
+    for bottom in bottom_arrays:
+        for top in top_arrays:
+            if bottom.right <= top.left or top.right <= bottom.left:
+                continue  # not vertically aligned
+            gap = bottom.top - top.bottom
+            if gap < min_gap:
+                closest_top, closest_bottom, min_gap = top, bottom, gap
+
+    # if there's room, push them together to give RGBLINK more room
+    # to automatically place 1D arrays
+    if min_gap > 0:
+        bottom_arrays = [
+            PackShelfArray(a, l, t - min_gap, r, b - min_gap)
+            for a, l, t, r, b in bottom_arrays
+        ]
+
+    return PackShelfResult(
+        top_arrays, bottom_arrays, min_gap, (closest_top, closest_bottom)
+    )
+
+def print_packing(arrays, file=sys.stdout):
+    print("\n".join(
+        "    %s: (%d, %d)-(%d, %d)" % (a.name, l, t, r, b)
+        for a, l, t, r, b in arrays
+    ), file=file)
+
+def print_pack_shelf_result(packing, file=sys.stdout):
+    print("top track:", file=file)
+    print_packing(packing.top_arrays, file=file)
+    if packing.bottom_arrays:
+        print("bottom track:", file=file)
+        print_packing(packing.bottom_arrays, file=file)
+    print("slack rows: %d\nclosest pair:"
+          % (packing.min_gap,), file=file)
+    print_packing((x for x in packing.closest_pair if x), file=file)
+
+def emit_packing(shelf, packing):
+    lines = []
+    shelf_base = shelf.top * 0x100 + shelf.left
+    lines.append(
+        "; shelf %04x-%04x"
+        % (shelf_base,
+           shelf_base + (shelf.height - 1) * 0x100 + shelf.width - 1)
+    )
+    if packing.min_gap > 0:
+        rows_pl = "rows of slack" if packing.min_gap > 1 else "row of slack"
+        lines.append(
+            "; actual: %04x-%04x after removing %d %s"
+            % (shelf_base,
+               shelf_base + (shelf.height - packing.min_gap - 1) * 0x100
+                          + shelf.width - 1,
+               packing.min_gap, rows_pl)
+        )
+
+    # Form diagram comment
+    dots = b'.' * shelf.width
+    diagram = [bytearray(dots) for b in range(shelf.height - packing.min_gap)]
+    for el in chain(packing.top_arrays, packing.bottom_arrays):
+        # Draw side borders
+        for y in range(el.top + 1, el.bottom - 1):
+            diagram[y][el.right - 1] = diagram[y][el.left] = b'|'[0]
+        # Format top and bottom borders
+        if el.right - el.left > 2:
+            bottomline = (b'-' * (el.right - el.left - 2))
+            bottomline = bottomline.join((b"+", b"+"))
+            topline = bytearray(bottomline)
+            bname = el.array.name.encode("ascii", errors="ignore")
+            bname = bname[:el.right - el.left - 2]
+            topline[1:1 + len(bname)] = bname
+            topline = bytes(topline)
+        else:
+            topline = bottomline = '+' * (el.right - el.left)
+        assert len(topline) == len(bottomline) == el.array.width
+        diagram[el.bottom - 1][el.left:el.right] = bottomline
+        diagram[el.top][el.left:el.right] = topline
+    lines.extend("; " + line.decode("ascii") for line in diagram)
+
+    # Allocate rows and write labels associated with each array
+    for el in chain(packing.top_arrays, packing.bottom_arrays):
+        base_addr = shelf_base + el.top * 0x100 + el.left
+        sect_name = "WRAMX" if base_addr >= 0xD000 else "WRAM0"
+        sect_suffix = ", BANK[1]" if base_addr >= 0xD000 else ""
+        for i in range(el.array.height):
+            lines.append('SECTION "%s_row%02x", %s[$%04x]%s'
+                         % (el.array.name, i,
+                            sect_name, base_addr + i * 0x100, sect_suffix))
+            if i == 0: lines.append("%s::" % (el.array.name,))
+            lines.append(" ds %d" % (el.array.width,))
+        cumul_width = 0
+        for label in el.array.labels:
+            labelname = "%s_%s" % (el.array.name, label.name)
+            lines.append("def %s equ $%04x"
+                         % (labelname, base_addr + cumul_width))
+            lines.append("export %s" % labelname)
+            cumul_width += label.width
+    return lines
+
 def main(argv=None):
     args = parse_argv(argv or sys.argv)
-    print("args is", repr(args))
-    shelves = load_shelves_file(exampleFile.split("\n"))
-    print(shelves)
+    if args.input == '-':
+        shelves = load_shelves_file(stdin)
+    elif args.input == 'example':
+        shelves = load_shelves_file(exampleFile.split("\n"))
+    else:
+        with open(args.input, "r", encoding="utf-8") as infp:
+            shelves = load_shelves_file(infp)
+
+    # Pack each shelf
+    lines = []
+    for shelf in shelves:
+        packing = pack_shelf(shelf)
+        if args.verbose:
+            print("shelf at line %d" % (shelf.linenum + 1,), file=sys.stderr)
+            print_pack_shelf_result(packing, file=sys.stderr)
+        if packing.min_gap < 0:
+            raise ValueError("top track overlaps bottom track by %d; add more rows"
+                             % (-packing.min_gap,))
+        lines.extend(emit_packing(shelf, packing))
+
+    linesn = (line + "\n" for line in lines)
+    if args.output == '-':
+        sys.stdout.writelines(linesn)
+    else:
+        with open(args.output, "w", encoding="utf-8") as outfp:
+            outfp.writelines(linesn)
 
 if __name__=='__main__':
     if 'idlelib' in sys.modules:
         main("""
-./rectallocate.py /dev/null
+./rectallocate.py -v example
 """.split())
     else:
         main()
