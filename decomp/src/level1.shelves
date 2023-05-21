@@ -1,0 +1,3 @@
+shelf $C0C0[16][64]
+  array wMapVicinity[16][16]
+  array wActors[12][32]

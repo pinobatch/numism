@@ -27,7 +27,7 @@ shelf c080-cfff
     words y
     bytes facing
     bytes health
-  array mapVicinity[16][16]
+  array wMapVicinity[16][16]
 
 ; this 64 by 16 byte shelf has top and bottom tracks
 shelf c040[16][64]
@@ -193,7 +193,7 @@ declRE = re.compile(r"""
 \s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # width
 """, re.VERBOSE|re.IGNORECASE)
 shelfWidthHeightRE = re.compile(r"""
-(\$?[0-9a-f]+)                                    # base
+\$?([0-9a-f]+)                                    # base
 \s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # height
 \s*\[\s*(0x[0-9a-f]+ | \$[0-9a-f]+ | [0-9]+)\s*]  # width
 """, re.VERBOSE|re.IGNORECASE)

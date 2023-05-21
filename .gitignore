@@ -20,6 +20,7 @@ nes/numism.nes
 nes/map.txt
 nes/obj/nes/*.s
 gameboy/obj/gb/*.border
+decomp/obj/gb/*.asm
 reporting/.cache
 reporting/sortshootout.html
 world/.cache
