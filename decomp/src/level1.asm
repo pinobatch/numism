@@ -1,7 +1,20 @@
 include "../gameboy/src/hardware.inc"
 
+def MAP_COLUMN_HEIGHT_MT equ 16
 section "tilemapcol", WRAM0
-wMapCol: ds 16
+wMapCol: ds MAP_COLUMN_HEIGHT_MT
+
+section "mapdecodestate", WRAM0, ALIGN[1]
+; A map consists of a bitmap and contents.  The bitmap is an array
+; of up to 256 u16 values, each representing one column, where a
+; 1 bit in a particular position means the metatile there differs
+; from the predicted metatile.  The contents represent the (nonzero)
+; metatile that replaces each predicted metatile.
+
+wMapFetchedX: ds 1     ; Column corresponding to wMapCol
+wMapDecodeX: ds 1      ; Column corresponding to wMapContentsPtr
+wMapBitmapBase: ds 2   ; Pointer to the base of a map's bitmap
+wMapContentsPtr: ds 2  ; Pointer to contents at column wMapDecodeX
 
 section "stack", WRAM0, ALIGN[1]
 wStackTop: ds 64
@@ -14,17 +27,32 @@ main:
   ld de, $9000
   call memcpy_pascal16
 
+  ; Set up initial map pointer
+  ld hl, wMapDecodeX
+  xor a
+  ld [hl+], a
+  assert wMapBitmapBase == wMapDecodeX + 1
+  ld a, low(level1Bitmap)
+  ld [hl+], a
+  ld a, high(level1Bitmap)
+  ld [hl+], a
+  assert wMapContentsPtr == wMapBitmapBase + 2
+  ld a, low(level1Contents)
+  ld [hl+], a
+  ld a, high(level1Contents)
+  ld [hl+], a
+
   ; now try loading a tilemap
-  ld hl, level1
   ld de, $9800
   .colloop:
     push de
-    call map_decode_one_col
+    call map_fetch_bitmap_column
+    call map_fetch_col_forward
+    call map_decode_markov
+    call map_stash_decoded_col
     pop de
     push de
-    push hl
     call blit_one_col
-    pop hl
     pop de
     ld a, e
     add 2
@@ -46,17 +74,40 @@ forever:
   nop
   jr forever
 
-;;
-; decodes one column of map metatiles from [HL] to wMapCol
-; @param HL pointer to start of column
-; @return HL at end of column
-map_decode_one_col:
+map_seek_column:
+  ld b, b
+  ret
 
-  ; Phase 1: decoding terrain
+;;
+; Fetches the bitmap column at wMapDecodeX
+; @param wMapDecodeX index into wMapBitmapBase
+; @return BC list of bits to replace
+map_fetch_bitmap_column:
+  ld hl, wMapDecodeX
+  ld d, 0
   ld a, [hl+]
+  ld e, a      ; DE = map decode X position
+  assert wMapBitmapBase == wMapDecodeX + 1
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a      ; HL = base of map's Markov overrides bitmap
+  add hl, de
+  add hl, de   ; HL = address of current column of overrides bitmap
+  ld a, [hl+]
+  ld b, [hl]   ; BC = column of overrides bitmap
   ld c, a
+  ret
+
+;;
+; Decodes one column of map metatile overrides from wMapContentsPtr
+; to wMapCol.  If wMapDecodeX isn't already $FF, it is incremented
+; and the end address is written back to wMapContentsPtr.
+; @param BC bitmap column
+map_fetch_col_forward:
+  ld hl, wMapContentsPtr
   ld a, [hl+]
-  ld b, a
+  ld h, [hl]
+  ld l, a
   ld de, wMapCol
   .fetchloop:
     xor a
@@ -68,11 +119,25 @@ map_decode_one_col:
     ld [de], a
     inc de
     ld a, e
-    xor low(wMapCol + 16)
+    xor low(wMapCol + MAP_COLUMN_HEIGHT_MT)
     jr nz, .fetchloop
-    
-  ; Phase 2: decoding Markov
-  push hl
+
+  ld a, [wMapDecodeX]
+  ld [wMapFetchedX], a
+  inc a
+  ret z
+  ld [wMapDecodeX], a
+  ld a, l
+  ld [wMapContentsPtr+0], a
+  ld a, h
+  ld [wMapContentsPtr+1], a
+  ret
+
+map_fetch_col_backward:
+  ld b, b
+  ret
+
+map_decode_markov:
   ld hl, wMapCol
   ld b, 16
   .markovloop:
@@ -91,9 +156,17 @@ map_decode_one_col:
     ld c, a
     dec b
     jr nz, .markovloop
-
-  pop hl
   ret
+
+map_stash_decoded_col:
+  ld a, [wMapFetchedX]
+  and $0F
+  ld de, wMapVicinity
+  add d
+  ld d, a
+  ld hl, wMapCol
+  ld bc, MAP_COLUMN_HEIGHT_MT
+  jp memcpy
 
 ;;
 ; Draws wMapCol to tilemap at DE
@@ -108,17 +181,17 @@ blit_one_col:
     ld h, a
     add hl, hl
     add hl, hl
-    ld a, [hl+]
+    ld a, [hl+]  ; top left
     ld [de], a
     inc e
-    ld a, [hl+]
+    ld a, [hl+]  ; top right
     ld [de], a
     dec e
     set 5, e
-    ld a, [hl+]
+    ld a, [hl+]  ; bottom left
     ld [de], a
     inc e
-    ld a, [hl+]
+    ld a, [hl+]  ; bottom right
     ld [de], a
     ld a, e
     add 32-1
@@ -132,29 +205,29 @@ blit_one_col:
     jr nz, .blkloop
   ret
 
-
-
 section "leveldata", ROM0
-level1:
+level1Bitmap:
   dw %0000001000000000
-  db 1
   dw %0100000010000000
-  db 12,1
   dw %0100000100000000
-  db 13,16
   dw %0100000010000000
-  db 13,1
   dw %0100000100000000
-  db 14,17
   dw %0000001000000000
-  db 19
   dw %0000001000000000
-  db 15
   dw %0000100100000000
-  db 3, 1
   dw %1010000000000000
-  db 12, 8
   dw %1110000000000000
+
+level1Contents:
+  db 1
+  db 12,1
+  db 13,16
+  db 13,1
+  db 14,17
+  db 19
+  db 15
+  db 3, 1
+  db 12, 8
   db 14, 12, 9
 
 mt_next:
@@ -196,7 +269,7 @@ section "bgchr", ROMX, BANK[1]
 level1chr_2b:
   dw .end-.start
 .start:
-  incbin "level1chr.2b"
+  incbin "obj/gb/level1chr.2b"
 .end:
 
 ; Administrative stuff ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

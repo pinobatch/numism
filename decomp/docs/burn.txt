@@ -1,18 +1,15 @@
 decode column
 
-- integrate rectallocate
-- store bitmap and values separately
-- write back column to circular buffer based on X position mod 16
-- store left and right positions in value list
+- seek to an arbitrary column
 - decode values either top to bottom or bottom to top
 
 draw column
 
 - draw left or right half of a column
-- use VRAM-safe writing
+- use VRAM-safe writing (but not di halt)
 - use autotiling based on matching value in adjacent column in circular buffer
 
-test ROM
+test ROM little-things-gb/borderflash
 
 - tile 0 is transparent and used for playfield
 - tile 0 is opaque and tile 2 is used for playfield
