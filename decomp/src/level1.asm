@@ -16,6 +16,8 @@ wMapDecodeX: ds 1      ; Column corresponding to wMapContentsPtr
 wMapBitmapBase: ds 2   ; Pointer to the base of a map's bitmap
 wMapContentsPtr: ds 2  ; Pointer to contents at column wMapDecodeX
 
+def TEST_REWIND_COLUMN equ 4
+
 section "stack", WRAM0, ALIGN[1]
 wStackTop: ds 64
 wStackStart:
@@ -42,24 +44,37 @@ main:
   ld a, high(level1Contents)
   ld [hl+], a
 
-  ; now try loading a tilemap
-  ld de, $9800
-  .colloop:
-    push de
+  ; now try loading a tilemap, demonstrating bidirectional decoding
+  ; Decode part of the map backward
+  ld a, 11
+  call map_seek_column_a
+  .collooprev:
+    call map_fetch_prev_bitmap_column
+    call map_fetch_col_backward
+    call map_decode_markov
+    call map_stash_decoded_col
+    call blit_one_col
+    ld a, [wMapDecodeX]
+    cp TEST_REWIND_COLUMN
+    jr nz, .collooprev
+
+  ; and another part of the map forward
+  xor a
+  call map_seek_column_a
+  .colloopfwd:
     call map_fetch_bitmap_column
     call map_fetch_col_forward
     call map_decode_markov
     call map_stash_decoded_col
-    pop de
-    push de
     call blit_one_col
-    pop de
-    ld a, e
-    add 2
-    ld e, a
-    cp 20
-    jr c, .colloop
+    ld a, [wMapDecodeX]
+    cp TEST_REWIND_COLUMN
+    jr nz, .colloopfwd
 
+  ld a, 12
+  ldh [rSCX], a
+  xor a
+  ldh [rSCY], a
   ld a, %11100100
   ldh [rBGP], a
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG9800|LCDCF_BG8800
@@ -74,19 +89,89 @@ forever:
   nop
   jr forever
 
-map_seek_column:
-  ld b, b
+;;
+; Seeks to a column of the map.
+; @param wMapDecodeX current column number
+; @param A target column number 
+; @return wMapDecodeX equal to initial A; wMapContentsPtr adjusted
+; by the size of skipped contents
+map_seek_column_a:
+  ld hl, wMapDecodeX
+  sub [hl]
+  ; A = number of forward steps to take modulo 256
+  ; CF = true if negative
+  ret z
+  push af
+  call map_fetch_bitmap_column
+  ld a, [wMapContentsPtr+0]
+  ld e, a
+  ld a, [wMapContentsPtr+1]
+  ld d, a
+  ; HL points to bitmap column; DE points to contents
+  pop af
+  ld b, a
+  jr c, .seek_backward
+  .seek_forward:
+    ld a, [wMapDecodeX]
+    add b
+    ld [wMapDecodeX], a
+  .seek_forward_loop:
+    ; take B steps forward
+    ld a, [hl+]
+    call add_de_popcnt_a
+    ld a, [hl+]
+    call add_de_popcnt_a
+    dec b
+    jr nz, .seek_forward_loop
+  .writeback_de:
+    ld a, e
+    ld [wMapContentsPtr+0], a
+    ld a, d
+    ld [wMapContentsPtr+1], a
+    ret
+  .seek_backward:
+    ld a, [wMapDecodeX]
+    add b
+    ld [wMapDecodeX], a
+  .seek_backward_loop:
+    ; take 256-B steps backward
+    dec hl
+    ld a, [hl-]
+    call sub_de_popcnt_a
+    ld a, [hl]
+    call sub_de_popcnt_a
+    inc b
+    jr nz, .seek_backward_loop
+    jr .writeback_de
+
+add_de_popcnt_a:
+  add a
+  jr nc, .no_add
+    inc de
+    or a
+  .no_add:
+  jr nz, add_de_popcnt_a
+  ret
+
+sub_de_popcnt_a:
+  add a
+  jr nc, .no_add
+    dec de
+    or a
+  .no_add:
+  jr nz, sub_de_popcnt_a
   ret
 
 ;;
-; Fetches the bitmap column at wMapDecodeX
+; Fetches a column from the overrides bitmap at X = wMapDecodeX
 ; @param wMapDecodeX index into wMapBitmapBase
-; @return BC list of bits to replace
+; @return BC: list of bits to replace; HL: pointer to bitmap column
 map_fetch_bitmap_column:
   ld hl, wMapDecodeX
-  ld d, 0
   ld a, [hl+]
-  ld e, a      ; DE = map decode X position
+.have_col_a:
+  ld e, a
+  ld d, 0      ; DE = map decode X position
   assert wMapBitmapBase == wMapDecodeX + 1
   ld a, [hl+]
   ld h, [hl]
@@ -94,9 +179,18 @@ map_fetch_bitmap_column:
   add hl, de
   add hl, de   ; HL = address of current column of overrides bitmap
   ld a, [hl+]
-  ld b, [hl]   ; BC = column of overrides bitmap
   ld c, a
+  ld a, [hl-]
+  ld b, a      ; BC = column of overrides bitmap
   ret
+
+;;
+; Fetches a column from the overrides bitmap at X = wMapDecodeX-1
+map_fetch_prev_bitmap_column:
+  ld hl, wMapDecodeX
+  ld a, [hl+]
+  dec a
+  jr map_fetch_bitmap_column.have_col_a
 
 ;;
 ; Decodes one column of map metatile overrides from wMapContentsPtr
@@ -134,7 +228,33 @@ map_fetch_col_forward:
   ret
 
 map_fetch_col_backward:
-  ld b, b
+  ld a, [wMapDecodeX]
+  dec a
+  ld [wMapFetchedX], a
+  ld [wMapDecodeX], a
+  ld hl, wMapContentsPtr
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a
+  dec hl
+  ld de, wMapCol + MAP_COLUMN_HEIGHT_MT - 1
+  .fetchloop:
+    xor a
+    srl b
+    rr c
+    jr nc, .skip_map_fetch
+      ld a, [hl-]
+    .skip_map_fetch:
+    ld [de], a
+    dec de
+    ld a, e
+    xor low(wMapCol - 1)
+    jr nz, .fetchloop
+  inc hl
+  ld a, l
+  ld [wMapContentsPtr+0], a
+  ld a, h
+  ld [wMapContentsPtr+1], a
   ret
 
 map_decode_markov:
@@ -169,9 +289,14 @@ map_stash_decoded_col:
   jp memcpy
 
 ;;
-; Draws wMapCol to tilemap at DE
+; Draws wMapCol to tilemap at wMapFetchedX
 blit_one_col:
   ld bc, wMapCol
+  ld d, high(_SCRN0)
+  ld a, [wMapFetchedX]
+  and $0F
+  add a
+  ld e, a
   .blkloop:
     ld a, [bc]
     add low(metatile_defs >> 2)
@@ -217,7 +342,7 @@ level1Bitmap:
   dw %0000100100000000
   dw %1010000000000000
   dw %1110000000000000
-
+  dw %0100010000000000
 level1Contents:
   db 1
   db 12,1
@@ -229,9 +354,10 @@ level1Contents:
   db 3, 1
   db 12, 8
   db 14, 12, 9
+  db 13, 6
 
 mt_next:
-  db 0, 2, 2, 4, 4, 0, 0, 0
+  db 0, 2, 2, 4, 4, 0, 1, 1
   db 10, 11, 1, 1, 0, 0, 0, 1
   db 1, 1, 1, 20, 1
 
@@ -244,8 +370,8 @@ metatile_defs:
 
   db $18,$19,$18,$19  ; ladder inside
   db $00,$00,$00,$00
-  db $00,$00,$00,$00
-  db $00,$00,$00,$00
+  db $0A,$0B,$1A,$1B  ; sign
+  db $2A,$2B,$3A,$3B  ; ! sign
 
   db $10,$11,$20,$21  ; bushtl
   db $12,$13,$22,$23  ; bushtr
