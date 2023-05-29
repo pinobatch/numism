@@ -31,7 +31,9 @@ characterize each emulator's corner-case behavior as if it were a
 "fantasy console."
 
 Coins should not be opaque, obscure, cryptic, or inscrutable.  They
-should state what they test and test what they state.  This way, the
+should state what they test and test what they state.  The behavior
+must be simple enough to fit a 1-line title and 4-line description
+in 126 characters.  This way, the
 maintainer of an emulator can quickly find differences and fix them,
 and users of historic or specialized emulators can become aware of
 the extent of their behavior differences.
