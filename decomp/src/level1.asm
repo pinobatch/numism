@@ -1,6 +1,9 @@
 include "../gameboy/src/hardware.inc"
 
+; the width of the area that can affect autotiling of onscreen tiles
+def MAP_VICINITY_WIDTH_MT equ 13
 def MAP_COLUMN_HEIGHT_MT equ 16
+
 section "tilemapcol", WRAM0
 wMapCol: ds MAP_COLUMN_HEIGHT_MT
 
@@ -11,6 +14,8 @@ section "mapdecodestate", WRAM0, ALIGN[1]
 ; from the predicted metatile.  The contents represent the (nonzero)
 ; metatile that replaces each predicted metatile.
 
+wCameraX: ds 2         ; pixel position (1/16 column) of camera
+wMapVicinityLeft: ds 1 ; left column of valid area of sliding window
 wMapFetchedX: ds 1     ; Column corresponding to wMapCol
 wMapDecodeX: ds 1      ; Column corresponding to wMapContentsPtr
 wMapBitmapBase: ds 2   ; Pointer to the base of a map's bitmap
@@ -30,8 +35,13 @@ main:
   call memcpy_pascal16
 
   ; Set up initial map pointer
-  ld hl, wMapDecodeX
+  ld hl, wCameraX
   xor a
+  ld [hl+], a
+  ld [hl+], a
+  assert wMapVicinityLeft == wCameraX + 2
+  ld [hl], a
+  ld hl, wMapDecodeX
   ld [hl+], a
   assert wMapBitmapBase == wMapDecodeX + 1
   ld a, low(level1Bitmap)
@@ -44,33 +54,8 @@ main:
   ld a, high(level1Contents)
   ld [hl+], a
 
-  ; now try loading a tilemap, demonstrating bidirectional decoding
-  ; Decode part of the map backward
-  ld a, 11
-  call map_seek_column_a
-  .collooprev:
-    call map_fetch_prev_bitmap_column
-    call map_fetch_col_backward
-    call map_decode_markov
-    call map_stash_decoded_col
-    call blit_one_col
-    ld a, [wMapDecodeX]
-    cp TEST_REWIND_COLUMN
-    jr nz, .collooprev
-
-  ; and another part of the map forward
-  xor a
-  call map_seek_column_a
-  .colloopfwd:
-    call map_fetch_bitmap_column
-    call map_fetch_col_forward
-    call map_decode_markov
-    call map_stash_decoded_col
-    call blit_one_col
-    ld a, [wMapDecodeX]
-    cp TEST_REWIND_COLUMN
-    jr nz, .colloopfwd
-
+  ; turn on rendering to demonstrate VRAM safety
+  ; (it takes about 8 lines to decode and 32 lines to draw each column)
   ld a, 12
   ldh [rSCX], a
   xor a
@@ -84,6 +69,40 @@ main:
   ld a, IEF_VBLANK
   ldh [rIE], a
   ei
+
+  ; now try loading a tilemap, demonstrating bidirectional decoding
+  ; Decode part of the map backward
+  ld a, MAP_VICINITY_WIDTH_MT
+  call map_seek_column_a
+  .collooprev:
+    call map_fetch_prev_bitmap_column
+    call map_fetch_col_backward
+    call map_decode_markov
+    call map_stash_decoded_col
+    or a
+    call blit_one_col
+    scf
+    call blit_one_col
+    ld a, [wMapDecodeX]
+    cp TEST_REWIND_COLUMN
+    jr nz, .collooprev
+
+  ; and another part of the map forward
+  xor a
+  call map_seek_column_a
+  .colloopfwd:
+    call map_fetch_bitmap_column
+    call map_fetch_col_forward
+    call map_decode_markov
+    call map_stash_decoded_col
+    or a
+    call blit_one_col
+    scf
+    call blit_one_col
+    ld a, [wMapDecodeX]
+    cp TEST_REWIND_COLUMN
+    jr nz, .colloopfwd
+
 forever:
   halt
   nop
@@ -290,36 +309,42 @@ map_stash_decoded_col:
 
 ;;
 ; Draws wMapCol to tilemap at wMapFetchedX
+; @param CF 0 for left half or 1 for right half
 blit_one_col:
   ld bc, wMapCol
   ld d, high(_SCRN0)
   ld a, [wMapFetchedX]
-  and $0F
-  add a
+  adc a
+  and $1F
   ld e, a
   .blkloop:
+    ; find metatile definition
+    ld a, e
+    rra  ; CF = E bit 0, selecting left or right half
+    ld h, 0
     ld a, [bc]
-    add low(metatile_defs >> 2)
+    rla
+    rl h
+    rla
+    rl h
+    add low(metatile_defs)
     ld l, a
-    adc high(metatile_defs >> 2)
-    sub l
+    ld a, h
+    adc high(metatile_defs)
     ld h, a
-    add hl, hl
-    add hl, hl
+
+    ; write it to VRAM
+    .vramloop:
+      ldh a, [rSTAT]
+      and STATF_BUSY
+      jr nz, .vramloop
     ld a, [hl+]  ; top left
     ld [de], a
-    inc e
-    ld a, [hl+]  ; top right
-    ld [de], a
-    dec e
     set 5, e
-    ld a, [hl+]  ; bottom left
-    ld [de], a
-    inc e
-    ld a, [hl+]  ; bottom right
+    ld a, [hl]  ; bottom left
     ld [de], a
     ld a, e
-    add 32-1
+    add 32
     ld e, a
     adc d
     sub e
@@ -361,34 +386,36 @@ mt_next:
   db 10, 11, 1, 1, 0, 0, 0, 1
   db 1, 1, 1, 20, 1
 
-section "metatile_defs", ROM0, align[2]
+section "metatile_defs", ROM0, align[3]
 metatile_defs:
+  ;  /X \/  \/ X\/  \
+  ;  \  /\X /\  /\ X/
   db $00,$00,$00,$00  ; sky
-  db $4E,$4D,$03,$03  ; ground top
+  db $4E,$03,$4D,$03  ; ground top
   db $03,$03,$03,$03  ; ground inside
-  db $08,$09,$18,$19  ; ladder top
+  db $08,$18,$09,$19  ; ladder top
 
-  db $18,$19,$18,$19  ; ladder inside
+  db $18,$18,$19,$19  ; ladder inside
   db $00,$00,$00,$00
-  db $0A,$0B,$1A,$1B  ; sign
-  db $2A,$2B,$3A,$3B  ; ! sign
+  db $0A,$1A,$0B,$1B  ; sign
+  db $2A,$3A,$2B,$3B  ; ! sign
 
-  db $10,$11,$20,$21  ; bushtl
-  db $12,$13,$22,$23  ; bushtr
-  db $30,$31,$0C,$03  ; bushbl
-  db $32,$33,$03,$0F  ; bushbr
+  db $10,$20,$11,$21  ; bushtl
+  db $12,$22,$13,$23  ; bushtr
+  db $30,$0C,$31,$03  ; bushbl
+  db $32,$03,$33,$0F  ; bushbr
 
-  db $00,$04,$00,$14  ; cloudL
-  db $05,$06,$15,$16  ; cloudC
-  db $07,$00,$17,$00  ; cloudR
-  db $28,$29,$38,$39  ; smbush
+  db $00,$00,$04,$14  ; cloudL
+  db $05,$15,$06,$16  ; cloudC
+  db $07,$17,$00,$00  ; cloudR
+  db $28,$38,$29,$39  ; smbush
 
-  db $00,$46,$00,$3F  ; flower1
-  db $00,$47,$00,$3F  ; flower2
-  db $00,$2F,$00,$3F  ; flower3
-  db $00,$2C,$00,$3F  ; flower4
+  db $00,$00,$46,$3F  ; flower1
+  db $00,$00,$47,$3F  ; flower2
+  db $00,$00,$2F,$3F  ; flower3
+  db $00,$00,$2C,$3F  ; flower4
 
-  db $00,$3C,$00,$3F  ; flower4 extended
+  db $00,$00,$3C,$3F  ; flower4 extended
 
 section "bgchr", ROMX, BANK[1]
 

@@ -1,8 +1,14 @@
 draw column
 
-- draw left or right half of a column
-- use VRAM-safe writing (but not di halt)
 - use autotiling based on matching value in adjacent column in circular buffer
+
+camera movement
+
+- Control Pad to scroll screen, 16-bit camera position
+- track sliding window of decoded metatile columns
+- if sliding window should be moved right, decode column at right
+- if sliding window should be moved left, decode column at left
+
 
 test ROM little-things-gb/borderflash
 
