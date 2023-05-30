@@ -20,7 +20,6 @@
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
 include "src/hardware.inc"
-include "src/global.inc"
 
 DAS_DELAY equ 15
 DAS_SPEED equ 3
