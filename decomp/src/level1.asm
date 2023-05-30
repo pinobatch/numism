@@ -1,7 +1,7 @@
-include "../gameboy/src/hardware.inc"
+include "src/hardware.inc"
 
 ; the width of the area that can affect autotiling of onscreen tiles
-def MAP_VICINITY_WIDTH_MT equ 13
+def MAP_VICINITY_WIDTH_MT equ 16
 def MAP_COLUMN_HEIGHT_MT equ 16
 
 section "tilemapcol", WRAM0
@@ -14,6 +14,7 @@ section "mapdecodestate", WRAM0, ALIGN[1]
 ; from the predicted metatile.  The contents represent the (nonzero)
 ; metatile that replaces each predicted metatile.
 
+wCameraY: ds 1
 wCameraX: ds 2         ; pixel position (1/16 column) of camera
 wMapVicinityLeft: ds 1 ; left column of valid area of sliding window
 wMapFetchedX: ds 1     ; Column corresponding to wMapCol
@@ -35,9 +36,13 @@ main:
   call memcpy_pascal16
 
   ; Set up initial map pointer
-  ld hl, wCameraX
+  ld hl, wCameraY
   xor a
   ld [hl+], a
+  assert wCameraX == wCameraY + 1
+  ld a, 10
+  ld [hl+], a
+  xor a
   ld [hl+], a
   assert wMapVicinityLeft == wCameraX + 2
   ld [hl], a
@@ -54,59 +59,202 @@ main:
   ld a, high(level1Contents)
   ld [hl+], a
 
-  ; turn on rendering to demonstrate VRAM safety
-  ; (it takes about 8 lines to decode and 32 lines to draw each column)
-  ld a, 12
-  ldh [rSCX], a
-  xor a
-  ldh [rSCY], a
-  ld a, %11100100
-  ldh [rBGP], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG9800|LCDCF_BG8800
-  ldh [rLCDC], a
+  ld hl, wMapVicinity
+  call redraw_whole_screen
   xor a
   ldh [rIF], a
   ld a, IEF_VBLANK
   ldh [rIE], a
   ei
 
-  ; now try loading a tilemap, demonstrating bidirectional decoding
-  ; Decode part of the map backward
-  ld a, MAP_VICINITY_WIDTH_MT
-  call map_seek_column_a
-  .collooprev:
-    call map_fetch_prev_bitmap_column
-    call map_fetch_col_backward
-    call map_decode_markov
-    call map_stash_decoded_col
-    or a
-    call blit_one_col
-    scf
-    call blit_one_col
-    ld a, [wMapDecodeX]
-    cp TEST_REWIND_COLUMN
-    jr nz, .collooprev
+forever:
+  call read_pad
+  call move_camera
 
-  ; and another part of the map forward
-  xor a
-  call map_seek_column_a
-  .colloopfwd:
+  ld a, [wCameraX]
+  ldh [rSCX], a
+  ld a, [wCameraY]
+  ldh [rSCY], a
+  ld a, %11100100
+  ldh [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG9800|LCDCF_BG8800
+  ldh [rLCDC], a
+
+  halt
+  jr forever
+
+; Camera control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+def CAM_X_MAX equ 4096 - SCRN_X
+
+move_camera:
+  ldh a, [hCurKeys]
+  ld b, a
+  ld a, [wCameraY]
+  bit PADB_DOWN, b
+  jr z, .notDown
+    inc a
+  .notDown:
+  bit PADB_UP, b
+  jr z, .notUp
+    dec a
+  .notUp:
+  cp 256-SCRN_Y
+  jr nc, .noWriteY
+    ld [wCameraY], a
+  .noWriteY:
+
+  ld hl, wCameraX
+  ld e, [hl]
+  inc hl
+  ld d, [hl]
+  bit PADB_RIGHT, b
+  jr z, .notRight
+    inc de
+  .notRight:
+  bit PADB_LEFT, b
+  jr z, .notLeft
+    dec de
+  .notLeft:
+  ld a, e
+  cp low(CAM_X_MAX)
+  ld a, d
+  sbc high(CAM_X_MAX)
+  jr nc, .noWriteX
+    ld [hl], d
+    dec hl
+    ld [hl], e
+  .noWriteX:
+
+  ; Move map vicinity toward camera X
+  ld hl, wCameraX
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a
+  add hl, hl
+  add hl, hl
+  add hl, hl
+  add hl, hl  ; H = camera X in map columns
+  ld a, h  ; A = camera X in map columns
+  ld hl, wMapVicinityLeft
+  sub [hl]
+
+  ; A is distance in whole metatiles from left edge of vicinity to
+  ; left edge of camera
+  ; [HL] is still 
+  ; <0 (CF=1): go left now
+  ; 0: go left unless already 0
+  ; >=MAP_VICINITY_WIDTH_MT-SCRN_X/16-1: go right unless at 240
+  ;   already 256-MAP_VICINITY_WIDTH_MT
+  jr c, .decode_to_left
+  jr z, .decode_to_left
+  cp MAP_VICINITY_WIDTH_MT-SCRN_X/16-1
+  ret c
+    ; Decode to right
+    ld a, [hl]
+    add MAP_VICINITY_WIDTH_MT
+    ret c  ; do nothing if already at right side
+    inc [hl]
+    ld b, b
+    call map_seek_column_a
     call map_fetch_bitmap_column
     call map_fetch_col_forward
     call map_decode_markov
     call map_stash_decoded_col
+    
+    ; and draw them to the tilemap
+    ld hl, wMapFetchedX
+    ld a, 255
+    cp [hl]  ; CF=1 if at far right
+    ld a, 1
+    adc a
+    ld c, a  ; 3 columns at far right, 2 columns elsewhere
+    ld a, [hl]
+    add a
+    dec a  ; Draw starting at right half of column to left of decoded
+    ld b, a
+    jp blit_c_columns
+  .decode_to_left:
+    ld a, [hl]
     or a
-    call blit_one_col
-    scf
-    call blit_one_col
-    ld a, [wMapDecodeX]
-    cp TEST_REWIND_COLUMN
-    jr nz, .colloopfwd
+    ret z  ; do nothing if already at left side
+    ld b, b
+    call map_seek_column_a
+    call map_fetch_prev_bitmap_column
+    call map_fetch_col_backward
+    call map_decode_markov
+    call map_stash_decoded_col
 
-forever:
-  halt
-  nop
-  jr forever
+    ; and draw them to the tilemap
+    ld hl, wMapFetchedX
+    ld a, [hl]
+    ld [wMapVicinityLeft], a
+    ; draw columns 1 and 2, and draw column 0 if at far left
+    cp 1     ; CF=1 if at far left
+    ld a, 1
+    adc a
+    ld c, a  ; 3 columns at far left, 2 columns elsewhere
+    rra
+    ccf      ; CF=0 if at far left
+    ld a, [hl]
+    adc a
+    ld b, a
+    jp blit_c_columns
+
+if 0
+debug_print_de:
+  ld d, d
+  jr .txtend
+    dw $6464
+    dw $0000
+    db "DE=%DE%;CF=%CARRY%"
+  .txtend:
+  ret
+endc
+
+redraw_whole_screen:
+  ld a, [wMapVicinityLeft]
+  call map_seek_column_a
+  ld b, MAP_VICINITY_WIDTH_MT
+  .decodeloop:
+    push bc
+    call map_fetch_bitmap_column
+    call map_fetch_col_forward
+    call map_decode_markov
+    call map_stash_decoded_col
+    pop bc
+    dec b
+    jr nz, .decodeloop
+
+  ; The leftmost column is valid only if camera is at the far left.
+  ld a, [wMapVicinityLeft]
+  cp 1     ; CF = 1: at far left; 0: at next column
+  ld a, MAP_VICINITY_WIDTH_MT - 1
+  adc a
+  ld c, a  ; C = number of columns to draw
+  rra
+  ccf      ; CF = 0: at far left; 1: at next column
+  ld a, [wMapVicinityLeft]
+  adc a
+  ld b, a  ; B = starting column
+  ; Fall through to B columns
+
+;;
+; Draws tile columns from vicinity to the screen.
+; @param C count of tilemap columns (half vicinity columns)
+; @param B first tilemap column to draw (0-31)
+blit_c_columns:
+  .drawloop:
+    push bc
+    ld a, b
+    call blit_one_col
+    pop bc
+    inc b
+    dec c
+    jr nz, .drawloop
+  ret
+
+; map decoding ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;
 ; Seeks to a column of the map.
@@ -309,14 +457,15 @@ map_stash_decoded_col:
 
 ;;
 ; Draws wMapCol to tilemap at wMapFetchedX
-; @param CF 0 for left half or 1 for right half
+; @param A column to draw (0-31)
 blit_one_col:
-  ld bc, wMapCol
+  ld bc, wMapVicinity
   ld d, high(_SCRN0)
-  ld a, [wMapFetchedX]
-  adc a
   and $1F
   ld e, a
+  rra
+  add b
+  ld b, a
   .blkloop:
     ; find metatile definition
     ld a, e
@@ -350,9 +499,8 @@ blit_one_col:
     sub e
     ld d, a
     inc bc
-    ld a, c
-    xor low(wMapCol+16)
-    jr nz, .blkloop
+    bit 2, d
+    jr z, .blkloop
   ret
 
 section "leveldata", ROM0
@@ -368,6 +516,9 @@ level1Bitmap:
   dw %1010000000000000
   dw %1110000000000000
   dw %0100010000000000
+  dw %0100001000000010
+  dw %0000000000000010
+  dw %0000001000000000
 level1Contents:
   db 1
   db 12,1
@@ -380,6 +531,9 @@ level1Contents:
   db 12, 8
   db 14, 12, 9
   db 13, 6
+  db 14, 3, 1
+  db 1
+  db 3
 
 mt_next:
   db 0, 2, 2, 4, 4, 0, 1, 1
@@ -435,6 +589,8 @@ init:
   di
   ld sp, wStackStart
   call lcd_off
+  ld a, $FF
+  ldh [hCurKeys], a
   jp main
 
 section "vblank_isr", ROM0[$40]

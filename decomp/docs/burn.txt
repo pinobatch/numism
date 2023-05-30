@@ -4,11 +4,7 @@ draw column
 
 camera movement
 
-- Control Pad to scroll screen, 16-bit camera position
-- track sliding window of decoded metatile columns
-- if sliding window should be moved right, decode column at right
-- if sliding window should be moved left, decode column at left
-
+- possibly draw one half column at a time instead of 2-3?
 
 test ROM little-things-gb/borderflash
 
