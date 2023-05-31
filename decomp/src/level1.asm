@@ -37,7 +37,7 @@ main:
 
   ; Set up initial map pointer
   ld hl, wCameraY
-  xor a
+  ld a, 28
   ld [hl+], a
   assert wCameraX == wCameraY + 1
   ld a, 10
@@ -155,7 +155,6 @@ move_camera:
     add MAP_VICINITY_WIDTH_MT
     ret c  ; do nothing if already at right side
     inc [hl]
-    ld b, b
     call map_seek_column_a
     call map_fetch_bitmap_column
     call map_fetch_col_forward
@@ -178,7 +177,6 @@ move_camera:
     ld a, [hl]
     or a
     ret z  ; do nothing if already at left side
-    ld b, b
     call map_seek_column_a
     call map_fetch_prev_bitmap_column
     call map_fetch_col_backward
@@ -503,42 +501,186 @@ blit_one_col:
     jr z, .blkloop
   ret
 
+; Test level data ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; stage 1
+
+def MT_GROUND equ 1
+def MT_GROUND_0HT equ 32
+def MT_CAVE equ 33
+def MT_LADDER equ 3
+def MT_SIGN equ 6
+def MT_WARNING_SIGN equ 7
+def MT_BUSHL equ 8
+def MT_BUSHR equ 9
+def MT_CLOUDL equ 12
+def MT_CLOUDC equ 13
+def MT_CLOUDR equ 14
+def MT_SMBUSH equ 15
+def MT_FLOWER1 equ 16
+def MT_FLOWER2 equ 17
+def MT_FLOWER3 equ 18
+def MT_TALL_FLOWER equ 19
+def MT_TREEL equ 22  ; these go under a BUSHL and BUSHR
+def MT_TREER equ 23
+def MT_BRIDGE_RAIL equ 28
+def MT_BRIDGEL equ 29
+def MT_BRIDGER equ 31
+
 section "leveldata", ROM0
 level1Bitmap:
-  dw %0000001000000000
-  dw %0100000010000000
-  dw %0100000100000000
-  dw %0100000010000000
-  dw %0100000100000000
-  dw %0000001000000000
-  dw %0000001000000000
-  dw %0000100100000000
-  dw %1010000000000000
-  dw %1110000000000000
-  dw %0100010000000000
-  dw %0100001000000010
-  dw %0000000000000010
-  dw %0000001000000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0001000100000000
+dw %0001000010000000  ; Gravity barrier
+
+dw %0001000000100000
+dw %0000000000100000
+dw %0000000001000000
+dw %0000000000100000
+dw %0000000001000000
+dw %0000000000100000
+dw %0000000001000000
+dw %0000000000100000
+
+dw %0000000001000000
+dw %0000000010000000
+dw %0000000001000000
+dw %0000000100000000
+dw %0000000100000000
+dw %0000000001000000
+dw %0000000001000000
+dw %0000000010000000
+
+dw %0000000001000000
+dw %0000001001000000
+dw %0000001001000000
+dw %0000011001000000
+dw %0000011001000000
+dw %0000011001000000
+dw %0000011010000000
+dw %0000010001000000
+
+dw %0000010000000000
+dw %0000011000000000
+dw %0000010000000000
+dw %0001000000000000
+dw %0110010010001000
+dw %0110010010001000
+dw %0000010010001000
+dw %0000010010001000
+
+dw %0000000000001000
+dw %0000000000001000
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000000000000
+
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000000000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000000010000000
+dw %0000001000000000
+dw %0000001000000000
+dw %0000001000000000
+dw %0000001000000000
+
 level1Contents:
-  db 1
-  db 12,1
-  db 13,16
-  db 13,1
-  db 14,17
-  db 19
-  db 15
-  db 3, 1
-  db 12, 8
-  db 14, 12, 9
-  db 13, 6
-  db 14, 3, 1
-  db 1
-  db 3
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_CLOUDL, MT_SIGN
+db MT_CLOUDC, MT_GROUND
+
+db MT_CLOUDR, MT_GROUND
+db MT_GROUND
+db MT_FLOWER1
+db MT_GROUND
+db MT_FLOWER2
+db MT_GROUND
+db MT_SIGN
+db MT_GROUND
+
+db MT_GROUND
+db MT_SMBUSH
+db MT_GROUND
+db MT_BUSHL
+db MT_BUSHR
+db MT_GROUND
+db MT_GROUND
+db MT_FLOWER3
+
+db MT_GROUND
+db MT_LADDER, MT_GROUND
+db MT_GROUND_0HT, MT_GROUND
+db MT_BUSHL, MT_GROUND_0HT, MT_GROUND
+db MT_BUSHR, MT_GROUND_0HT, MT_GROUND
+db MT_SIGN, MT_GROUND_0HT, MT_GROUND
+db MT_BRIDGE_RAIL, MT_BRIDGEL, MT_WARNING_SIGN
+db MT_BRIDGE_RAIL, MT_GROUND
+
+db MT_BRIDGE_RAIL
+db MT_BRIDGE_RAIL, MT_BRIDGER
+db MT_GROUND
+db MT_TALL_FLOWER
+db MT_BUSHL, MT_TREEL, MT_GROUND, MT_CAVE, MT_GROUND
+db MT_BUSHR, MT_TREER, MT_GROUND, MT_CAVE, MT_GROUND
+db MT_GROUND, MT_CAVE, MT_GROUND
+db MT_GROUND, MT_CAVE, MT_GROUND
+
+db MT_GROUND
+db MT_GROUND
+; none
+; none
+; none
+; none
+; none
+; none
+
+; none
+; none
+; none
+; none
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+db MT_GROUND
+
 
 mt_next:
   db 0, 2, 2, 4, 4, 0, 1, 1
   db 10, 11, 1, 1, 0, 0, 0, 1
-  db 1, 1, 1, 20, 1
+  db 1, 1, 1, 20, 1, 0, 24, 25
+  db 26, 27, 1, 1, 30, 0, 0, 0
+  db 33, 33
 
 section "metatile_defs", ROM0, align[3]
 metatile_defs:
@@ -548,7 +690,6 @@ metatile_defs:
   db $4E,$03,$4D,$03  ; ground top
   db $03,$03,$03,$03  ; ground inside
   db $08,$18,$09,$19  ; ladder top
-
   db $18,$18,$19,$19  ; ladder inside
   db $00,$00,$00,$00
   db $0A,$1A,$0B,$1B  ; sign
@@ -558,7 +699,6 @@ metatile_defs:
   db $12,$22,$13,$23  ; bushtr
   db $30,$0C,$31,$03  ; bushbl
   db $32,$03,$33,$0F  ; bushbr
-
   db $00,$00,$04,$14  ; cloudL
   db $05,$15,$06,$16  ; cloudC
   db $07,$17,$00,$00  ; cloudR
@@ -567,9 +707,23 @@ metatile_defs:
   db $00,$00,$46,$3F  ; flower1
   db $00,$00,$47,$3F  ; flower2
   db $00,$00,$2F,$3F  ; flower3
-  db $00,$00,$2C,$3F  ; flower4
-
+  db $00,$00,$2C,$3F  ; flower4 top
   db $00,$00,$3C,$3F  ; flower4 extended
+  db $00,$00,$00,$00
+  db $30,$0C,$31,$0D  ; treetop_bl
+  db $32,$0E,$33,$0F  ; treetop_br
+
+  db $1C,$00,$1D,$2D  ; treetrunk_tl
+  db $1E,$2E,$1F,$00  ; treetrunk_tr
+  db $00,$00,$2D,$3D  ; treetrunk_bl
+  db $2E,$3E,$00,$00  ; treetrunk_br
+  db $00,$35,$00,$35  ; bridge rail
+  db $24,$34,$25,$00  ; bridge left
+  db $36,$00,$36,$00  ; bridge middle
+  db $26,$00,$27,$37  ; bridge bottom
+
+  db $4E,$02,$4D,$02  ; 0ht top
+  db $01,$02,$02,$01  ; 0ht inside
 
 section "bgchr", ROMX, BANK[1]
 

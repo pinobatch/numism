@@ -1,10 +1,11 @@
-draw column
+content (Wed)
 
-- use autotiling based on matching value in adjacent column in circular buffer
+- make a sprite sheet
 
-camera movement
+back burner
 
-- possibly draw one half column at a time instead of 2-3?
+- draw column: use autotiling based on matching value in adjacent column in circular buffer
+- camera: track drawn area and vicinity separately to draw one half column at a time instead of 2-3?
 
 test ROM little-things-gb/borderflash
 
