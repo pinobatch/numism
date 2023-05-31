@@ -128,8 +128,9 @@ autorepeat::
   ret
 
 SECTION "rst60", ROM0[$0060]
+joypad_handler:
   push af
   ldh a, [rLY]
   ldh [hLastKeyLY], a
   pop af
-  reti  ; jp joypad_handler
+  reti

@@ -37,6 +37,7 @@ SOAM:: ds 160
 oam_used:: ds 1  ; How much of the display list is used
 
 SECTION "vblank_handler", ROM0[$0040]
+vblank_handler:
   push af
   ldh a,[nmis]
   inc a
@@ -44,6 +45,7 @@ SECTION "vblank_handler", ROM0[$0040]
   jr vblank_handler_tail
 
 SECTION "stat_handler", ROM0[$0048]
+stat_handler:
   push af
   ldh a,[stat_lcdc_value]
   ldh [rLCDC],a
