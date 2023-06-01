@@ -1,6 +1,10 @@
-content (Wed)
+sprite support (Thu-Fri)
 
-- make a sprite sheet
+- finish boxing Mindy's sprite sheet
+- draw a coin
+- draw all 10 coins
+- draw Mindy's first frame
+- draw Mindy's frames in sequence
 
 back burner
 

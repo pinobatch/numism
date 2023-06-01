@@ -82,3 +82,19 @@ frame Mindy_crouch4 56 112 16 16
 frame Mindy_crouch_last 72 112 16 16
 #  strip 0 78 115 8 13
 #  strip 0x11
+
+frame Mindy_crouch_lean1 96 112 16 16
+  hotspot 103 128
+
+frame Mindy_crouch_lean2 112 112 16 16
+  hotspot 119 128
+
+frame Mindy_crouch_lean 128 112 16 16
+  hotspot 135 128
+
+frame Mindy_crouch_leanout1 144 112 16 16
+  hotspot 151 128
+
+frame Mindy_crouch_leanout_last 160 112 16 16
+  hotspot 167 128
+

@@ -2,54 +2,70 @@
 """
 Extract sprite cels from an image
 
-The .ec file is a source code file that describes where the cels
-are located on a .png sprite sheet and where the non-transparent
-rectangles of sprite tiles are located within each cel.
+Copyright 2018-2023 Damian Yerrick
 
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
 
-# BEGIN .ec DOCS
-#
-# Leading and trailing whitespace are ignored.
-# A line beginning with zero or more whitespace followed by a # sign
-# is a comment and ignored.
-# The file begins with file-wide things like palette declarations:
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
 
-backdrop <#rgb>
-palette <palid> <#rgb> <#rgb> <#rgb> <#rgb>=2 <#rgb>=3
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+"""
+"""Cel position file
 
-# backdrop tells what color is used for pixels that are always
-# transparent, and palette tells what colors are associated with
-# pixels in a given palette.
-# Bit 4 of the palette ID specifies a DMG palette (0 for OBP0
-# or 16 for OBP1), and bits 2-0 specify a GBC palette ID (0 to 7).
-# An <#rgb> specifies an RGB color using 3- or 6-digit
-# hexadecimal, such as #fa9 or #ffaa99
-# In palette statements, it may be followed by =1, =2, or =3 to
-# force a color to also be converted to this index.
+The cel position (.ec) file is a source code file that describes
+where the cels are located on a .png sprite sheet and where the
+non-transparent rectangles of sprite tiles are located within
+each cel.
 
-# Then for each frame:
+Leading and trailing whitespace on each line are ignored.
+A line beginning with zero or more whitespace followed by a # sign
+is a comment and ignored.
+The file begins with file-wide things like palette declarations:
 
-frame <nameofframe> <cliprect>?
-strip <palette> <cliprect>?
-strip <palette> <cliprect> at <dstpoint>
-hotspot <loc>
+    backdrop <#rgb>
+    palette <palid> <#rgb> <#rgb> <#rgb> <#rgb>=2 <#rgb>=3
 
-# Each frame means one cel, and each strip marks a rectangle of
-# nontransparent pixels within that cel using one palette.
-# A <cliprect> is four integers of the form left top width height
-# If the frame does not specify a cliprect, it will be the union of
-# all strips.  If the strip does not specify a cliprect, it uses
-# that of the frame.
-# A <strip> may specify a position in order to place the pixels taken
-# from its cliprect at a different position.  Useful for advanced
-# tile reuse scenarios.
-# <palette> tells what palette to use for this strip, as a cel may
-# have multiple adjacent or overlaid strips with different palettes.
-# hotspot gives the starting position used to calculate the offset
-# of each rectangle when the cel is drawn.  It defaults to the
-# bottom center of the frame's cliprect.
-#
-# END .ec DOCS
+backdrop tells what color is used for pixels that are always
+transparent, and palette tells what colors are associated with
+pixels in a given palette.
+Bit 4 of the palette ID specifies a DMG palette (0 for OBP0
+or 16 for OBP1), and bits 2-0 specify a GBC palette ID (0 to 7).
+An <#rgb> specifies an RGB color using 3- or 6-digit
+hexadecimal, such as #fa9 or #ffaa99
+In palette statements, it may be followed by =1, =2, or =3 to
+force a color to also be converted to this index.
+
+Then for each frame:
+
+    frame <nameofframe> <cliprect>?
+    strip <palette> <cliprect>?
+    strip <palette> <cliprect> at <dstpoint>
+    hotspot <loc>
+
+Each frame means one cel, and each strip marks a rectangle of
+nontransparent pixels within that cel using one palette.
+A <cliprect> is four integers of the form left top width height
+If the frame does not specify a cliprect, it will be the union of
+all strips.  If the strip does not specify a cliprect, it uses
+that of the frame.
+A <strip> may specify a position in order to place the pixels taken
+from its cliprect at a different position.  Useful for advanced
+tile reuse scenarios.
+<palette> tells what palette to use for this strip, as a cel may
+have multiple adjacent or overlaid strips with different palettes.
+hotspot gives the starting position used to calculate the offset
+of each rectangle when the cel is drawn.  It defaults to the
+bottom center of the frame's cliprect.
 """
 from PIL import Image, ImageDraw
 import os, sys, argparse, re
@@ -358,6 +374,14 @@ def vflipGB(tile):
     return b"".join(tile[i:i + 2] for i in range(len(tile) - 2, -2, -2))
 
 def flipuniq(it):
+    """Convert an iterable of Game Boy tiles (8x8 or 8x16) to unique tiles.
+
+Return a 2-tuple (tiles, tilemap), where tiles is only the unique
+tiles, and tilemap is a list of references to tiles:
+bits 12-0: tile number
+bit 13: horizontal flip (bit-reverse)
+bit 14: vertical flip (reverse order of 16-bit entities)
+"""
     tiles = []
     tile2id = {}
     tilemap = []
@@ -434,29 +458,54 @@ def gbtilestoim(tiles):
     im.putpalette(previewpalette)
     return im
 
-def pack_frames(framestrips, nt):
+def pack_frames(framestrips, nt, streaming=False):
+    """Pack the frames in
+
+streaming -- if true, find all the unique tiles first
+
+Return a list of lists of bytes, one for each frame.
+"""
     ntoffset = 0
     out = []
     for strips in framestrips:
-        strip = []
+        strip = []  # the byte strings that make up one frame
+        pnxy = []
+        frame_tilenums = set()
         for palette, tiles, x, y in strips:
             ntiles = len(tiles)
             ntend = ntoffset + ntiles
-            b = bytearray([y + 128, x + 128, palette | ((ntiles - 1) << 5)])
-            b.extend(
-                ((x & 0x6000) >> 7) | (x & 0x3F)
-                for x in nt[ntoffset:ntend]
-            )
+            tilenums = nt[ntoffset:ntend]
+            frame_tilenums.update(x & 0xFF for x in tilenums)
             ntoffset = ntend
+            pnxy.append((palette, tilenums, x, y))
+
+        if streaming:
+            # List all tiles that make up this frame
+            # so the drawing code can copy them to VRAM
+            frame_tilenums = sorted(frame_tilenums)
+            iframe_tilenums = {v: k for k, v in enumerate(frame_tilenums)}
+            b = [len(frame_tilenums)]
+            b.extend(frame_tilenums)
+            strip.append(bytes(b))
+
+        for palette, tilenums, x, y in pnxy:
+            if streaming:
+                tilenums = [
+                    (x & 0x6000) | iframe_tilenums[x & 0xFF]
+                    for x in tilenums
+                ]
+            b = bytearray([y + 128, x + 128,
+                           palette | ((len(tilenums) - 1) << 5)])
+            b.extend(((x & 0x6000) >> 7) | (x & 0x3F) for x in tilenums)
             strip.append(bytes(b))
         strip.append(b"\x00")
         out.append(strip)
     return out
 
-def emit_frames(framestrips, nt, framenames):
+def emit_frames(framestrips, nt, framenames, streaming=False):
     out = [" dw mspr_" + n for n in framenames]
     ntoffset = 0
-    packed = pack_frames(framestrips, nt)
+    packed = pack_frames(framestrips, nt, streaming=streaming)
 
     # Consider only unique framedefs
     allframedefs = OrderedDict()
@@ -475,6 +524,9 @@ def emit_frames(framestrips, nt, framenames):
 
     out.extend("def FRAME_%s equ %d" % (n, i) for i, n in enumerate(framenames))
     out.extend(" export FRAME_%s" % (n,) for n in framenames)
+    if streaming:
+        max_count = max(framedef[0][0] for framedef in packed) if packed else 0
+        out.append("; Maximum tiles per frame: %d" % max_count)
     return "\n".join(out)
 
 # CLI front end
@@ -487,6 +539,8 @@ def parse_argv(argv):
                    help="where to write unique tiles")
     p.add_argument("ASMFILE", nargs="?",
                    help="where to write asm")
+    p.add_argument("--streaming", action="store_true",
+                   help="prefix each cel with tile numbers (limit 256 instead of 64)")
     p.add_argument("-v", "--verbose", action="store_true",
                    help="print debug info and write preview images")
     p.add_argument("--8x16", action="store_true", dest="is_8x16",
@@ -508,7 +562,8 @@ def main(argv=None):
     utiles, nt = flipuniq(alltiles)
 
     if args.verbose:
-        print("%d tiles, %d unique" % (len(nt), len(utiles)),
+        print("%d frames, %d tiles, %d unique"
+              % (len(doc.frames), len(nt), len(utiles)),
               file=sys.stderr)
         stripsvis(im, doc.frames).save("_stripsvis.png")
         gbtilestoim(alltiles).save("_alltiles.png")
@@ -517,7 +572,8 @@ def main(argv=None):
         with open(args.CHRFILE, "wb") as outfp:
             outfp.writelines(utiles)
     if args.ASMFILE:
-        ef = emit_frames(framestrips, nt, list(doc.frames))
+        ef = emit_frames(framestrips, nt, list(doc.frames),
+                         streaming=args.streaming)
         if args.ASMFILE == '-':
             sys.stdout.write(ef)
         else:
@@ -528,7 +584,7 @@ if __name__=='__main__':
     if "idlelib" in sys.modules and len(sys.argv) < 2:
         import shlex
         main(shlex.split("""
-extractcels.py -v ../tilesets/Mindy.ec ../tilesets/Mindy.png "" -
+extractcels.py -v --streaming ../tilesets/Mindy.ec ../tilesets/Mindy.png "" -
 """))
     else:
         main()
