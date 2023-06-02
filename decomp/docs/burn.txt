@@ -1,6 +1,8 @@
-sprite support (Thu-Fri)
+sprite content (Thu)
 
-- finish boxing Mindy's sprite sheet
+- Mindy's sprite sheet is 185 tiles; look for misalignment
+
+sprite drawing (Fri)
 - draw a coin
 - draw all 10 coins
 - draw Mindy's first frame
