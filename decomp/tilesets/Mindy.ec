@@ -28,7 +28,7 @@ frame Mindy_stop_last repeats Mindy_stop1
 
 frame Mindy_start1
   strip 0     14  76  8  8
-  strip 0      8  84 16  8
+  strip 0      8  84 16  5
   strip 0x11   8  73 16 16
   strip 0x11   7  89 16  7
   hotspot 16 96
@@ -52,7 +52,7 @@ frame Mindy_walk4 repeats Mindy_walk3
 
 frame Mindy_walk5
   strip 0     86  76  8  8
-  strip 0     80  84 16  8
+  strip 0     80  84 16  5
   strip 0x11  80  73 16 23
 
 frame Mindy_walk6 repeats Mindy_walk5
@@ -90,12 +90,14 @@ frame Mindy_crouch_lean1 96 112 16 16
 
 frame Mindy_crouch_lean2 112 112 16 16
   strip 0    120 116  8 12
-  strip 0x11
+  strip 0x11 114 112 14  8
+  strip 0x11 112 120 16 16
   hotspot 119 128
 
 frame Mindy_crouch_lean 128 112 16 16
   strip 0    136 116  8 12
-  strip 0x11
+  strip 0x11 130 112 14  8
+  strip 0x11 128 120 16  8
   hotspot 135 128
 
 frame Mindy_crouch_leanout1 144 112 16 16
@@ -127,28 +129,29 @@ frame Mindy_uncrouch_last 232 104 16 24
 frame Mindy_hoist_leap_1 8 152 16 24
   strip 0     14 154  8 12
   strip 0     21 160  3  4
-  strip 0x11
+  strip 0x11 8 152 14 24
 
-frame Mindy_hoist_leap_2 24 153 16 23
-  strip 0     30 156  8 12
+frame Mindy_hoist_leap_2 24 154 16 22
+  strip 0     30 157  8 12
   strip 0     37 160  3  4
-  strip 0x11
+  strip 0x11 24 154 14 22
 
 frame Mindy_hoist_leap_3 40 156 16 20
-  strip 0     46 159 10  8
-  strip 0     46 167  8  8
-  strip 0x11
+  strip 0     46 160 10  8
+  strip 0     46 168  8  8
+  strip 0x11 40 157 14 19
 
 frame Mindy_hoist_leap_4 56 155 16 21
   strip 0     61 158 16  8
-  strip 0     61 166  8  8
-  strip 0x11
+  strip 0     62 166  8  8
+  strip 0x11  56 155 14 16
+  strip 0x11  55 171 15  5
 
 # Hold on this frame until at the right height
 frame Mindy_hoist_leap_last 72 152 16 24
   strip 0     78 154  8 12
   strip 0     85 160  3  4
-  strip 0x11
+  strip 0x11  72 152 14 24
 
 # Before climb_1 through climb_4, move 4 pixels up each
 # Before climb_4 through climb_last, move 4 pixels forward each
