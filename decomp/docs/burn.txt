@@ -1,17 +1,15 @@
-sprite content (Thu)
+Saturday 06-03: make it a game
+- make coins and signs selectable, making the tech demo into a game
+- use CHR transfer routine from tearing and metasprite routine from Libbet to draw Mindy's first frame half behind a bush
 
-- Mindy's sprite sheet is 185 tiles; look for misalignment
-
-sprite drawing (Fri)
-- draw a coin
-- draw all 10 coins
-- draw Mindy's first frame
+Sunday 06-04: drawing Mindy
 - draw Mindy's frames in sequence
+- SUBMIT!
 
-back burner
+post-jam
 
 - draw column: use autotiling based on matching value in adjacent column in circular buffer
-- camera: track drawn area and vicinity separately to draw one half column at a time instead of 2-3?
+- camera: track drawn area and vicinity separately to draw one half column at a time instead of 2-3
 
 test ROM little-things-gb/borderflash
 

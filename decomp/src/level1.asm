@@ -4,6 +4,8 @@ include "src/hardware.inc"
 def MAP_VICINITY_WIDTH_MT equ 16
 def MAP_COLUMN_HEIGHT_MT equ 16
 
+def COINCELS_BASE_TILE equ $7B
+
 section "tilemapcol", WRAM0
 wMapCol: ds MAP_COLUMN_HEIGHT_MT
 
@@ -33,6 +35,9 @@ section "main", ROM0
 main:
   ld hl, level1chr_2b
   ld de, $9000
+  call memcpy_pascal16
+  ld hl, coincels_2b
+  ld de, $8000 + 16 * COINCELS_BASE_TILE
   call memcpy_pascal16
 
   ; Set up initial map pointer
@@ -70,17 +75,23 @@ main:
 forever:
   call read_pad
   call move_camera
+  xor a
+  ld [wOAMUsed], a
+  call draw_coins
+  call lcd_clear_oam
 
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG9800|LCDCF_BG8800
+  ldh [rLCDC], a
+
+  halt
+  call run_dma
+  ld a, %11100100
+  ldh [rBGP], a
+  ldh [rOBP1], a
   ld a, [wCameraX]
   ldh [rSCX], a
   ld a, [wCameraY]
   ldh [rSCY], a
-  ld a, %11100100
-  ldh [rBGP], a
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG9800|LCDCF_BG8800
-  ldh [rLCDC], a
-
-  halt
   jr forever
 
 ; Camera control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -135,6 +146,7 @@ move_camera:
   add hl, hl
   add hl, hl
   add hl, hl  ; H = camera X in map columns
+
   ld a, h  ; A = camera X in map columns
   ld hl, wMapVicinityLeft
   sub [hl]
@@ -150,6 +162,7 @@ move_camera:
   jr z, .decode_to_left
   cp MAP_VICINITY_WIDTH_MT-SCRN_X/16-1
   ret c
+
     ; Decode to right
     ld a, [hl]
     add MAP_VICINITY_WIDTH_MT
@@ -460,10 +473,11 @@ blit_one_col:
   ld bc, wMapVicinity
   ld d, high(_SCRN0)
   and $1F
-  ld e, a
+  ld e, a  ; DE: pointer into destination tilemap
   rra
   add b
-  ld b, a
+  ld b, a  ; BC: pointer into vicinity (metatile IDs)
+           ; B: X position; C: Y position
   .blkloop:
     ; find metatile definition
     ld a, e
@@ -480,11 +494,12 @@ blit_one_col:
     adc high(metatile_defs)
     ld h, a
 
-    ; write it to VRAM
-    .vramloop:
+    ; wait for mode 0 or 1
+    .stat01loop:
       ldh a, [rSTAT]
       and STATF_BUSY
-      jr nz, .vramloop
+      jr nz, .stat01loop
+    ; write it to VRAM
     ld a, [hl+]  ; top left
     ld [de], a
     set 5, e
@@ -725,6 +740,21 @@ metatile_defs:
   db $4E,$02,$4D,$02  ; 0ht top
   db $01,$02,$02,$01  ; 0ht inside
 
+coin_pos: 
+  db 15, 9
+  db 24, 8
+  db 27, 5
+  db 38, 4
+  db 36, 11
+def NUM_DEFINED_COINS equ (@-coin_pos)/2
+
+sign_pos:
+  db 6, 7
+  db 14, 9
+  db 30, 8
+  db 29, 5
+def NUM_DEFINED_SIGNS equ (@-sign_pos)/2
+
 section "bgchr", ROMX, BANK[1]
 
 level1chr_2b:
@@ -732,8 +762,106 @@ level1chr_2b:
 .start:
   incbin "obj/gb/level1chr.2b"
 .end:
+coincels_2b:
+  dw .end-.start
+.start:
+  incbin "obj/gb/coincels.2b"
+.end:
+
+; Static sprite drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+def COINS_ATTR equ $91  ; no flip, DMG and GBC palette 1
+
+section "draw_coin", ROM0
+draw_coins:
+  ld bc, coin_pos
+  ld de, wOAMUsed
+  ld a, [de]
+  ld e, a
+  .coinloop:
+    ld a, [bc]
+    inc bc
+    push bc
+
+    ; calculate X coordinate of coin
+    ld hl, wCameraX
+    ld c, [hl]
+    inc hl
+    ld b, [hl]
+    ld l, a
+    ld h, 0
+    add hl, hl
+    ; add 12 (GB sprite offset 8 plus 4 from left) to center object
+    ; in metatile
+    inc l
+    add hl, hl
+    inc l
+    add hl, hl
+    add hl, hl
+    ld a, l
+    sub c
+    ld l, a
+    ld a, h
+    sbc b
+    pop bc
+    jr nz, .not_this_coin
+    ld a, l
+    cp SCRN_X+8
+    jr nc, .not_this_coin
+
+    ; calculate Y coordinate of coin
+    ld a, [wCameraY]
+    ld h, a
+    ld a, [bc]
+    inc a  ; draw coin at top of metatile (offset 16)
+    add a
+    add a
+    add a
+    add a
+    sub h
+    jr c, .not_this_coin
+    cp SCRN_Y+16
+    jr nc, .not_this_coin
+
+      ld [de], a
+      inc e
+      ld a, l
+      ld [de], a
+      inc e
+      ldh a, [hVblanks]
+      and $38
+      rra
+      rra
+      rra
+      cp 5
+      jr c, .coin_not_reverse
+        cpl
+        add 8+1
+      .coin_not_reverse:
+      add COINCELS_BASE_TILE
+      ld [de], a
+      inc e
+      ld a, COINS_ATTR
+      ld [de], a
+      inc e
+    .not_this_coin:
+    inc bc
+    ld a, c
+    xor low(coin_pos + NUM_DEFINED_COINS * 2)
+    jr nz, .coinloop
+  ld a, e
+  ld [wOAMUsed], a
+  ret
+
 
 ; Administrative stuff ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "Shadow OAM", WRAM0, ALIGN[8]
+wShadowOAM: ds 160
+wOAMUsed: ds 1
+
+section "PPU various variables", HRAM
+hVblanks: ds 1
 
 section "header", ROM0[$100]
   nop
@@ -745,9 +873,23 @@ init:
   call lcd_off
   ld a, $FF
   ldh [hCurKeys], a
+  ld hl, hramcode_LOAD
+  ld de, hramcode_RUN
+  call memcpy_pascal16
+  xor a
+  ldh [hVblanks], a
+  ld hl, wShadowOAM
+  ld c, 160
+  rst memset_tiny
+  call run_dma
   jp main
 
 section "vblank_isr", ROM0[$40]
+  push af
+  ld a, [hVblanks]
+  inc a
+  ldh [hVblanks], a
+  pop af
   reti
 
 section "ppuclear", ROM0
@@ -774,6 +916,33 @@ lcd_off::
   ; Use a RMW instruction to turn off only bit 7
   ld hl, rLCDC
   res 7, [hl]
+  ret
+
+;;
+; Moves sprites in the display list from wShadowOAM+[wOAMUsed]
+; through wShadowOAM+$9C offscreen by setting their Y coordinate to
+; 0, which is completely above the screen top (16).
+lcd_clear_oam::
+  ; Destination address in shadow OAM
+  ld hl, wOAMUsed
+  ld a, [hl]
+  and $FC
+  ld l,a
+
+  ; iteration count
+  rrca
+  rrca
+  add 256 - 40
+  ld c,a
+
+  xor a
+.rowloop:
+  ld [hl+],a
+  inc l
+  inc l
+  inc l
+  inc c
+  jr nz, .rowloop
   ret
 
 section "memset_tiny",ROM0[$08]
@@ -815,3 +984,29 @@ memcpy::
   dec b
   jr nz,.loop
   ret
+
+section "HRAMCODE_src", ROM0
+;;
+; While OAM DMA is running, the CPU keeps fetching instructions
+; while ROM and WRAM are inaccessible.  A program needs to jump to
+; HRAM and busy-wait 160 cycles until OAM DMA finishes.
+hramcode_LOAD:
+  dw hramcode_RUN_end-hramcode_RUN
+load "HRAMCODE", HRAM
+hramcode_RUN:
+
+;;
+; Copy a display list from shadow OAM to OAM
+; @param HL address to read once while copying is in progress
+; @return A = value read from [HL]
+run_dma::
+  ld a, wShadowOAM >> 8
+  ldh [rDMA],a
+  ld b, 40
+.loop:
+  dec b
+  jr nz,.loop
+  ret
+
+hramcode_RUN_end:
+endl
