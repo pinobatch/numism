@@ -6,6 +6,15 @@ def MAP_COLUMN_HEIGHT_MT equ 16
 
 def COINCELS_BASE_TILE equ $7B
 
+; This number is added to wGlobalSubpixel every frame.  It must be
+; odd and should be close to 256 divided by a highly irrational
+; number (lots of small terms in continued fraction representation)
+; to mask repetition.  Here we use 256 divided by the golden ratio,
+; which is the most irrational number (see numberphile video).
+def GLOBAL_SUBPIXEL_ADD equ 159
+def STARTING_CURSOR_Y equ 64
+def STARTING_CURSOR_X equ 64
+
 section "tilemapcol", WRAM0
 wMapCol: ds MAP_COLUMN_HEIGHT_MT
 
@@ -24,6 +33,13 @@ wMapDecodeX: ds 1      ; Column corresponding to wMapContentsPtr
 wMapBitmapBase: ds 2   ; Pointer to the base of a map's bitmap
 wMapContentsPtr: ds 2  ; Pointer to contents at column wMapDecodeX
 
+wGlobalSubpixel: ds 1
+wCursorY: ds 1
+wCursorX: ds 2
+wCursorYAdd: ds 1
+wCursorXAdd: ds 1
+wCursorTile: ds 1
+
 def TEST_REWIND_COLUMN equ 4
 
 section "stack", WRAM0, ALIGN[1]
@@ -38,6 +54,9 @@ main:
   call memcpy_pascal16
   ld hl, coincels_2b
   ld de, $8000 + 16 * COINCELS_BASE_TILE
+  call memcpy_pascal16
+  ld hl, cursor_2b
+  ld de, $8000 + 16 * CURSOR_TILE_NO_MATCH
   call memcpy_pascal16
 
   ; Set up initial map pointer
@@ -64,6 +83,23 @@ main:
   ld a, high(level1Contents)
   ld [hl+], a
 
+  assert wGlobalSubpixel == wMapContentsPtr + 2
+  xor a
+  ld [hl+], a
+  assert wCursorY == wGlobalSubpixel + 1
+  ld a, STARTING_CURSOR_Y
+  ld [hl+], a
+  assert wCursorX == wCursorY + 1
+  ld a, low(STARTING_CURSOR_X)
+  ld [hl+], a
+  ld a, high(STARTING_CURSOR_X)
+  ld [hl+], a
+  xor a
+  assert wCursorYAdd == wCursorX + 2
+  ld [hl+], a
+  ld [hl+], a
+  
+
   ld hl, wMapVicinity
   call redraw_whole_screen
   xor a
@@ -73,10 +109,16 @@ main:
   ei
 
 forever:
+  ld hl, wGlobalSubpixel
+  ld a, GLOBAL_SUBPIXEL_ADD
+  add [hl]
+  ld [hl], a
   call read_pad
+  call move_cursor
   call move_camera
   xor a
   ld [wOAMUsed], a
+  call draw_cursor
   call draw_coins
   call lcd_clear_oam
 
@@ -94,48 +136,204 @@ forever:
   ldh [rSCY], a
   jr forever
 
-; Camera control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Selection control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-def CAM_X_MAX equ 4096 - SCRN_X
+def CURSOR_TILE_NO_MATCH equ $70
+def CURSOR_PIXELS_PER_PRESS equ 8
 
-move_camera:
-  ldh a, [hCurKeys]
+move_cursor:
+  ld a, CURSOR_TILE_NO_MATCH
+  ld [wCursorTile], a
+
+  ; 1. control what to add
+  ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
+  call autorepeat
+  ldh a, [hNewKeys]
   ld b, a
-  ld a, [wCameraY]
+  ld a, [wCursorYAdd]
   bit PADB_DOWN, b
   jr z, .notDown
-    inc a
+    add CURSOR_PIXELS_PER_PRESS
   .notDown:
   bit PADB_UP, b
   jr z, .notUp
-    dec a
+    sub CURSOR_PIXELS_PER_PRESS
   .notUp:
-  cp 256-SCRN_Y
-  jr nc, .noWriteY
-    ld [wCameraY], a
-  .noWriteY:
-
-  ld hl, wCameraX
-  ld e, [hl]
-  inc hl
-  ld d, [hl]
+  ld [wCursorYAdd], a
+  ld a, [wCursorXAdd]
   bit PADB_RIGHT, b
   jr z, .notRight
-    inc de
+    add CURSOR_PIXELS_PER_PRESS
   .notRight:
   bit PADB_LEFT, b
   jr z, .notLeft
-    dec de
+    sub CURSOR_PIXELS_PER_PRESS
   .notLeft:
-  ld a, e
-  cp low(CAM_X_MAX)
-  ld a, d
-  sbc high(CAM_X_MAX)
-  jr nc, .noWriteX
-    ld [hl], d
+  ld [wCursorXAdd], a
+
+  ; 2. move the cursor itself
+  ld hl, wCursorYAdd
+  ld b, [hl]
+  call divide_B_by_damping
+  ld c, a     ; C: distance to move cursor
+  ld a, [hl]  ; log these pixels as being used up
+  sub c
+  ld [hl], a
+  ld hl, wCursorY
+  ld a, [hl]
+  ld b, a     ; B: previous position
+  add c
+  ld d, a     ; D: new position
+  ; check for wraparound based on carry from D-B
+  sub b       ; CF: 1 if D>=B
+  rra         ; A bit 7: 1 if D >= B
+  xor c       ; A bit 7: 1 if wrapped
+  add a
+  jr nc, .have_Y_in_D
+    ld a, b
+    add a  ; CF: sign of old position
+    sbc a  ; A: 0 if was in top half or FF in bottom half
+    and 255 - 255 % CURSOR_PIXELS_PER_PRESS
+    ld d, a
+  .have_Y_in_D:
+  ld [hl], d
+
+  ld hl, wCursorXAdd
+  ld b, [hl]
+  call divide_B_by_damping
+  ld c, a
+  add a
+  sbc a
+  ld b, a     ; BC: 16-bit distance to move cursor
+  ld a, [hl]  ; log these pixels as being used up
+  sub c
+  ld [hl], a
+
+  ld hl, wCursorX
+  ld a, c
+  add [hl]
+  ld [hl+], a
+  ld a, b
+  adc [hl]
+  cp MAP_WIDTH_MT / 16
+  jr c, .have_X_hi_in_A
+    ; bit 7 set if off left, or clear if off right
+    add a
+    ccf      ; CF clear if at left, or set if off right
+    sbc a
+    ld b, a  ; B = $FF at right, 0 at left
+    xor a
+    ld [wCursorXAdd], a
     dec hl
-    ld [hl], e
-  .noWriteX:
+    ld a, 255 - 255 % CURSOR_PIXELS_PER_PRESS - CURSOR_PIXELS_PER_PRESS
+    and b
+    add CURSOR_PIXELS_PER_PRESS
+    ld [hl+], a
+    ld a, MAP_WIDTH_MT / 16 - 1
+    and b
+  .have_X_hi_in_A:
+  ld [hl], a
+
+  ret
+
+def CURSOR_DAMPING equ 2
+
+;;
+; Divides A by 2^CURSOR_DAMPING, rounding per wGlobalSubpixel
+; @return A: rounded quotient; B: quotient rounded toward 0;
+; C: wGlobalSubpixel
+; DEHL unchanged
+divide_by_damping:
+  ld b, a
+divide_B_by_damping:
+  ld a, [wGlobalSubpixel]
+  ld c, a
+  xor a
+  rept CURSOR_DAMPING
+    sra b
+    rra
+  endr
+  ; BA: 1/256 pixels to add
+  add c
+  ld a, 0
+  adc b
+  ret
+
+; Camera control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+def CURSOR_MOVE_MAX equ 8 << CURSOR_DAMPING
+
+move_camera:
+  ; calculate vertical displacement
+  ld a, [wCursorY]
+  sub SCRN_Y/2
+  jr nc, .noYTopClip
+    xor a
+  .noYTopClip:
+  cp MAP_COLUMN_HEIGHT_MT * 16 - SCRN_Y
+  jr c, .noYBottomClip
+    ld a, MAP_COLUMN_HEIGHT_MT * 16 - SCRN_Y
+  .noYBottomClip:
+  ld hl, wCameraY
+  sub [hl]
+
+  ; scroll by that amount
+  call divide_by_damping
+  add [hl]
+  ld [hl], a
+
+  ; calculate horizontal displacement
+  ld hl, wCursorX
+  ld a, [hl+]
+  sub SCRN_X/2
+  ld c, a
+  ld a, [hl]
+  sbc 0
+  jr nc, .noXLeftClip
+    xor a
+    ld c, a
+  .noXLeftClip:
+  ld b, a
+  ld hl, wCameraX
+  ld a, c
+  sub [hl]
+  ld e, a
+  ld a, b
+  inc hl
+  sbc [hl]  ; AE = displacement
+  dec hl
+
+  ; clamp displacement to maximum
+  jr c, .clamp_x_neg
+    jr nz, .displacement_is_max_pos
+    ld a, e
+    cp CURSOR_MOVE_MAX
+    jr c, .have_x_dist
+  .displacement_is_max_pos:
+    ld a, CURSOR_MOVE_MAX
+    jr .have_x_dist
+  .clamp_x_neg:
+    inc a
+    jr nz, .displacement_is_max_neg
+    ld a, e
+    cp -CURSOR_MOVE_MAX
+    jr nc, .have_x_dist
+  .displacement_is_max_neg:
+    ld a, -CURSOR_MOVE_MAX
+  .have_x_dist:
+
+  ; scroll by a fraction of that amount
+  call divide_by_damping
+  ld c, a
+  add a
+  sbc a
+  ld b, a  ; BC = signed displacement
+  ld a, c  
+  add [hl]
+  ld [hl+], a
+  ld a, b
+  adc [hl]
+  ld [hl], a
 
   ; Move map vicinity toward camera X
   ld hl, wCameraX
@@ -615,6 +813,7 @@ dw %0000001000000000
 dw %0000001000000000
 dw %0000001000000000
 dw %0000001000000000
+def MAP_WIDTH_MT equ (@-level1Bitmap)/2
 
 level1Contents:
 db MT_GROUND
@@ -743,7 +942,7 @@ metatile_defs:
 coin_pos: 
   db 15, 9
   db 24, 8
-  db 27, 5
+  db 27, 5|$80  ; coin half behind bush
   db 38, 4
   db 36, 11
 def NUM_DEFINED_COINS equ (@-coin_pos)/2
@@ -767,10 +966,15 @@ coincels_2b:
 .start:
   incbin "obj/gb/coincels.2b"
 .end:
+cursor_2b:
+  dw .end-.start
+.start:
+  incbin "obj/gb/cursor.2b"
+.end:
 
 ; Static sprite drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-def COINS_ATTR equ $91  ; no flip, DMG and GBC palette 1
+def COINS_ATTR equ $11  ; no flip, DMG and GBC palette 1
 
 section "draw_coin", ROM0
 draw_coins:
@@ -841,7 +1045,9 @@ draw_coins:
       add COINCELS_BASE_TILE
       ld [de], a
       inc e
-      ld a, COINS_ATTR
+      ld a, [bc]
+      and $80  ; priority
+      or COINS_ATTR
       ld [de], a
       inc e
     .not_this_coin:
@@ -850,6 +1056,31 @@ draw_coins:
     xor low(coin_pos + NUM_DEFINED_COINS * 2)
     jr nz, .coinloop
   ld a, e
+  ld [wOAMUsed], a
+  ret
+
+def CURSOR_ATTR equ $11
+
+draw_cursor:
+  ld hl, wOAMUsed
+  ld l, [hl]
+  ld a, [wCameraY]
+  ld b, a
+  ld a, [wCursorY]
+  sub b
+  add 16-1
+  ld [hl+], a
+  ld a, [wCameraX]
+  ld b, a
+  ld a, [wCursorX]
+  sub b
+  add 8-1
+  ld [hl+], a
+  ld a, [wCursorTile]
+  ld [hl+], a
+  ld a, CURSOR_ATTR
+  ld [hl+], a
+  ld a, l
   ld [wOAMUsed], a
   ret
 
