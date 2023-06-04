@@ -1,4 +1,5 @@
 include "src/hardware.inc"
+include "src/global.inc"
 
 ; the width of the area that can affect autotiling of onscreen tiles
 def MAP_VICINITY_WIDTH_MT equ 16
@@ -14,6 +15,9 @@ def COINCELS_BASE_TILE equ $7B
 def GLOBAL_SUBPIXEL_ADD equ 159
 def STARTING_CURSOR_Y equ 64
 def STARTING_CURSOR_X equ 64
+
+section "hLocals", HRAM[hLocals]
+ds locals_size
 
 section "tilemapcol", WRAM0
 wMapCol: ds MAP_COLUMN_HEIGHT_MT
@@ -38,6 +42,8 @@ wCursorY: ds 1
 wCursorX: ds 2
 wCursorYAdd: ds 1
 wCursorXAdd: ds 1
+wWindowProgress: ds 1
+
 wCursorTile: ds 1
 
 def TEST_REWIND_COLUMN equ 4
@@ -98,8 +104,8 @@ main:
   assert wCursorYAdd == wCursorX + 2
   ld [hl+], a
   ld [hl+], a
-  
 
+  call init_window
   ld hl, wMapVicinity
   call redraw_whole_screen
   xor a
@@ -107,6 +113,9 @@ main:
   ld a, IEF_VBLANK
   ldh [rIE], a
   ei
+
+  ld a, 7
+  ldh [rWX], a
 
 forever:
   ld hl, wGlobalSubpixel
@@ -122,7 +131,7 @@ forever:
   call draw_coins
   call lcd_clear_oam
 
-  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_OBJON|LCDCF_BG9800|LCDCF_BG8800
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_WIN9C00|LCDCF_BG9800|LCDCF_BG8800
   ldh [rLCDC], a
 
   halt
@@ -134,6 +143,9 @@ forever:
   ldh [rSCX], a
   ld a, [wCameraY]
   ldh [rSCY], a
+  ld a, [wWindowProgress]
+  ld a, SCRN_Y-40
+  ld [rWY], a
   jr forever
 
 ; Selection control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1084,6 +1096,28 @@ draw_cursor:
   ld [wOAMUsed], a
   ret
 
+; Drawing the window ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+init_window:
+  ld hl, $9C00
+  ld b, $05
+  .rowloop:
+    ld c, 4
+    xor a
+    rst memset_tiny
+    ld c, 16
+    ld a, c
+    sub b  ; window uses tiles $B0-$FF
+    swap a
+    call memset_inc
+    ld c, 12
+    xor a
+    call memset_tiny
+    dec b
+    jr nz, .rowloop
+  dec a
+  ld [wWindowProgress], a
+  ret
 
 ; Administrative stuff ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1183,6 +1217,16 @@ memset_tiny::
   ld [hl+],a
   dec c
   jr nz,memset_tiny
+  ret
+
+section "memset_inc",ROM0
+;;
+; Writes C bytes of value A, A+1, ..., A+C-1 starting at HL.
+memset_inc::
+  ld [hl+],a
+  inc a
+  dec c
+  jr nz,memset_inc
   ret
 
 section "memcpy", ROM0
