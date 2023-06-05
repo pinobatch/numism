@@ -17,6 +17,10 @@ def STARTING_CURSOR_Y equ 64
 def STARTING_CURSOR_X equ 64
 
 def WINDOW_ROWS equ 5
+def NUM_HIDDEN_OBJS equ 10
+def PAGE_MINDY equ 9
+def PAGE_FOUND_THEM_ALL equ 10
+def PAGE_INSTRUCTIONS equ 11
 
 section "hLocals", HRAM[hLocals]
 ds locals_size
@@ -50,6 +54,11 @@ wWindowTextPtr: ds 2
 wCursorItem: ds 1
 wMindyLoadedCel: ds 1
 wMindyDisplayCelBase: ds 1
+wWindowLoadedPage: ds 1
+wMindyFacing: ds 1
+
+section "seenpages", WRAM0
+wSeenPages: ds NUM_HIDDEN_OBJS
 
 def TEST_REWIND_COLUMN equ 4
 
@@ -111,10 +120,14 @@ main:
   assert wCursorYAdd == wCursorX + 2
   ld [hl+], a
   ld [hl+], a
+  ld hl, wSeenPages
+  ld c, NUM_HIDDEN_OBJS
+  rst memset_tiny
 
   ld [wMindyDisplayCelBase], a
   dec a
   ld [wMindyLoadedCel], a
+  ld [wWindowLoadedPage], a
 
   call init_window
   ld hl, wMapVicinity
@@ -176,6 +189,7 @@ forever:
 
 def CURSOR_TILE_NO_MATCH equ $70
 def CURSOR_PIXELS_PER_PRESS equ 8
+def MINDY_HITBOX_WIDTH equ 20
 
 move_cursor:
   ld a, $FF
@@ -188,10 +202,6 @@ move_cursor:
   ld b, a
   and PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
   jr z, .no_cursor_movement
-    ; moving cursor closes window
-    ld a, $FF
-    ld [wWindowProgress], a
-
     ; check for individual directions
     ld a, [wCursorYAdd]
     bit PADB_DOWN, b
@@ -213,9 +223,27 @@ move_cursor:
       sub CURSOR_PIXELS_PER_PRESS
     .notLeft:
     ld [wCursorXAdd], a
+
+    ; Moving the cursor shows the win notice if won;
+    ; otherwise it closes the window.
+    ld hl, wSeenPages
+    .seenloop:
+      ld a, [hl+]
+      or a
+      jr z, .not_won_msg
+      ld a, l
+      xor low(wSeenPages + NUM_HIDDEN_OBJS)
+      jr nz, .seenloop
+    ld a, PAGE_FOUND_THEM_ALL
+    call start_window_page_a
+    jr .no_cursor_movement
+  .not_won_msg:
+    ld a, $FF
+    ld [wWindowProgress], a
   .no_cursor_movement:
 
-  bit PADB_SELECT, b
+  ldh a, [hNewKeys]
+  bit PADB_SELECT, a
   jr z, .notSelect
     ld a, [wMindyLoadedCel]
     inc a
@@ -293,7 +321,7 @@ move_cursor:
   ld a, [wCursorY]
   and $F0
   swap a
-  ld e, a  ; E = Y coordinate
+  ld e, a  ; E = Y coordinate in metatiles
   ld a, [wCursorX]
   ld d, a
   ld a, [wCursorX+1]
@@ -301,7 +329,7 @@ move_cursor:
   and $0F  ; keep low nibble of high byte and high nibble of low byte
   xor d
   swap a
-  ld d, a  ; D = X coordinate
+  ld d, a  ; D = X coordinate in metatiles
   ld hl, coin_pos
   .coin_sign_loop:
     ld a, [hl+]  ; fetch X coordinate
@@ -320,15 +348,54 @@ move_cursor:
     ld a, l
     xor low(coin_pos + 2 * (NUM_DEFINED_COINS + NUM_DEFINED_SIGNS))
     jr nz, .coin_sign_loop
-  ; TODO: can Mindy be clicked?
-  ret
+
+  ld a, [wCursorX]
+  sub low(MINDY_X)
+  ld c, a
+  ld a, [wCursorX+1]
+  sbc high(MINDY_X)
+  ld b, a
+  ld b, b
+  sbc a
+  and OAMF_XFLIP
+  ld [wMindyFacing], a
+
+  ; Face cursor
+  ld a, [wCursorY]
+  sub MINDY_Y
+  cp -24
+  jr c, .notOverMindy
+  ld a, MINDY_HITBOX_WIDTH/2
+  add c
+  ld c, a
+  adc b
+  sub c
+  jr nz, .notOverMindy
+
+  ld a, c
+  cp MINDY_HITBOX_WIDTH
+  jr nc, .notOverMindy
+  ld a, PAGE_MINDY
 
 .is_over_item_a:
   ld [wCursorItem], a
   ld hl, hNewKeys 
   bit PADB_A, [hl]
-  call nz, start_window_page_a
+  ret z
 
+  ; mark thing as seen
+  push af
+  ld hl, wSeenPages
+  add l
+  ld l, a
+  adc h
+  sub l
+  ld h, a
+  ld [hl], 1
+  pop af
+  jp start_window_page_a
+
+.notOverMindy:
   ret
 
 def CURSOR_DAMPING equ 2
@@ -1160,8 +1227,6 @@ draw_coins:
   ld [wOAMUsed], a
   ret
 
-def CURSOR_ATTR equ $11
-
 draw_cursor:
   ld hl, wOAMUsed
   ld l, [hl]
@@ -1182,7 +1247,9 @@ draw_cursor:
   and $01
   xor CURSOR_TILE_NO_MATCH|1
   ld [hl+], a
-  ld a, CURSOR_ATTR
+  rrca
+  sbc a
+  and $11  ; attribute
   ld [hl+], a
   ld a, l
   ld [wOAMUsed], a
@@ -1259,7 +1326,6 @@ mindy_set_cel_A:
 
 def MINDY_X equ 288
 def MINDY_Y equ 144
-def MINDY_ATTR equ OAMF_XFLIP
 def MINDY_NUM_FRAMES equ 41
 
 mindy_draw_current_cel:
@@ -1279,7 +1345,7 @@ mindy_draw_current_cel:
   ld a, high(MINDY_X)
   sbc [hl]
   ldh [hmsprXHi], a
-  ld a, MINDY_ATTR
+  ld a, [wMindyFacing]
   ldh [hmsprAttr], a
   ld a, [wMindyDisplayCelBase]
   ld [hmsprBaseTile], a
@@ -1528,8 +1594,6 @@ Mindy_chr:
 
 section "txt_window_code", ROM0
 
-def TEST_WINDOW_PAGE equ 9
-
 init_window:
   ; clear pattern table
   ld hl, $9000-WINDOW_ROWS*$100
@@ -1557,18 +1621,23 @@ init_window:
     dec b
     jr nz, .rowloop
 
-if def(TEST_WINDOW_PAGE)
-  ld a, TEST_WINDOW_PAGE
-  assert @ == start_window_page_a
-else
-  dec a
-  ld [wWindowProgress], a
-  ret
-endc
+  ld a, PAGE_INSTRUCTIONS
+  ; fall through to start_window_page_a
 
 ;;
 ; Draws page A
 start_window_page_a:
+  ; If the page is already loaded and showing,
+  ; don't try to load it again
+  ld hl, wWindowLoadedPage
+  cp [hl]
+  ld [hl], a
+  jr nz, .not_already_loaded
+    ld a, [wWindowProgress]
+    cp WINDOW_ROWS
+    ret z
+  .not_already_loaded:
+  ld a, [hl]  ; restore loaded page
   add a
   ld hl, window_txts
   add l
@@ -1623,6 +1692,7 @@ update_window:
 window_txts:
   dw coin1_msg, coin2_msg, coin3_msg, coin4_msg, coin5_msg
   dw sign1_msg, sign2_msg, sign3_msg, sign4_msg, Mindy_msg
+  dw win_msg, instructions_msg
 
 LF = $0A
 coin1_msg:
@@ -1662,13 +1732,24 @@ sign4_msg:
   db "EVENT CALENDAR",LF
   db "May 28-June 4:",LF
   db "  Summer Games Done Quick",LF
-  db "June 9-11: Yogic Flying",LF
+  db "June 10: Yogic Flying Lesson",LF
   db "June 16-18: Flea Market",0
 Mindy_msg:
   db "Hi! I'm Mindy!",LF
   db "I'm looking for money so I",LF
   db "can buy Game Boy games",LF
   db "like Esprit and Star Anise.",0
+win_msg:
+  db "You found them all!",LF
+  db "Thanks for playing my entry",LF
+  db "to Games Made QVIIck.",LF
+  db "- Pino",0
+instructions_msg:
+  db "Control Pad moves cursor.",LF
+  db "Cursor is solid when over",LF
+  db "something; press the",LF
+  db "A Button to view it.",LF
+  db "View all 10 things to win.",0
 
 ; Title screen ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -1,6 +1,5 @@
 drawing Mindy
-- Make Mindy selectable
-- reward for selecting everything
+
 - SUBMIT!
 
 post-jam
