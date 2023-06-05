@@ -1,9 +1,13 @@
 # Mindy Beageonton, third grader and coin collector
 
 # 0 is skin+shirt; 1 is skirt+hair
+# for DMG X-priority rule, ensure each color appears once and only
+# once in the palette lines
+# A00 is shoes to appear as dark skin on 3bpp platforms (SMS, SNES)
+# or as green on 2bpp layered platforms (like NES, DMG, and GBC)
 backdrop #AAF
 palette 0 #FFF #FAA #A55
-palette 0x11 #af0 #55a #005 #A55=1 #5A0=2 #FFF=1
+palette 0x11 #af0 #55a #005 #5A0=3 #A00=1
 
 frame Mindy_stand
   strip 0     86  43  8 16

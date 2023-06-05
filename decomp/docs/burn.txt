@@ -1,9 +1,6 @@
-Saturday 06-03: make it a game
-- make coins and signs selectable, making the tech demo into a game
-- use CHR transfer routine from tearing and metasprite routine from Libbet to draw Mindy's first frame half behind a bush
-
-Sunday 06-04: drawing Mindy
-- draw Mindy's frames in sequence
+drawing Mindy
+- Make Mindy selectable
+- reward for selecting everything
 - SUBMIT!
 
 post-jam

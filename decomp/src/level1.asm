@@ -16,6 +16,8 @@ def GLOBAL_SUBPIXEL_ADD equ 159
 def STARTING_CURSOR_Y equ 64
 def STARTING_CURSOR_X equ 64
 
+def WINDOW_ROWS equ 5
+
 section "hLocals", HRAM[hLocals]
 ds locals_size
 
@@ -43,8 +45,11 @@ wCursorX: ds 2
 wCursorYAdd: ds 1
 wCursorXAdd: ds 1
 wWindowProgress: ds 1
+wWindowTextPtr: ds 2
 
-wCursorTile: ds 1
+wCursorItem: ds 1
+wMindyLoadedCel: ds 1
+wMindyDisplayCelBase: ds 1
 
 def TEST_REWIND_COLUMN equ 4
 
@@ -55,6 +60,8 @@ wStackStart:
 section "main", ROM0
 
 main:
+  call show_title
+  call lcd_off
   ld hl, level1chr_2b
   ld de, $9000
   call memcpy_pascal16
@@ -105,6 +112,10 @@ main:
   ld [hl+], a
   ld [hl+], a
 
+  ld [wMindyDisplayCelBase], a
+  dec a
+  ld [wMindyLoadedCel], a
+
   call init_window
   ld hl, wMapVicinity
   call redraw_whole_screen
@@ -116,6 +127,8 @@ main:
 
   ld a, 7
   ldh [rWX], a
+  ld a, FRAME_Mindy_walk1
+  call mindy_set_cel_A
 
 forever:
   ld hl, wGlobalSubpixel
@@ -125,10 +138,12 @@ forever:
   call read_pad
   call move_cursor
   call move_camera
+  call update_window
   xor a
   ld [wOAMUsed], a
   call draw_cursor
   call draw_coins
+  call mindy_draw_current_cel
   call lcd_clear_oam
 
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_WINON|LCDCF_OBJON|LCDCF_WIN9C00|LCDCF_BG9800|LCDCF_BG8800
@@ -139,12 +154,21 @@ forever:
   ld a, %11100100
   ldh [rBGP], a
   ldh [rOBP1], a
+  ld a, [hVblanks]
+  rra
+  sbc a
+  and %00010000
+  or  %10000000
+  ldh [rOBP0], a
   ld a, [wCameraX]
   ldh [rSCX], a
   ld a, [wCameraY]
   ldh [rSCY], a
   ld a, [wWindowProgress]
-  ld a, SCRN_Y-40
+  sub WINDOW_ROWS
+  add a  ; CF true to hide window
+  sbc a
+  or SCRN_Y-WINDOW_ROWS * 8
   ld [rWY], a
   jr forever
 
@@ -154,34 +178,53 @@ def CURSOR_TILE_NO_MATCH equ $70
 def CURSOR_PIXELS_PER_PRESS equ 8
 
 move_cursor:
-  ld a, CURSOR_TILE_NO_MATCH
-  ld [wCursorTile], a
+  ld a, $FF
+  ld [wCursorItem], a
 
   ; 1. control what to add
   ld b, PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
   call autorepeat
   ldh a, [hNewKeys]
   ld b, a
-  ld a, [wCursorYAdd]
-  bit PADB_DOWN, b
-  jr z, .notDown
-    add CURSOR_PIXELS_PER_PRESS
-  .notDown:
-  bit PADB_UP, b
-  jr z, .notUp
-    sub CURSOR_PIXELS_PER_PRESS
-  .notUp:
-  ld [wCursorYAdd], a
-  ld a, [wCursorXAdd]
-  bit PADB_RIGHT, b
-  jr z, .notRight
-    add CURSOR_PIXELS_PER_PRESS
-  .notRight:
-  bit PADB_LEFT, b
-  jr z, .notLeft
-    sub CURSOR_PIXELS_PER_PRESS
-  .notLeft:
-  ld [wCursorXAdd], a
+  and PADF_UP|PADF_DOWN|PADF_LEFT|PADF_RIGHT
+  jr z, .no_cursor_movement
+    ; moving cursor closes window
+    ld a, $FF
+    ld [wWindowProgress], a
+
+    ; check for individual directions
+    ld a, [wCursorYAdd]
+    bit PADB_DOWN, b
+    jr z, .notDown
+      add CURSOR_PIXELS_PER_PRESS
+    .notDown:
+    bit PADB_UP, b
+    jr z, .notUp
+      sub CURSOR_PIXELS_PER_PRESS
+    .notUp:
+    ld [wCursorYAdd], a
+    ld a, [wCursorXAdd]
+    bit PADB_RIGHT, b
+    jr z, .notRight
+      add CURSOR_PIXELS_PER_PRESS
+    .notRight:
+    bit PADB_LEFT, b
+    jr z, .notLeft
+      sub CURSOR_PIXELS_PER_PRESS
+    .notLeft:
+    ld [wCursorXAdd], a
+  .no_cursor_movement:
+
+  bit PADB_SELECT, b
+  jr z, .notSelect
+    ld a, [wMindyLoadedCel]
+    inc a
+    cp MINDY_NUM_FRAMES
+    jr c, .noFrameWrap
+      xor a
+    .noFrameWrap:
+    call mindy_set_cel_A
+  .notSelect:
 
   ; 2. move the cursor itself
   ld hl, wCursorYAdd
@@ -246,6 +289,46 @@ move_cursor:
   .have_X_hi_in_A:
   ld [hl], a
 
+  ; now detect collision with coins and signs
+  ld a, [wCursorY]
+  and $F0
+  swap a
+  ld e, a  ; E = Y coordinate
+  ld a, [wCursorX]
+  ld d, a
+  ld a, [wCursorX+1]
+  xor d
+  and $0F  ; keep low nibble of high byte and high nibble of low byte
+  xor d
+  swap a
+  ld d, a  ; D = X coordinate
+  ld hl, coin_pos
+  .coin_sign_loop:
+    ld a, [hl+]  ; fetch X coordinate
+    cp d
+    jr nz, .not_this_coin_or_sign
+    ld a, [hl]   ; fetch Y coordinate
+    and $0F      ; skip priority bits
+    cp e
+    jr nz, .not_this_coin_or_sign
+      ld a, l
+      sub low(coin_pos)
+      srl a
+      jr .is_over_item_a
+    .not_this_coin_or_sign:
+    inc hl
+    ld a, l
+    xor low(coin_pos + 2 * (NUM_DEFINED_COINS + NUM_DEFINED_SIGNS))
+    jr nz, .coin_sign_loop
+  ; TODO: can Mindy be clicked?
+  ret
+
+.is_over_item_a:
+  ld [wCursorItem], a
+  ld hl, hNewKeys 
+  bit PADB_A, [hl]
+  call nz, start_window_page_a
+
   ret
 
 def CURSOR_DAMPING equ 2
@@ -293,6 +376,12 @@ move_camera:
   call divide_by_damping
   add [hl]
   ld [hl], a
+
+
+  ; Don't update horizontally if window is being drawn
+  ld a, [wWindowProgress]
+  cp WINDOW_ROWS
+  ret c
 
   ; calculate horizontal displacement
   ld hl, wCursorX
@@ -988,7 +1077,7 @@ cursor_2b:
 
 def COINS_ATTR equ $11  ; no flip, DMG and GBC palette 1
 
-section "draw_coin", ROM0
+section "draw_objs", ROM0
 draw_coins:
   ld bc, coin_pos
   ld de, wOAMUsed
@@ -1088,7 +1177,10 @@ draw_cursor:
   sub b
   add 8-1
   ld [hl+], a
-  ld a, [wCursorTile]
+  ld a, [wCursorItem]
+  rlca
+  and $01
+  xor CURSOR_TILE_NO_MATCH|1
   ld [hl+], a
   ld a, CURSOR_ATTR
   ld [hl+], a
@@ -1096,28 +1188,525 @@ draw_cursor:
   ld [wOAMUsed], a
   ret
 
+; Drawing Mindy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "Mindy", ROMX,BANK[1]
+
+def MINDY_MAX_TILES_PER_CEL equ 9
+def MINDY_EST_LINES_PER_TILE equ 5
+
+mindy_set_cel_A:
+  ; don't load it if it's already loaded
+  ld hl, wMindyLoadedCel
+  cp [hl]
+  ret z
+
+  ld [hl], a
+  add a
+  add low(Mindy_mspr)
+  ld l, a
+  adc high(Mindy_mspr)
+  sub l
+  ld h, a
+  ld a, [hl+]
+  ld d, [hl]
+  ld e, a
+  ; DE points at a cel definition:
+  ; number of distinct tiles, tile IDs, and horizontal strips
+  ld a, [de]
+  inc de
+  or a
+  ret z  ; blank cel
+  ld c, a  ; C: tile count
+
+  ; Find the destination address in CHR RAM
+  ld a, [wMindyDisplayCelBase]
+  cp 1
+  sbc a
+  and MINDY_MAX_TILES_PER_CEL
+  ld [wMindyDisplayCelBase], a
+  ld h, $8000 >> 12
+  ld l, a
+  rept 4
+    add hl, hl
+  endr
+
+  .tileloop:
+    ; Grab one tile ID from the cel definition
+    ld a, [de]
+    inc de
+    push de
+
+    ; Calculate ROM address of this tile
+    ld d, 0
+    rept 4
+      add a
+      rl d
+    endr
+    add low(Mindy_chr)
+    ld e, a
+    ld a, d
+    adc high(Mindy_chr)
+    ld d, a
+
+    ; Copy it
+    ld b, 16/4
+    call hblankcopy
+    pop de
+    dec c
+    jr nz, .tileloop
+  ret
+
+def MINDY_X equ 288
+def MINDY_Y equ 144
+def MINDY_ATTR equ OAMF_XFLIP
+def MINDY_NUM_FRAMES equ 41
+
+mindy_draw_current_cel:
+  ld hl, wCameraY
+  ld a, low(MINDY_Y)
+  sub [hl]
+  ldh [hmsprYLo], a
+  ld a, high(MINDY_Y)
+  sbc 0
+  ldh [hmsprYHi], a
+
+  ld hl, wCameraX
+  ld a, low(MINDY_X)
+  sub [hl]
+  inc hl
+  ldh [hmsprXLo], a
+  ld a, high(MINDY_X)
+  sbc [hl]
+  ldh [hmsprXHi], a
+  ld a, MINDY_ATTR
+  ldh [hmsprAttr], a
+  ld a, [wMindyDisplayCelBase]
+  ld [hmsprBaseTile], a
+
+  ; lookup the metatile
+  ld a, [wMindyLoadedCel]
+  add a
+  add low(Mindy_mspr)
+  ld l, a
+  adc high(Mindy_mspr)
+  sub l
+  ld h, a  ; HL: pointer to pointer to cel
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a  ; HL: pointer to cel's tile count
+  ld a, [hl+]
+  add l
+  ld l, a
+  adc h
+  sub l
+  ld h, a  ; HL: pointer to cel's rectangles
+  jp draw_metasprite
+
+TMARGIN equ 16
+LMARGIN equ 8
+SPRITEHT equ 8  ; or 16?
+SPRITEWID equ 8
+
+; args
+  rsset hLocals
+hmsprYLo rb 1
+hmsprYHi rb 1
+hmsprXLo rb 1
+hmsprXHi rb 1
+hmsprAttr rb 1
+hmsprSheetID rb 1
+hmsprFrame rb 1
+hmsprBaseTile rb 1
+export hmsprYLo, hmsprYHi, hmsprXLo, hmsprXHi
+export hmsprAttr, hmsprSheetID, hmsprFrame, hmsprBaseTile
+
+; internal
+hmsprXAdd rb 1
+hmsprStripY rb 1
+hmsprStripXLo rb 1
+hmsprStripXHi rb 1
+
+section "metasprite", ROM0
+
+;;
+; Draws to shadow OAM a list of sprites forming one cel.
+;
+; The cel data is of the form
+; (Y, X, attributes, tile+)+, $00
+; where:
+; Y is excess-128 offset of sprite top down from hotspot (128 is center)
+; X is excess-128 offset to right of hotspot (128 is center)
+; attributes is a bitfield, where bits 4-0 go to OAM attribute 3
+; and 7-5 are the number of tiles to follow minus 1
+; 7654 3210
+; |||| |+++- GBC palette ID
+; |||| +---- GBC bank ID
+; |||+------ DMG palette ID
+; +++------- Length of strip (0: 1 sprite/8 pixels; 7: 8 sprites/64 pixels)
+; tile bits 7-6 are flip, and 5-0 are data
+; 7654 3210
+; ||++-++++- offset from hmsprBaseTile
+; |+-------- Flip this sprite horizontally
+; +--------- Flip this tile vertically
+; and "+" means something is repeated 1 or more times
+;
+; @param hmsprYHi, hmsprYLo 16-bit Y coordinate of hotspot
+; @param hmsprXHi, hmsprXLo 16-bit Y coordinate of hotspot
+; @param hmsprAttr palette and horizontal flip
+; @param hmsprBaseTile index of this sprite sheet in VRAM
+; @param HL pointer to cel data
+; Uses 8 bytes of locals for arguments and 4 bytes for scratch
+draw_metasprite::
+  ldh a,[hmsprAttr]
+  ld c,a  ; C = flip flags
+
+  ; Correct coordinates for offset binary representation.
+  ; Not correcting for Y flip until a Y flip is needed in a game.
+  ldh a,[hmsprYLo]
+  sub 128-TMARGIN
+  ldh [hmsprYLo],a
+  ldh a,[hmsprYHi]
+  sbc 0
+  ldh [hmsprYHi],a
+
+  ; Convert X coordintes and set increase direction for X flip
+  ld b,128-LMARGIN
+  ld a,SPRITEWID
+  bit OAMB_XFLIP,c
+  jr z,.noxcoordflipcorrect
+    ld b,127+SPRITEWID-LMARGIN
+    ld a,-SPRITEWID
+  .noxcoordflipcorrect:
+  ldh [hmsprXAdd],a
+  ldh a,[hmsprXLo]
+  sub b
+  ldh [hmsprXLo],a
+  ldh a,[hmsprXHi]
+  sbc 0
+  ldh [hmsprXHi],a
+
+  ; Load destination address
+  ld de, wOAMUsed
+  ld a, [de]
+  ld e, a
+  .rowloop:
+    ; Invariants here:
+    ; DE is multiple of 4 and within shadow OAM
+    ; HL at start of sprite strip
+    ; C equals [hmsprAttr], not modified by a strip
+
+    ; Load Y strip offset
+    ld a,[hl+]
+    or a  ; Y=0 (that is, -128) terminates cel
+    ret z
+    bit OAMB_YFLIP,c
+    jr z,.noystripflipcorrect
+      cpl
+    .noystripflipcorrect:
+    ld b,a
+    ldh a,[hmsprYLo]
+    add b
+    ld b,a
+    ldh a,[hmsprYHi]
+    adc 0
+    jr nz,.strip_below_screen
+    ld a,b
+    cp TMARGIN+1-SPRITEHT
+    jr c,.strip_below_screen
+    cp SCRN_Y+TMARGIN
+    jr c,.strip_within_y_range
+    .strip_below_screen:
+      inc hl  ; skip X position
+      ld a,[hl+]  ; load length and attributes
+      and $E0  ; strip PVH bits contain width-1
+      rlca
+      rlca
+      rlca
+      inc a
+      add l
+      ld l,a
+      jr nc,.rowloop
+      inc h
+      jr .rowloop
+    .strip_within_y_range:
+    ldh [hmsprStripY],a
+
+    ; Load X strip offset
+    ld a,[hl+]
+    bit OAMB_XFLIP,c
+    jr z,.noxstripflipcorrect
+      cpl
+    .noxstripflipcorrect:
+    ld b,a
+    ldh a,[hmsprXLo]
+    add b
+    ldh [hmsprStripXLo],a
+    ldh a,[hmsprXHi]
+    adc 0
+    ldh [hmsprStripXHi],a
+
+    ; Third byte of strip is palette (bits 4-0) and length (bits 7-5)
+    ld a,[hl]
+    and $1F
+    xor c
+    ld c,a
+    ld a,[hl+]
+    and $E0  ; strip PVH bits contain width-1
+    rlca
+    rlca
+    rlca
+    inc a
+    ld b,a
+
+    ; Copy sprites to OAM
+    .spriteloop:
+      push bc  ; sprite count and strip attribute
+      ldh a,[hmsprStripY]
+      ld [de],a
+
+      ; Only resulting X locations in 1-167 are in range
+      ldh a,[hmsprStripXHi]
+      or a
+      jr nz,.skip_one_tile
+      ldh a,[hmsprStripXLo]
+      or a
+      jr z,.skip_one_tile
+      cp SCRN_X+LMARGIN
+      jr nc,.skip_one_tile
+
+      ; We're in range, and Y is already written.
+      ; Acknowledge writing Y, and write X, tile, and attribute
+      inc e
+      ld [de],a
+      inc e
+      ld a,[hl]
+      and $3F
+      ld b,a
+      ldh a,[hmsprBaseTile]
+      add b
+      ld [de],a
+      inc e
+      ld a,[hl]
+      and $C0  ; combine with tile flip attribute
+      rrca
+      xor c
+      ld [de],a
+      inc e
+
+    .skip_one_tile:
+      ldh a,[hmsprXAdd]
+      ld b,a
+      ldh a,[hmsprStripXLo]
+      add b
+      ldh [hmsprStripXLo],a
+      ldh a,[hmsprStripXHi]
+      adc 0
+      bit 7,b
+      jr z,.anoneg
+        dec a
+      .anoneg:
+      ldh [hmsprStripXHi],a
+      pop bc
+      inc hl
+      dec b
+      jr nz,.spriteloop
+    ld a, e
+    ld [wOAMUsed], a
+    ldh a,[hmsprAttr]
+    ld c,a
+    jp .rowloop
+
+Mindy_mspr:
+  include "obj/gb/Mindy.asm"
+
+section "Mindy_chr", ROMX, bank[1], align[4]
+Mindy_chr:
+  incbin "obj/gb/Mindy.2b"
+
 ; Drawing the window ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+section "txt_window_code", ROM0
+
+def TEST_WINDOW_PAGE equ 9
+
 init_window:
+  ; clear pattern table
+  ld hl, $9000-WINDOW_ROWS*$100
+  xor a
+  ld c, a
+  rept WINDOW_ROWS
+    rst memset_tiny
+  endr
+
+  ; set up nametable
   ld hl, $9C00
   ld b, $05
   .rowloop:
-    ld c, 4
     xor a
-    rst memset_tiny
+    ld [hl+], a
+    ld [hl+], a
     ld c, 16
     ld a, c
     sub b  ; window uses tiles $B0-$FF
     swap a
     call memset_inc
-    ld c, 12
+    ld c, 14
     xor a
     call memset_tiny
     dec b
     jr nz, .rowloop
+
+if def(TEST_WINDOW_PAGE)
+  ld a, TEST_WINDOW_PAGE
+  assert @ == start_window_page_a
+else
   dec a
   ld [wWindowProgress], a
   ret
+endc
+
+;;
+; Draws page A
+start_window_page_a:
+  add a
+  ld hl, window_txts
+  add l
+  ld l, a
+  adc h
+  sub l
+  ld h, a
+  ld a, [hl+]
+  ld [wWindowTextPtr], a
+  ld a, [hl+]
+  ld [wWindowTextPtr+1], a
+  xor a
+  ld [wWindowProgress], a
+  ret
+
+update_window:
+  ; run only if a window update is requested and the screen is on
+  ld a, [wWindowProgress]
+  cp WINDOW_ROWS
+  ret nc
+  ldh a, [rLCDC]
+  add a
+  ret nc
+
+  call vwfClearBuf
+  ld hl, wWindowTextPtr
+  ld a, [hl+]
+  ld h, [hl]
+  ld l, a
+  ld b, 0
+  call vwfPuts
+  ; skip newline; don't skip NUL terminator
+  ld a, [hl]
+  or a
+  jr z, .no_skip_newline
+    inc hl
+  .no_skip_newline:
+  ld a, l
+  ld [wWindowTextPtr], a
+  ld a, h
+  ld [wWindowTextPtr+1], a
+  ld hl, wWindowProgress
+  ld a, [hl]
+  inc [hl]
+  add $8B
+  ld h, a
+  ld l, 1
+  ld c, 16
+  jp vwfPutBufHBlank
+
+
+window_txts:
+  dw coin1_msg, coin2_msg, coin3_msg, coin4_msg, coin5_msg
+  dw sign1_msg, sign2_msg, sign3_msg, sign4_msg, Mindy_msg
+
+LF = $0A
+coin1_msg:
+  db "800 Rupees",LF
+  db "Currency of Hyrule and India",LF
+  db "(That's about $10)",0
+coin2_msg:
+  db "800 Pokedollars",LF
+  db "Currency of Kanto",LF
+  db "and the Russia",LF
+  db "(That's about $10)",0
+coin3_msg:
+  db "1400 Bells",LF
+  db "Currency of territories",LF
+  db "controlled by the Nook family",LF
+  db "(That's about $10)",0
+coin4_msg:
+  db "5 Eurodollars",LF
+  db "Currency of Night City and",LF
+  db "banks outside the USA",LF
+  db "Invented by USSR in 1956",LF
+  db "Banned in USSR in Cyberpunk",0
+coin5_msg:
+  db "Coin 5",LF
+  db "Flavor text",0
+sign1_msg:
+  db "DANGER",LF
+  db "BRIDGE OUT AHEAD",0
+sign2_msg:
+  db "BEWARE OF FUNNY MONEY",LF
+  db "If something looks off,",LF
+  db "take no cash.",0
+sign3_msg:
+  db "NO",LF
+  db "JUMPING",0
+sign4_msg:
+  db "EVENT CALENDAR",LF
+  db "May 28-June 4:",LF
+  db "  Summer Games Done Quick",LF
+  db "June 9-11: Yogic Flying",LF
+  db "June 16-18: Flea Market",0
+Mindy_msg:
+  db "Hi! I'm Mindy!",LF
+  db "I'm looking for money so I",LF
+  db "can buy Game Boy games",LF
+  db "like Esprit and Star Anise.",0
+
+; Title screen ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+section "title", ROMX,BANK[1]
+
+show_title:
+  call lcd_off
+  ld hl, title_2b
+  ld de, $8800
+  call memcpy_pascal16
+  ld de, _SCRN0
+  call load_full_nam
+
+  xor a
+  ldh [rIF], a
+  ldh [rSCX], a
+  ldh [rSCY], a
+  ld a, IEF_VBLANK
+  ldh [rIE], a
+  ei
+  ld a, %11100100
+  ldh [rBGP], a
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG9800|LCDCF_BG8800
+  ldh [rLCDC], a
+
+  .loop:
+    call read_pad
+    ldh a, [hNewKeys]
+    and PADF_START|PADF_A
+    jr z, .loop
+  ret
+
+title_2b:
+  dw .end-.start
+.start:
+  incbin "obj/gb/title.2b"
+.end:
+  incbin "obj/gb/title.nam"
 
 ; Administrative stuff ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1210,6 +1799,35 @@ lcd_clear_oam::
   jr nz, .rowloop
   ret
 
+load_full_nam::
+  ld bc,256*20+18
+;;
+; Copies a B column by C row tilemap from HL to screen at DE.
+load_nam::
+  push bc
+  push de
+  .byteloop:
+    ld a,[hl+]
+    ld [de],a
+    inc de
+    dec b
+    jr nz,.byteloop
+
+  ; Move to next screen row
+  pop de
+  ld a,32
+  add e
+  ld e,a
+  jr nc,.no_inc_d
+    inc d
+  .no_inc_d:
+
+  ; Restore width; do more rows remain?
+  pop bc
+  dec c
+  jr nz,load_nam
+  ret
+
 section "memset_tiny",ROM0[$08]
 ;;
 ; Writes C bytes of value A starting at HL.
@@ -1258,6 +1876,49 @@ memcpy::
   jr nz,.loop
   dec b
   jr nz,.loop
+  ret
+
+section "hblankcopy", ROM0
+;;
+; Performs an hblank copy that isn't a stack copy.
+; Copies 4*B bytes from DE to HL (opposite of standard memcpy)
+; at 4 bytes per line.  C unchanged
+hblankcopy:
+  ldh a, [rLCDC]
+  add a
+  jr nc, .unbusy_done
+  ; wait for mode not 0
+.unbusy:
+  ldh a, [rSTAT]
+  and $03
+  jr z, .unbusy
+.unbusy_done:
+
+  push bc
+  ; then wait for mode 0 or 1
+  ld a, [de]
+  ld c, a
+  inc e
+  ld a, [de]
+  ld b, a
+  inc e
+.busy:
+  ldh a, [rSTAT]
+  and $02
+  jr nz, .busy  ; spin wait can take up to 12 cycles
+  ld a, c      ; 1
+  ld [hl+], a  ; 2
+  ld a, b      ; 1
+  ld [hl+], a  ; 2
+  ld a, [de]   ; 2
+  ld [hl+], a  ; 2
+  inc e        ; 1
+  ld a, [de]   ; 2
+  ld [hl+], a  ; 2
+  inc de
+  pop bc
+  dec b
+  jr nz, hblankcopy
   ret
 
 section "HRAMCODE_src", ROM0

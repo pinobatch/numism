@@ -458,7 +458,7 @@ def gbtilestoim(tiles):
     im.putpalette(previewpalette)
     return im
 
-def pack_frames(framestrips, nt, streaming=False):
+def pack_frames(framestrips, nt, streaming=False, verbose=False):
     """Pack the frames in
 
 streaming -- if true, find all the unique tiles first
@@ -486,14 +486,26 @@ Return a list of lists of bytes, one for each frame.
             iframe_tilenums = {v: k for k, v in enumerate(frame_tilenums)}
             b = [len(frame_tilenums)]
             b.extend(frame_tilenums)
+            if verbose:
+                print("Frame uses tiles %s"
+                      % " ".join("%02x" % x for x in frame_tilenums),
+                      file=sys.stderr)
             strip.append(bytes(b))
 
         for palette, tilenums, x, y in pnxy:
             if streaming:
+                if verbose:
+                    print("mapping tilenums "
+                          + " ".join("%04x" % x for x in tilenums),
+                          file=sys.stderr)
                 tilenums = [
                     (x & 0x6000) | iframe_tilenums[x & 0xFF]
                     for x in tilenums
                 ]
+                if verbose:
+                    print("  to frame-local "
+                          + " ".join("%04x" % x for x in tilenums),
+                          file=sys.stderr)
             b = bytearray([y + 128, x + 128,
                            palette | ((len(tilenums) - 1) << 5)])
             b.extend(((x & 0x6000) >> 7) | (x & 0x3F) for x in tilenums)
@@ -502,10 +514,10 @@ Return a list of lists of bytes, one for each frame.
         out.append(strip)
     return out
 
-def emit_frames(framestrips, nt, framenames, streaming=False):
+def emit_frames(framestrips, nt, framenames, streaming=False, verbose=False):
     out = [" dw mspr_" + n for n in framenames]
     ntoffset = 0
-    packed = pack_frames(framestrips, nt, streaming=streaming)
+    packed = pack_frames(framestrips, nt, streaming=streaming, verbose=verbose)
 
     # Consider only unique framedefs
     allframedefs = OrderedDict()
@@ -573,7 +585,7 @@ def main(argv=None):
             outfp.writelines(utiles)
     if args.ASMFILE:
         ef = emit_frames(framestrips, nt, list(doc.frames),
-                         streaming=args.streaming)
+                         streaming=args.streaming, verbose=args.verbose)
         if args.ASMFILE == '-':
             sys.stdout.write(ef)
         else:
