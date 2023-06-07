@@ -1716,8 +1716,9 @@ coin4_msg:
   db "Invented by USSR in 1956",LF
   db "Banned in USSR in Cyberpunk",0
 coin5_msg:
-  db "Coin 5",LF
-  db "Flavor text",0
+  db "A roll of quarters",LF
+  db "Currency of Toy Town",LF
+  db "(That's about $10)",0
 sign1_msg:
   db "DANGER",LF
   db "BRIDGE OUT AHEAD",0

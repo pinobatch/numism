@@ -1,7 +1,3 @@
-drawing Mindy
-
-- SUBMIT!
-
 post-jam
 
 - draw column: use autotiling based on matching value in adjacent column in circular buffer
