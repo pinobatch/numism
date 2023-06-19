@@ -1,7 +1,22 @@
-post-jam
+Shaving
 
+- local variable allocator
+
+Mindy sprite sheet
+
+- play some Brawl and figure out how Peach is animated climbing the ladders
+- walk tweening
+
+camera spreading the work
+
+- slide decode pointer toward camera position
+- track drawn area and vicinity separately to draw one half column at a time instead of 2-3
+- draw GBC attribute
 - draw column: use autotiling based on matching value in adjacent column in circular buffer
-- camera: track drawn area and vicinity separately to draw one half column at a time instead of 2-3
+
+title screen
+
+- commission a bigger drawing of Mindy that doesn't look quite as ugly
 
 test ROM little-things-gb/borderflash
 
