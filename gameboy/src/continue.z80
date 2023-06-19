@@ -439,7 +439,10 @@ show_stages::
   call draw_coin_desc_if_needed
 
   rst wait_vblank_irq
+  ; If using joypad interrupt, must DI during OAM DMA
+  di
   call run_dma
+  ei
   ld a, [wCompletedStages]
   ld b, a
   ld a, [wCurStage]

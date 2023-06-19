@@ -1,6 +1,7 @@
 include "src/global.inc"
 
 def _SRAM equ $A000
+def SRAM_CLEAR_VALUE equ CP_M_EOF
 
 section "sramlog_tmp", HRAM
 hSeenCoinsBCD: ds 1
@@ -8,11 +9,11 @@ hTotalScoreBCD: ds 1
 
 section "sramlog", ROM0
 log_coins_to_sram::
-  ld hl, $000A
-  ld [hl], l
+  ld a, $0A
+  ld [$0000], a
 
   ld de, _SRAM
-  ld h, CP_M_EOF
+  ld h, SRAM_CLEAR_VALUE
   ld bc, $2000
   call memset
 

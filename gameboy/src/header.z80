@@ -28,7 +28,12 @@
 ; CALL $0038) and five for interrupt service routines (ISR).
 ; Fill them with JPs to the actual handlers.
 SECTION "rst00", ROM0[$0000]
-  ret
+  ; why the heck is the reti at the end of joypad_handler in SameBoy
+  ; (and only SameBoy) sending us here?
+  nop
+  nop
+  ld b, b
+  rst $38
 ; $08 is memset_tiny in init.z80; $10 is wait_vblank_irq in ppuclear.z80
 SECTION "rst18", ROM0[$0018]
   ret
@@ -38,12 +43,12 @@ SECTION "rst28", ROM0[$0028]
   ret
 SECTION "rst30", ROM0[$0030]
   ret
-SECTION "rst38", ROM0[$0038]
-  ret
+
 
 ; $40 and $48 are vblank_handler and stat_handler in ppuclear.z80.
 ; VBA requires all RSTs to be filled in if ever enabled in IE.
 SECTION "rst50", ROM0[$0050]
+timer_handler:
   reti  ; jp timer_handler
 SECTION "rst58", ROM0[$0058]
   reti  ; jp serial_handler
