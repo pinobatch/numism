@@ -24,48 +24,59 @@ freely, subject to the following restrictions:
 
 The cel position (.ec) file is a source code file that describes
 where the cels are located on a .png sprite sheet and where the
-non-transparent rectangles of sprite tiles are located within
-each cel.
+non-transparent rectangles of sprite tiles lie within each cel.
 
 Leading and trailing whitespace on each line are ignored.
-A line beginning with zero or more whitespace followed by a # sign
+A line beginning with zero or more whitespace followed by a `#` sign
 is a comment and ignored.
 The file begins with file-wide things like palette declarations:
 
     backdrop <#rgb>
     palette <palid> <#rgb> <#rgb> <#rgb> <#rgb>=2 <#rgb>=3
 
-backdrop tells what color is used for pixels that are always
-transparent, and palette tells what colors are associated with
-pixels in a given palette.
-Bit 4 of the palette ID specifies a DMG palette (0 for OBP0
-or 16 for OBP1), and bits 2-0 specify a GBC palette ID (0 to 7).
-An <#rgb> specifies an RGB color using 3- or 6-digit
-hexadecimal, such as #fa9 or #ffaa99
-In palette statements, it may be followed by =1, =2, or =3 to
-force a color to also be converted to this index.
+Keywords and types used in global declarations:
 
-Then for each frame:
+- `backdrop` tells what color is used for pixels that are always
+  transparent.
+- `palette` associates a palette ID with one or more colors in the
+  image.  On Game Boy, bit 4 specifies a DMG palette (`0` for OBP0 or
+  `16` for OBP1), and bits 2-0 specify a GBC palette ID (`0` to `7`).
+  The first three `#rgb` values are associated with indices 1-3
+  unless overridden with a following `=1`, `=2`, or `=3` to force a
+  color to be converted to a particular index.
+- An <#rgb> specifies an RGB color using 3- or 6-digit hexadecimal,
+  such as `#fa9` or `#ffaa99`.
+
+Then for each cel:
 
     frame <nameofframe> <cliprect>?
-    strip <palette> <cliprect>?
-    strip <palette> <cliprect> at <dstpoint>
-    hotspot <loc>
+      strip <palette> <cliprect>?
+      strip <palette> <cliprect> at <loc>
+      hotspot <loc>
 
-Each frame means one cel, and each strip marks a rectangle of
-nontransparent pixels within that cel using one palette.
-A <cliprect> is four integers of the form left top width height
-If the frame does not specify a cliprect, it will be the union of
-all strips.  If the strip does not specify a cliprect, it uses
-that of the frame.
-A <strip> may specify a position in order to place the pixels taken
-from its cliprect at a different position.  Useful for advanced
-tile reuse scenarios.
-<palette> tells what palette to use for this strip, as a cel may
-have multiple adjacent or overlaid strips with different palettes.
-hotspot gives the starting position used to calculate the offset
-of each rectangle when the cel is drawn.  It defaults to the
-bottom center of the frame's cliprect.
+Keywords and types used in cels:
+
+- Each `frame` begins and names one cel and optionally specifies a
+  clipping rectangle.  (If a clipping rectangle is not provided,
+  it uses the union of all strips' clipping rectangles.)
+- Each `strip` marks a rectangle of non-transparent pixels within
+  that cel using one palette.  A cel may have multiple strips to
+  minimize wasted space or maximize tile reuse.  If the strip does
+  not specify a clipping rectangle, it uses that of the `frame`.
+  A strip may specify a destination location to place the pixels read
+  from its clipping rectangle at a different position when drawn.
+  This is useful for advanced tile reuse scenarios.
+- `hotspot` gives the starting position used to calculate the offset
+  of each rectangle when the cel is drawn.  It defaults to the
+  bottom center of the `frame`'s clipping rectangle.
+- A clipping rectangle `<cliprect>` is four integers of the form
+  `<left> <top> <width> <height>`, specifying a region of the image.
+- A `<palette>` tells what palette ID to use for this strip, as a
+  cel may have multiple adjacent or overlaid strips with different
+  palettes.  This must match an ID in a `palette` declaration.
+- A location `<loc>` is two integers of the form `<left> <top>`,
+  specifying either a hotspot or the top left of a strip's
+  destination.
 """
 from PIL import Image, ImageDraw
 import os, sys, argparse, re
@@ -471,6 +482,9 @@ def tile_to_texels(chrdata):
     _stt = sliver_to_texels
     return b''.join(_stt(a, b) for (a, b) in zip(chrdata[0::2], chrdata[1::2]))
 
+PREVIEWPALETTE = bytes.fromhex('CCCC4488AA44448844006644')
+##PREVIEWPALETTE = bytes.fromhex('AAAAFF000000AAAAAAFFFFFF')
+
 def gbtilestoim(tiles, num_cols=16):
     tile_height_px = len(tiles[0]) // BPP
     num_rows = -(-len(tiles) // num_cols)
@@ -485,7 +499,7 @@ def gbtilestoim(tiles, num_cols=16):
         if x >= im.size[0]:
             x, y = 0, y + tile_height_px
 
-    previewpalette = bytes.fromhex("CCCC4488AA44448844006644")
+    previewpalette = bytes(PREVIEWPALETTE)
     previewpalette += previewpalette[:3] * 252
     im.putpalette(previewpalette)
     return im
