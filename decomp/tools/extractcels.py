@@ -97,6 +97,8 @@ class InputFrame(object):
         rect = rect or cliprect
         if not rect:
             raise TypeError("strip rect is required if no cliprect")
+        if not 0 <= palette < 32:
+            raise TypeError("palette must be 0 to 31; got %d" % palette)
         l, t, w, h = rect
         dstl, dstt = dstpos or (l, t)
         lpad = tpad = 0
@@ -314,8 +316,9 @@ def apply_global_palette(im, doc):
 
 TILE_W = 8
 TILE_PLANEMAP = "0,1"
+BPP = 2
 
-def read_strip(im, strip, g2l, hotspot, tile_ht):
+def read_strip(im, strip, g2l, hotspot, tile_ht, verbose=False):
     paletteid, l, t, w, h, lpad, tpad, dstl, dstt = strip
 
     # Crop and convert to subpalette
@@ -332,25 +335,53 @@ def read_strip(im, strip, g2l, hotspot, tile_ht):
     tilefmt = lambda x: pilbmp2nes.formatTilePlanar(x, TILE_PLANEMAP)
     striptiles = pilbmp2nes.pilbmp2chr(padded, TILE_W, tile_ht, tilefmt)
 
+    # Join top and bottom halves of 8x16-pixel tiles
+    tiles_per_obj = -(-tile_ht // 8)
+    striptiles = [
+        b''.join(striptiles[i:i + tiles_per_obj])
+        for i in range(0, len(striptiles), tiles_per_obj)
+    ]
+
     # Convert coords to hotspot-relative
     dstl -= hotspot[0]
     dstt -= hotspot[1]
 
     # Convert tiles to horizontal strips
-    tperrow = (tile_ht // 8) * (wnew // 8)
+    objs_per_row = wnew // TILE_W
     tend = 0
     for y in range(hnew // tile_ht):
-        tstart, tend = tend, tend + tperrow
-        yield paletteid, striptiles[tstart:tend], dstl, dstt + y * tile_ht
+        tstart, tend = tend, tend + objs_per_row
+        row_x, row_tiles = dstl, striptiles[tstart:tend]
+        row_y = dstt + y * tile_ht
 
-def read_all_strips(im, doc, tile_ht):
+        r_removed = l_removed = 0
+        while row_tiles and not any(row_tiles[-1]):
+            del row_tiles[-1]
+            r_removed += 1
+        while row_tiles and not any(row_tiles[0]):
+            del row_tiles[0]
+            row_x += TILE_W
+            l_removed += 1
+        if verbose and (l_removed or r_removed):
+            prefix = "strip %d %d %d %d %d" % (paletteid, l, t, w, h)
+            if row_tiles:
+                print("%s: trimming blank objects at y=%d (%d left, %d right)"
+                      % (prefix, y * tile_ht + t + tpad, l_removed, r_removed),
+                      file=sys.stderr)
+            else:
+                print("%s: skipping blank row" % (prefix,), file=sys.stderr)
+        if row_tiles:
+            yield paletteid, row_tiles, row_x, row_y
+
+def read_all_strips(im, doc, tile_ht, verbose=False):
     out = []
     for framename, frame in doc.frames.items():
         hotspot = frame.get_hotspot()
         strips = []
         gtl = doc.global_to_local
         for strip in frame.strips:
-            strips.extend(read_strip(im, strip, gtl, hotspot, tile_ht))
+            strips.extend(read_strip(im, strip, gtl, hotspot, tile_ht,
+                                     verbose=verbose))
         out.append(strips)
     return out
 
@@ -440,18 +471,19 @@ def tile_to_texels(chrdata):
     _stt = sliver_to_texels
     return b''.join(_stt(a, b) for (a, b) in zip(chrdata[0::2], chrdata[1::2]))
 
-def gbtilestoim(tiles):
-    tileheight = -(-len(tiles) // 16)
-    im = Image.new('P', (128, tileheight * 8), 0)
-    onetile = Image.new('P', (8, 8), 0)
+def gbtilestoim(tiles, num_cols=16):
+    tile_height_px = len(tiles[0]) // BPP
+    num_rows = -(-len(tiles) // num_cols)
+    im = Image.new('P', (num_cols * TILE_W, num_rows * tile_height_px), 0)
+    onetile = Image.new('P', (TILE_W, tile_height_px), 0)
     x = y = 0
     for tile in tiles:
         ttt = tile_to_texels(tile)
         onetile.putdata(ttt)
         im.paste(onetile, (x, y))
-        x += 8
+        x += TILE_W
         if x >= im.size[0]:
-            x, y = 0, y + 8
+            x, y = 0, y + tile_height_px
 
     previewpalette = bytes.fromhex("CCCC4488AA44448844006644")
     previewpalette += previewpalette[:3] * 252
@@ -474,6 +506,9 @@ Return a list of lists of bytes, one for each frame.
         for palette, tiles, x, y in strips:
             ntiles = len(tiles)
             ntend = ntoffset + ntiles
+            assert -128 <= x < 128 and -128 <= y < 128
+            assert 0 < ntiles <= 8
+            assert 0x00 <= palette < 0x20
             tilenums = nt[ntoffset:ntend]
             frame_tilenums.update(x & 0xFF for x in tilenums)
             ntoffset = ntend
@@ -514,7 +549,8 @@ Return a list of lists of bytes, one for each frame.
         out.append(strip)
     return out
 
-def emit_frames(framestrips, nt, framenames, streaming=False, verbose=False):
+def emit_frames(framestrips, nt, framenames,
+                streaming=False, verbose=False, tileid_factor=1):
     out = [" dw mspr_" + n for n in framenames]
     ntoffset = 0
     packed = pack_frames(framestrips, nt, streaming=streaming, verbose=verbose)
@@ -530,7 +566,7 @@ def emit_frames(framestrips, nt, framenames, streaming=False, verbose=False):
     for thisframenames, framedef in allframedefs.values():
         out.extend("mspr_%s:" % framename for framename in thisframenames)
         out.extend(
-            " db " + ",".join("$%02x" % b for b in strip)
+            " db " + ",".join("$%02x" % (b * tileid_factor) for b in strip)
             for strip in framedef
         )
 
@@ -556,7 +592,7 @@ def parse_argv(argv):
     p.add_argument("-v", "--verbose", action="store_true",
                    help="print debug info and write preview images")
     p.add_argument("--8x16", action="store_true", dest="is_8x16",
-                   help="use 8x16 pixel sprites (not yet functional)")
+                   help="use 8x16 pixel sprites (experimental)")
     return p.parse_args(argv[1:])
 
 def main(argv=None):
@@ -567,7 +603,7 @@ def main(argv=None):
         doc = InputParser(infp)
     im = apply_global_palette(im, doc)
 
-    framestrips = read_all_strips(im, doc, tile_ht)
+    framestrips = read_all_strips(im, doc, tile_ht, verbose=args.verbose)
     alltiles = [
         tile for frame in framestrips for row in frame for tile in row[1]
     ]
@@ -585,7 +621,8 @@ def main(argv=None):
             outfp.writelines(utiles)
     if args.ASMFILE:
         ef = emit_frames(framestrips, nt, list(doc.frames),
-                         streaming=args.streaming, verbose=args.verbose)
+                         streaming=args.streaming, verbose=args.verbose,
+                         tileid_factor=2 if args.is_8x16 else 1)
         if args.ASMFILE == '-':
             sys.stdout.write(ef)
         else:
