@@ -1,0 +1,128 @@
+S.A.V.E. Memory
+===============
+
+Static Automatic Variable Earmarker is a tool to allocate local
+variables for subroutines in programs written in Game Boy
+assembly language.  It helps you save time over automatic allocation
+in stack frames and save memory over fully static allocation.
+
+What is a static stack?
+-----------------------
+
+Programming languages provide two common lifetimes for a function's
+local variables.  The default lifetime in C and C++ is "automatic",
+lasting until a function returns.  An automatic variable is usually
+allocated in a stack frame and then deallocated at return.
+By contrast, a variable with "static" lifetime persists throughout
+the program's runtime.  A static variable has a more or less
+permanent address, like a global variable.
+
+Vintage microprocessors, such as 6502 and 8080, are slow to read and
+write variables in a stack frame.  Many programs for these machines
+unnecessarily declare variables static to improve speed at the cost
+of wasting memory for variables that never live at the same time.
+Fortunately, one can do better.  When functions aren't recursive, the
+lifetime of a function's automatic variables won't overlap itself.
+Nor will the lifetimes of different functions' local variables
+overlap each other unless one is the direct or indirect caller of
+the other.  Determining lack of overlap at build time allows placing
+each function's automatic variables at a fixed address.  This is a
+far better match to 8-bit ISAs' addressing modes than a stack frame.
+
+Though some commercial compilers offer this allocation paradigm,
+there appears to be no widely accepted term for it in the literature:
+
+- Microchip calls this technique "compiled stack", a term inherited from HI-TECH PICC <https://stackoverflow.com/a/58408272/2738262> <http://ww1.microchip.com/downloads/en/DeviceDoc/50002053G.pdf>
+- Dwedit calls it "stack flattening" <https://forums.nesdev.org/viewtopic.php?p=249782#p249782>
+- Oziphantom calls it "window allocator" <https://forums.nesdev.org/viewtopic.php?p=249801#p249801>
+
+Invoking
+--------
+
+To be written.
+
+Definitions
+-----------
+
+- A **subroutine** is a span of code from one top-level label
+  (one that does not start with `-`, `+`, or `.`) to the next.
+- A **callee** is a subroutine that reserves space on the static
+  stack for its local variables.
+- A **caller** is a subroutine that calls one or more callees and
+  does not overwrite the static stack of any of its callees except
+  to provide parameters.
+
+Keywords
+--------
+
+These keywords in an assembly language source code file apply to an
+entire subroutine and are used to build a call graph.
+
+- `var hVarname, sz`  
+  Creates a symbol called `hVarname` on this subroutine's static
+  stack.  Its size is `sz` bytes, defaulting to 1.
+- `calls another_sub`  
+  Marks the current subroutine as a caller of `another_sub` (the
+  callee). This causes the start of the current subroutine's static
+  stack to be placed no earlier than the end of the callee's static
+  stack. If a jump table is used, the jump table needs to be a label
+  that `calls` all routines inside it, and the subroutine that reads
+  the jump table also needs to be marked `calls` the jump table.
+- `jumptable`  
+  Marks all labels found in this subroutine's `dw` directives as
+  its callees.  The subroutine using a jump table should also be
+  marked as a caller of the jump table.
+- `tailcalls another_sub`  
+  Marks the current subroutine as a tail caller of `another_sub`.
+  All local variables' lifetimes end before a tail call, followed
+  by the start of the lifetime of the callee's local variables.
+  This causes the end of the current subroutine's static stack to
+  be placed no earlier than the end of the callee's static stack.
+  A fall-through to another subroutine should also be marked as a
+  tail call.
+
+These convenience keywords combine building the call graph with
+emitting code.
+
+- `call [cond,] another_sub`  
+  Creates a caller-callee relationship and then calls `another_sub`.
+- `tailcall [cond,] another_sub`
+  Equivalent to `tailcalls another_sub` followed by `jp another_sub`.
+- `tailjr [cond,] another_sub`
+  Equivalent to `tailcalls another_sub` followed by `jr another_sub`.
+- `fallthrough another_sub`  
+  Equivalent to `tailcalls another_sub`, further asserting that the
+  following subroutine begins at the same address.
+
+Implementation notes
+--------------------
+
+In ca65, an exported constant can be the value of an arbitrary
+expression. Expressions including imported constants are evaluated
+at link time. This lets a subroutine import the stack sizes of
+subroutines that it calls, calculate their maximum, add the size of
+its own local variables, and export that as its stack size.  When a
+source code file is changed, only that file must be reassembled, and
+the linker will automatically update the stack sizes of its callees.
+
+In RGBASM, by contrast, an exported constant's value must be known
+at assembly time, defined through an expression ultimately made of
+literal values.  An expression depending on an imported value can be
+defined (as a text macro) but not exported.  This means that when a
+source code file is changed, at the very least, all other source
+code files that call its subroutines need to be reassembled, and the
+index of what translation unit defines each subroutine's stack size
+needs to be rebuilt.  In practice, whenever any file in the program
+is modified, a preprocessor must scan all source code files, rebuild
+the call graph, and recalculate all subroutines' stack sizes.
+
+Fortunately, RGBASM processes each file much faster than a C++
+compiler does, particularly one using link-time optimization (LTO).
+One minor drawback of requiring a full reassembly under Windows is
+slow process startup caused in part by real-time antivirus.  If a
+program is invoked 50 times, the antivirus must rescan it every
+time it is invoked, in case a virus infected `rgbasm.exe` without
+changing its size or modification date.  For this and other reasons,
+prominent members of the Game Boy development community recommend
+building software in Windows Subsystem for Linux (WSL) 2 if feasible.
+
