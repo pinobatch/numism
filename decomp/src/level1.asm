@@ -143,7 +143,7 @@ main:
   ld a, FRAME_Mindy_walk1
   call mindy_set_cel_A
 
-forever:
+.forever:
   ld hl, wGlobalSubpixel
   ld a, GLOBAL_SUBPIXEL_ADD
   add [hl]
@@ -183,7 +183,7 @@ forever:
   sbc a
   or SCRN_Y-WINDOW_ROWS * 8
   ld [rWY], a
-  jr forever
+  jr .forever
 
 ; Selection control ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -407,6 +407,7 @@ def CURSOR_DAMPING equ 2
 ; DEHL unchanged
 divide_by_damping:
   ld b, a
+  fallthrough divide_B_by_damping
 divide_B_by_damping:
   ld a, [wGlobalSubpixel]
   ld c, a
@@ -614,7 +615,7 @@ redraw_whole_screen:
   ld a, [wMapVicinityLeft]
   adc a
   ld b, a  ; B = starting column
-  ; Fall through to B columns
+  fallthrough blit_c_columns
 
 ;;
 ; Draws tile columns from vicinity to the screen.
@@ -1369,29 +1370,29 @@ mindy_draw_current_cel:
   ld h, a  ; HL: pointer to cel's rectangles
   jp draw_metasprite
 
-TMARGIN equ 16
-LMARGIN equ 8
-SPRITEHT equ 8  ; or 16?
-SPRITEWID equ 8
+def TMARGIN equ 16
+def LMARGIN equ 8
+def SPRITEHT equ 8  ; or 16?
+def SPRITEWID equ 8
 
 ; args
   rsset hLocals
-hmsprYLo rb 1
-hmsprYHi rb 1
-hmsprXLo rb 1
-hmsprXHi rb 1
-hmsprAttr rb 1
-hmsprSheetID rb 1
-hmsprFrame rb 1
-hmsprBaseTile rb 1
+def hmsprYLo rb 1
+def hmsprYHi rb 1
+def hmsprXLo rb 1
+def hmsprXHi rb 1
+def hmsprAttr rb 1
+def hmsprSheetID rb 1
+def hmsprFrame rb 1
+def hmsprBaseTile rb 1
 export hmsprYLo, hmsprYHi, hmsprXLo, hmsprXHi
 export hmsprAttr, hmsprSheetID, hmsprFrame, hmsprBaseTile
 
 ; internal
-hmsprXAdd rb 1
-hmsprStripY rb 1
-hmsprStripXLo rb 1
-hmsprStripXHi rb 1
+def hmsprXAdd rb 1
+def hmsprStripY rb 1
+def hmsprStripXLo rb 1
+def hmsprStripXHi rb 1
 
 section "metasprite", ROM0
 
@@ -1622,7 +1623,7 @@ init_window:
     jr nz, .rowloop
 
   ld a, PAGE_INSTRUCTIONS
-  ; fall through to start_window_page_a
+  fallthrough start_window_page_a
 
 ;;
 ; Draws page A
@@ -1694,7 +1695,7 @@ window_txts:
   dw sign1_msg, sign2_msg, sign3_msg, sign4_msg, Mindy_msg
   dw win_msg, instructions_msg
 
-LF = $0A
+def LF equ $0A
 coin1_msg:
   db "800 Rupees",LF
   db "Currency of Hyrule and India",LF
@@ -1883,6 +1884,7 @@ lcd_clear_oam::
 
 load_full_nam::
   ld bc,256*20+18
+  fallthrough load_nam
 ;;
 ; Copies a B column by C row tilemap from HL to screen at DE.
 load_nam::
@@ -1939,7 +1941,7 @@ memcpy_pascal16::
   ld c, a
   ld a, [hl+]
   ld b, a
-  ; fall through to memcpy
+  fallthrough memcpy
 
 ;;
 ; Copies BC bytes from HL to DE.

@@ -21,23 +21,23 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-USE_HBLANK_COPY EQU 1
+def USE_HBLANK_COPY EQU 1
 
   rsset hLocals
-Lshiftermask rb 1
-Ldstoffset rb 1
+def Lshiftermask rb 1
+def Ldstoffset rb 1
 
-lineImgBufLen EQU 128  ; number of 1bpp planes
+def lineImgBufLen EQU 128  ; number of 1bpp planes
 
 ; Align is a logarithm in rgbasm, unlike in ca65 where it's an actual
 ; byte count
 section "lineImgBuf",wram0,align[8]
 lineImgBuf:: ds lineImgBufLen * 2
 
-CHAR_BIT EQU 8
-LOG_GLYPH_HEIGHT EQU 3
-GLYPH_HEIGHT EQU (1 << LOG_GLYPH_HEIGHT)
-GLYPH_HEIGHT_MINUS_1 EQU 7
+def CHAR_BIT EQU 8
+def LOG_GLYPH_HEIGHT EQU 3
+def GLYPH_HEIGHT EQU (1 << LOG_GLYPH_HEIGHT)
+def GLYPH_HEIGHT_MINUS_1 EQU 7
 
 ; Approximate timing for vwfPutTile:
 ;
@@ -63,7 +63,7 @@ not_ff_shr_x:: db $00,$80,$C0,$E0,$F0,$F8,$FC,$FE
 
 ; The second half of the routine comes before the first half to ease alignment
 vwfPutTile_shifter:
-  rept GLYPH_HEIGHT_MINUS_1
+  rept CHAR_BIT-1
     rrca
   endr
   ld h,a  ; H: all glyph bits, circularly rotated
@@ -92,7 +92,7 @@ vwfPutTile_shifter:
   ld [hl],a
   ld a,l
   sub GLYPH_HEIGHT-1
-vwfPutTile_have_dstoffset:
+.have_dstoffset:
   ldh [Ldstoffset],a
 
   ; Advance to next row
@@ -100,7 +100,7 @@ vwfPutTile_have_dstoffset:
   ret z
 
   ; Shift each row
-vwfPutTile_rowloop:
+.rowloop:
   ; Read an 8x1 sliver of the glyph into A
   ld a,[de]
   inc e
@@ -116,7 +116,7 @@ vwfPutTile_rowloop:
 .sliver_is_blank:
   ldh a,[Ldstoffset]
   inc a
-  jr vwfPutTile_have_dstoffset
+  jr vwfPutTile_shifter.have_dstoffset
 
 ;;
 ; Draws the tile for glyph A at horizontal position B
@@ -157,7 +157,7 @@ vwfPutTile::
 
   ld d,h
   ld e,l
-  jr vwfPutTile_rowloop
+  jr vwfPutTileShifter.rowloop
 
 ;;
 ; Write glyphs for the 8-bit-encoded characters string at (hl) to
@@ -249,9 +249,11 @@ vwfClearBuf::
 ; @return DE end of lineImgBuf; C=0; B unchanged
 vwfPutBuf03::
   ld c,lineImgBufLen/8
+  fallthrough vwfPutBuf03_lenC
 vwfPutBuf03_lenC::
   ld de,lineImgBuf
-vwfPutBuf03_continue_lenC::  ; this entry good for popslide
+  fallthrough vwfPutBuf03_continue_lenC
+vwfPutBuf03_continue_lenC::
   sla c
 .loop:
   rept 4
