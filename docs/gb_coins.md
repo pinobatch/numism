@@ -109,14 +109,29 @@ Unranked, to be tested at title screen and in menus:
 - Asserting P14/P15 while holding a button causes joypad interrupt
   (suggested by Daid)
 
-Stage 5 shall focus on SGB.  It can be hard to test because so much
-of the SGB is open-loop, passing no feedback to the Game Boy SoC.
+Stage 5 shall focus on SGB.  SGB is hard to test other than visually
+because so much of the SGB is open-loop, passing no feedback to the
+Game Boy SoC.
 
 - P1 rise time differences among DMG/MGB, SGB, and GBC/GBA
 - Joypad interrupt timing is predictable on SGB/SGB2 (at least in
   60 Hz) and not so on handhelds
 - Which of P14 and P15 advances to the next player in SGB multiplayer
 - `JUMP` does anything at all on SGB only
+
+Consider filling remaining space in the SGB stage with other
+differences between DMG/SGB and GBC.
+
+- `ld sp, hl` and `ld [a16], sp` may use the IDU and therefore
+  trigger OAM bug on DMG only
+
+Because I seek to keep the coins valid on any common official mapper
+(that is, MBC1, MBC3, or MBC5), and I may not have SRAM available,
+I don't have a lot of options to test the cartridge.
+
+- Writing 1 to $2000 then 0 to $3000 chooses bank 1 in $4000-$7FFF
+  (works on MBC1, MBC3, and MBC5; breaks on insideGadgets
+  4MB + 32k FRAM flash cart as reported by Sono)
 
 Unranked:
 
@@ -211,11 +226,11 @@ or "Always pass".
 
 Emulator             | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Notes
 -------------------- | ------: | ------: | ------: | ------: | ------: | -----
+mesen2 2023-05-15    |  10/10  |  10/10  |  10/10  |  10/10  |   1/1   | SGB is LLE
+emulicious 2023-06-30|  10/10  |  10/10  |  10/10  |  10/10  |   1/1   | DMG/GBC
 sameboy v0.15.8      |  10/10  |  10/10  |  10/10  |   9/10  |   1/1   |
 gambatte r747        |  10/10  |   9/10  |  10/10  |  10/10  |   1/1   |
-emulicious 2023-05   |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   | DMG/GBC
 bgb 1.5.10           |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   |
-mesen2 2023-05-15    |  10/10  |  10/10  |  10/10  |  10/10  |   1/1   | SGB is LLE
 mgba 0.11.0          |  10/10  |   9/10  |   8/10  |   7/10  |   1/1   |
 binjgb v0.1.11       |   9/10  |   9/10  |   9/10  |   6/10  |   1/1   | GBC only
 vba-m 2.1.5-fda429fc |  10/10  |   8/10  |   6/10  |   8/10  |   1/1   |

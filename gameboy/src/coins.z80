@@ -109,7 +109,7 @@ coin_add_hl_flags:
   pop bc
   ld a, c
   cp $30
-  jr nz, pass_if_Z_flag
+  jr nz, pass_if_Z1C0
 
   and a  ; Clear ZN, set H, clear C
   ld hl, $8700
@@ -118,7 +118,7 @@ coin_add_hl_flags:
   pop bc
   ld a, c
   cp $10
-  jr nz, pass_if_Z_flag
+  jr nz, pass_if_Z1C0
 
   sub a  ; Set ZN, clear H
   ld hl, $6800
@@ -127,7 +127,7 @@ coin_add_hl_flags:
   pop bc
   ld a, c
   cp $A0
-  jr nz, pass_if_Z_flag
+  jr nz, pass_if_Z1C0
 
   scf
   sbc a  ; Clear Z, set NHC
@@ -140,7 +140,7 @@ pass_if_C_eq_0:
   ld a, c
 pass_if_A_eq_0:
   or a
-pass_if_Z_flag:
+pass_if_Z1C0:
   jp nz, test_failed
   ret
 
@@ -761,7 +761,8 @@ pass_if_b_in_red_zone:
   ld a, [hl-]      ; The value of B should still be there
 pass_if_A_eq_B:
   cp b
-  jp nz, test_failed
+  ret z
+  scf
   ret
 
 schedule_timer_interrupt:
@@ -795,9 +796,11 @@ add_a_daa_eq_b_no_h:
   pop de
   cp b
   jr nz, .local_test_failed
+  ; cp clears CF if it sets ZF
   bit 5, e
+  ret z
 .local_test_failed:
-  jp nz, test_failed
+  scf
   ret
 
 coin_div_stops_apu:
@@ -859,11 +862,12 @@ coin_apu_off_clear:
 compare_wave_ram_signature:
   ldh a, [_AUD3WAVERAM+14]
   cp $0C
-  jr nz, .local_test_failed
+  jr nz, .local_pass_if_Z1C0
   ldh a, [_AUD3WAVERAM+15]
   cp $A5
-.local_test_failed:
-  jp nz, test_failed
+.local_pass_if_Z1C0:
+  ret z
+  scf
   ret
 
 set_wave_ram_signature:
@@ -881,15 +885,16 @@ coin_apu_status_ro:
   db "are not read back",0
 .start:
   ld hl, rNR52
-  ld [hl], 0
+  ld [hl], $00  ; write $00 to turn off APU
   ld a, $70
-  cp [hl]
-  jr nz, .local_test_failed
+  cp [hl]       ; bits 6-4 should remain on
+  jr nz, .local_pass_if_Z1C0
+  ld [hl], $FF  ; turn off APU
   ld a, $F0
-  ld [hl], $FF  ; should read $70
-  cp [hl]
-.local_test_failed:
-  jp nz, test_failed
+  cp [hl]       ; bits 3-0 should remain off
+.local_pass_if_Z1C0:
+  ret z
+  scf
   ret
 
 coin_push_af_low_4:
@@ -907,14 +912,37 @@ coin_push_af_low_4:
 
   ld a, b
   cp d
-  jp nz, test_failed
+  jr nz, pass_if_Z1C0_stage2
   ld a, c
   and $F0
   cp e
-  jp nz, test_failed
+pass_if_Z1C0_stage2:
+  ret z
+  scf
   ret
 
 def DEBUGHEX_OAMBUG equ 0
+
+;;
+; Writes test pattern starting at A
+oamset_inc::
+  ld hl, _OAMRAM
+  ld c, 160
+  jp memset_inc
+
+;;
+; Compares OAM to oamset_inc written data, starting at B
+oamcmp_inc::
+  ld hl, _OAMRAM
+  ld c, 160
+  .loop:
+    ld a, [hl+]
+    xor b
+    jr nz, pass_if_Z1C0_stage2
+    inc b
+    dec c
+    jr nz, .loop
+  ret
 
 ;;
 ; This is a very rough test for the DMG OAM bug.
@@ -994,28 +1022,6 @@ coin_oam_bug:
   xor b    ; A=$00 for fail, $FF for success
   cpl
   add a
-  ret
-
-;;
-; Writes test pattern starting at A
-oamset_inc:
-  ld hl, _OAMRAM
-  ld c, 160
-  jp memset_inc
-
-;;
-; Compares OAM to oamset_inc written data, starting at B
-oamcmp_inc:
-  ld hl, _OAMRAM
-  ld c, 160
-  .loop:
-    ld a, [hl]
-    sub b
-    xor l
-    jp nz, test_failed
-    inc l
-    dec c
-    jr nz, .loop
   ret
 
 ; Stage 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1516,7 +1522,7 @@ coin_daa_oddball_af:
   add a  ; Set HC flags
   ld a, $9A
   daa    ; rew. doesn't set Z flag for daa $9A NH
-  jr nz, .local_fail_nz  ; rew. only fails
+  jr nz, .local_test_failed  ; rew. only fails
 
   ld a, $0D
   add a  ; Set H flag
@@ -1524,7 +1530,7 @@ coin_daa_oddball_af:
   daa    ; output: $80 (rew. & VBA: $80 H)
   daa    ; output: $80 (rew. & VBA: $86)
   add a  ; output: $00 ZC (rew. & VBA: $0C C)
-  jr nz, .local_fail_nz  ; rew. & VBA 1.7 fail
+  jr nz, .local_test_failed  ; rew. & VBA 1.7 fail
 
   scf
   sbc a    ; $FF NHC
@@ -1532,7 +1538,9 @@ coin_daa_oddball_af:
   daa      ; $9A NC (VBA: $9A NHC)
   daa      ; $3A NC (rew. and VBA: $34 NC)
   xor $3A
-.local_fail_nz:
-  jp pass_if_Z_flag
+  ret z
+.local_test_failed:
+  scf
+  ret
 
 
