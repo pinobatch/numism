@@ -22,9 +22,6 @@ def PAGE_MINDY equ 9
 def PAGE_FOUND_THEM_ALL equ 10
 def PAGE_INSTRUCTIONS equ 11
 
-section "hLocals", HRAM[hLocals]
-ds locals_size
-
 section "tilemapcol", WRAM0
 wMapCol: ds MAP_COLUMN_HEIGHT_MT
 
@@ -1333,23 +1330,23 @@ mindy_draw_current_cel:
   ld hl, wCameraY
   ld a, low(MINDY_Y)
   sub [hl]
-  ldh [hmsprYLo], a
+  ldh [draw_metasprite.hYLo], a
   ld a, high(MINDY_Y)
   sbc 0
-  ldh [hmsprYHi], a
+  ldh [draw_metasprite.hYHi], a
 
   ld hl, wCameraX
   ld a, low(MINDY_X)
   sub [hl]
   inc hl
-  ldh [hmsprXLo], a
+  ldh [draw_metasprite.hXLo], a
   ld a, high(MINDY_X)
   sbc [hl]
-  ldh [hmsprXHi], a
+  ldh [draw_metasprite.hXHi], a
   ld a, [wMindyFacing]
-  ldh [hmsprAttr], a
+  ldh [draw_metasprite.hAttr], a
   ld a, [wMindyDisplayCelBase]
-  ld [hmsprBaseTile], a
+  ld [draw_metasprite.hBaseTile], a
 
   ; lookup the metatile
   ld a, [wMindyLoadedCel]
@@ -1375,25 +1372,6 @@ def LMARGIN equ 8
 def SPRITEHT equ 8  ; or 16?
 def SPRITEWID equ 8
 
-; args
-  rsset hLocals
-def hmsprYLo rb 1
-def hmsprYHi rb 1
-def hmsprXLo rb 1
-def hmsprXHi rb 1
-def hmsprAttr rb 1
-def hmsprSheetID rb 1
-def hmsprFrame rb 1
-def hmsprBaseTile rb 1
-export hmsprYLo, hmsprYHi, hmsprXLo, hmsprXHi
-export hmsprAttr, hmsprSheetID, hmsprFrame, hmsprBaseTile
-
-; internal
-def hmsprXAdd rb 1
-def hmsprStripY rb 1
-def hmsprStripXLo rb 1
-def hmsprStripXHi rb 1
-
 section "metasprite", ROM0
 
 ;;
@@ -1418,24 +1396,39 @@ section "metasprite", ROM0
 ; +--------- Flip this tile vertically
 ; and "+" means something is repeated 1 or more times
 ;
-; @param hmsprYHi, hmsprYLo 16-bit Y coordinate of hotspot
-; @param hmsprXHi, hmsprXLo 16-bit Y coordinate of hotspot
-; @param hmsprAttr palette and horizontal flip
-; @param hmsprBaseTile index of this sprite sheet in VRAM
+; @param hYHi, hYLo 16-bit Y coordinate of hotspot
+; @param hXHi, hXLo 16-bit Y coordinate of hotspot
+; @param hAttr palette and horizontal flip
+; @param hBaseTile index of this sprite sheet in VRAM
 ; @param HL pointer to cel data
 ; Uses 8 bytes of locals for arguments and 4 bytes for scratch
 draw_metasprite::
-  ldh a,[hmsprAttr]
+  ; args
+  local hYLo
+  local hYHi
+  local hXLo
+  local hXHi
+  local hAttr
+  local hSheetID
+  local hFrame
+  local hBaseTile
+  ; internal
+  local hXAdd
+  local hStripY
+  local hStripXLo
+  local hStripXHi
+
+  ldh a,[.hAttr]
   ld c,a  ; C = flip flags
 
   ; Correct coordinates for offset binary representation.
   ; Not correcting for Y flip until a Y flip is needed in a game.
-  ldh a,[hmsprYLo]
+  ldh a,[.hYLo]
   sub 128-TMARGIN
-  ldh [hmsprYLo],a
-  ldh a,[hmsprYHi]
+  ldh [.hYLo],a
+  ldh a,[.hYHi]
   sbc 0
-  ldh [hmsprYHi],a
+  ldh [.hYHi],a
 
   ; Convert X coordintes and set increase direction for X flip
   ld b,128-LMARGIN
@@ -1445,13 +1438,13 @@ draw_metasprite::
     ld b,127+SPRITEWID-LMARGIN
     ld a,-SPRITEWID
   .noxcoordflipcorrect:
-  ldh [hmsprXAdd],a
-  ldh a,[hmsprXLo]
+  ldh [.hXAdd],a
+  ldh a,[.hXLo]
   sub b
-  ldh [hmsprXLo],a
-  ldh a,[hmsprXHi]
+  ldh [.hXLo],a
+  ldh a,[.hXHi]
   sbc 0
-  ldh [hmsprXHi],a
+  ldh [.hXHi],a
 
   ; Load destination address
   ld de, wOAMUsed
@@ -1461,7 +1454,7 @@ draw_metasprite::
     ; Invariants here:
     ; DE is multiple of 4 and within shadow OAM
     ; HL at start of sprite strip
-    ; C equals [hmsprAttr], not modified by a strip
+    ; C equals [.hAttr], not modified by a strip
 
     ; Load Y strip offset
     ld a,[hl+]
@@ -1472,10 +1465,10 @@ draw_metasprite::
       cpl
     .noystripflipcorrect:
     ld b,a
-    ldh a,[hmsprYLo]
+    ldh a,[.hYLo]
     add b
     ld b,a
-    ldh a,[hmsprYHi]
+    ldh a,[.hYHi]
     adc 0
     jr nz,.strip_below_screen
     ld a,b
@@ -1497,7 +1490,7 @@ draw_metasprite::
       inc h
       jr .rowloop
     .strip_within_y_range:
-    ldh [hmsprStripY],a
+    ldh [.hStripY],a
 
     ; Load X strip offset
     ld a,[hl+]
@@ -1506,12 +1499,12 @@ draw_metasprite::
       cpl
     .noxstripflipcorrect:
     ld b,a
-    ldh a,[hmsprXLo]
+    ldh a,[.hXLo]
     add b
-    ldh [hmsprStripXLo],a
-    ldh a,[hmsprXHi]
+    ldh [.hStripXLo],a
+    ldh a,[.hXHi]
     adc 0
-    ldh [hmsprStripXHi],a
+    ldh [.hStripXHi],a
 
     ; Third byte of strip is palette (bits 4-0) and length (bits 7-5)
     ld a,[hl]
@@ -1529,14 +1522,14 @@ draw_metasprite::
     ; Copy sprites to OAM
     .spriteloop:
       push bc  ; sprite count and strip attribute
-      ldh a,[hmsprStripY]
+      ldh a,[.hStripY]
       ld [de],a
 
       ; Only resulting X locations in 1-167 are in range
-      ldh a,[hmsprStripXHi]
+      ldh a,[.hStripXHi]
       or a
       jr nz,.skip_one_tile
-      ldh a,[hmsprStripXLo]
+      ldh a,[.hStripXLo]
       or a
       jr z,.skip_one_tile
       cp SCRN_X+LMARGIN
@@ -1550,7 +1543,7 @@ draw_metasprite::
       ld a,[hl]
       and $3F
       ld b,a
-      ldh a,[hmsprBaseTile]
+      ldh a,[.hBaseTile]
       add b
       ld [de],a
       inc e
@@ -1562,25 +1555,25 @@ draw_metasprite::
       inc e
 
     .skip_one_tile:
-      ldh a,[hmsprXAdd]
+      ldh a,[.hXAdd]
       ld b,a
-      ldh a,[hmsprStripXLo]
+      ldh a,[.hStripXLo]
       add b
-      ldh [hmsprStripXLo],a
-      ldh a,[hmsprStripXHi]
+      ldh [.hStripXLo],a
+      ldh a,[.hStripXHi]
       adc 0
       bit 7,b
       jr z,.anoneg
         dec a
       .anoneg:
-      ldh [hmsprStripXHi],a
+      ldh [.hStripXHi],a
       pop bc
       inc hl
       dec b
       jr nz,.spriteloop
     ld a, e
     ld [wOAMUsed], a
-    ldh a,[hmsprAttr]
+    ldh a,[.hAttr]
     ld c,a
     jp .rowloop
 

@@ -23,10 +23,6 @@ include "src/global.inc"
 
 def USE_HBLANK_COPY EQU 1
 
-  rsset hLocals
-def Lshiftermask rb 1
-def Ldstoffset rb 1
-
 def lineImgBufLen EQU 128  ; number of 1bpp planes
 
 ; Align is a logarithm in rgbasm, unlike in ca65 where it's an actual
@@ -63,17 +59,20 @@ not_ff_shr_x:: db $00,$80,$C0,$E0,$F0,$F8,$FC,$FE
 
 ; The second half of the routine comes before the first half to ease alignment
 vwfPutTile_shifter:
+  local hShifterMask, 1
+  local hDestAddrLo, 1
+
   rept CHAR_BIT-1
     rrca
   endr
   ld h,a  ; H: all glyph bits, circularly rotated
 
   ; Load destination address
-  ldh a,[Ldstoffset]
+  ldh a,[.hDestAddrLo]
   ld l,a
 
   ; Break it up into 2 bytes
-  ldh a,[Lshiftermask]
+  ldh a,[.hShifterMask]
   and h
   ld c,a  ; C: right half bits
   xor h   ; A: left half bits
@@ -93,7 +92,7 @@ vwfPutTile_shifter:
   ld a,l
   sub GLYPH_HEIGHT-1
 .have_dstoffset:
-  ldh [Ldstoffset],a
+  ldh [.hDestAddrLo],a
 
   ; Advance to next row
   and GLYPH_HEIGHT-1
@@ -114,9 +113,9 @@ vwfPutTile_shifter:
 
   ; Fast path handling for blank slivers
 .sliver_is_blank:
-  ldh a,[Ldstoffset]
+  ldh a,[.hDestAddrLo]
   inc a
-  jr vwfPutTile_shifter.have_dstoffset
+  jr .have_dstoffset
 
 ;;
 ; Draws the tile for glyph A at horizontal position B
@@ -139,7 +138,7 @@ vwfPutTile::
     endr
   endc
   and $100-GLYPH_HEIGHT
-  ldh [Ldstoffset],a
+  ldh [vwfPutTile_shifter.hDestAddrLo],a
   
   ; Get the mask of which bits go here and which to the next tile
   xor b
@@ -148,7 +147,7 @@ vwfPutTile::
   add c
   ld c,a  ; BC = ff_shr_x+horizontal offset
   ld a,[bc]
-  ldh [Lshiftermask],a
+  ldh [vwfPutTile_shifter.hShifterMask],a
 
   ; Calculate the address of the shift routine
   ld a,low(vwfPutTile_shifter) + CHAR_BIT - 1
@@ -157,7 +156,7 @@ vwfPutTile::
 
   ld d,h
   ld e,l
-  jr vwfPutTileShifter.rowloop
+  jr vwfPutTile_shifter.rowloop
 
 ;;
 ; Write glyphs for the 8-bit-encoded characters string at (hl) to
