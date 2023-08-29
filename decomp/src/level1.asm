@@ -147,7 +147,11 @@ main:
   ld [hl], a
   call read_pad
   call move_cursor
+  ld a, %11100111
+  ldh [rBGP], a
   call move_camera
+  ld a, %11100100
+  ldh [rBGP], a
   call update_window
   xor a
   ld [wOAMUsed], a
@@ -352,7 +356,6 @@ move_cursor:
   ld a, [wCursorX+1]
   sbc high(MINDY_X)
   ld b, a
-  ld b, b
   sbc a
   and OAMF_XFLIP
   ld [wMindyFacing], a
@@ -442,7 +445,6 @@ move_camera:
   add [hl]
   ld [hl], a
 
-
   ; Don't update horizontally if window is being drawn
   ld a, [wWindowProgress]
   cp WINDOW_ROWS
@@ -517,39 +519,19 @@ move_camera:
 
   ; A is distance in whole metatiles from left edge of vicinity to
   ; left edge of camera
-  ; [HL] is still 
+  ; [HL] is current left edge of camera
   ; <0 (CF=1): go left now
   ; 0: go left unless already 0
+  ; 1: prepare to go left unless already 0
   ; >=MAP_VICINITY_WIDTH_MT-SCRN_X/16-1: go right unless at 240
   ;   already 256-MAP_VICINITY_WIDTH_MT
   jr c, .decode_to_left
   jr z, .decode_to_left
-  cp MAP_VICINITY_WIDTH_MT-SCRN_X/16-1
-  ret c
-
-    ; Decode to right
+  cp 1
+  jr nz, .no_seek_toward_left
+    ; if camera near left side of vicinity, prepare for decoding to left
     ld a, [hl]
-    add MAP_VICINITY_WIDTH_MT
-    ret c  ; do nothing if already at right side
-    inc [hl]
-    call map_seek_column_a
-    call map_fetch_bitmap_column
-    call map_fetch_col_forward
-    call map_decode_markov
-    call map_stash_decoded_col
-    
-    ; and draw them to the tilemap
-    ld hl, wMapFetchedX
-    ld a, 255
-    cp [hl]  ; CF=1 if at far right
-    ld a, 1
-    adc a
-    ld c, a  ; 3 columns at far right, 2 columns elsewhere
-    ld a, [hl]
-    add a
-    dec a  ; Draw starting at right half of column to left of decoded
-    ld b, a
-    jp blit_c_columns
+    jp map_seek_column_a
   .decode_to_left:
     ld a, [hl]
     or a
@@ -575,6 +557,41 @@ move_camera:
     adc a
     ld b, a
     jp blit_c_columns
+  .no_seek_toward_left:
+
+  ; A is still distance in MTs from vicinity left to camera left
+  cp MAP_VICINITY_WIDTH_MT-SCRN_X/16-2
+  jr z, .seek_toward_right
+  ret c
+    ; Decode to right
+    ld a, [hl]
+    add MAP_VICINITY_WIDTH_MT
+    ret c  ; do nothing if already at right side
+    inc [hl]
+    call map_seek_column_a
+    call map_fetch_bitmap_column
+    call map_fetch_col_forward
+    call map_decode_markov
+    call map_stash_decoded_col
+    
+    ; and draw them to the tilemap
+    ld hl, wMapFetchedX
+    ld a, 255
+    cp [hl]  ; CF=1 if at far right
+    ld a, 1
+    adc a
+    ld c, a  ; 3 columns at far right, 2 columns elsewhere
+    ld a, [hl]
+    add a
+    dec a  ; Draw starting at right half of column to left of decoded
+    ld b, a
+    jp blit_c_columns
+  .seek_toward_right:
+    ; if camera near right side of vicinity, prepare for decoding to right
+    ld a, [hl]
+    add MAP_VICINITY_WIDTH_MT
+    ret c
+    jp map_seek_column_a
 
 if 0
 debug_print_de:
@@ -643,6 +660,7 @@ map_seek_column_a:
   ; A = number of forward steps to take modulo 256
   ; CF = true if negative
   ret z
+  ld b, b
   push af
   call map_fetch_bitmap_column
   ld a, [wMapContentsPtr+0]
