@@ -573,7 +573,7 @@ move_camera:
     call map_fetch_col_forward
     call map_decode_markov
     call map_stash_decoded_col
-    
+
     ; and draw them to the tilemap
     ld hl, wMapFetchedX
     ld a, 255
@@ -660,7 +660,6 @@ map_seek_column_a:
   ; A = number of forward steps to take modulo 256
   ; CF = true if negative
   ret z
-  ld b, b
   push af
   call map_fetch_bitmap_column
   ld a, [wMapContentsPtr+0]
@@ -689,6 +688,7 @@ map_seek_column_a:
     ld a, d
     ld [wMapContentsPtr+1], a
     ret
+
   .seek_backward:
     ld a, [wMapDecodeX]
     add b
@@ -852,6 +852,7 @@ map_stash_decoded_col:
 ; Draws wMapCol to tilemap at wMapFetchedX
 ; @param A column to draw (0-31)
 blit_one_col:
+  ; Calculate addresses in tilemap and metatile map
   ld bc, wMapVicinity
   ld d, high(_SCRN0)
   and $1F
@@ -893,8 +894,8 @@ blit_one_col:
     adc d
     sub e
     ld d, a
-    inc bc
-    bit 2, d
+    inc c
+    bit 2, d  ; once D reaches $9C00 we're done
     jr z, .blkloop
   ret
 

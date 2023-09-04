@@ -1,18 +1,16 @@
-Shaving
+camera spreading the work
 
-- local variable allocator
+- Track drawn area and vicinity separately to draw one half column
+  at a time instead of 2-3
+- Switch to 32-column vicinity centered around Mindy
+- Draw GBC attribute
+- Draw column: use autotiling based on matching value in adjacent
+  column in circular buffer
 
 Mindy sprite sheet
 
 - play some Brawl and figure out how Peach is animated climbing the ladders
 - walk tweening
-
-camera spreading the work
-
-- slide decode pointer toward camera position
-- track drawn area and vicinity separately to draw one half column at a time instead of 2-3
-- draw GBC attribute
-- draw column: use autotiling based on matching value in adjacent column in circular buffer
 
 title screen
 

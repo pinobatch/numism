@@ -1,0 +1,105 @@
+Current variables:
+
+- camera X
+- camera Y
+- vicinity left side
+
+New variables:
+
+- player X
+- player Y
+- player platform Y
+- cue Y
+- camera X offset
+- leftmost drawn half column
+- rightmost drawn half column
+- previous camera X
+- map width
+- other actors X
+- other actors Y
+
+Horizontal centering
+--------------------
+
+The Game Boy or Game Gear screen is 10 columns (160 pixels) wide.
+To make the most of this screen, we center the camera halfway between
+the player and a second point.  Usually we follow a dual forward
+focus paradigm in which the second point is four columns in front of
+the player's facing direction to center the camera two columns in
+front of the player.  While an important object (such as an untaken
+coin or an NPC) is loaded, we follow cue focus, as its coordinates
+replace the second point so that the camera can draw attention to it.
+
+On each frame:
+
+1. Find the target candidate closest to the player and record its
+   position as the cue position
+2. If no target candidate, set a cue position horizontally 4 columns
+   in front of the player and vertically at player platform Y
+3. Calculate the desired X offset as half the distance from the
+   player to the cue
+4. Move the camera X offset toward the desired X offset, at about
+   4 columns per second while more than one column away or 2 columns
+   per second thereafter
+
+Vicinity
+--------
+
+Vicinity is the portion of the decompressed map that is cached in a
+sliding window.  Two vicinity widths are practical on a 10-column
+screen: 16 columns (256 pixels) or 32 columns (512 pixels).
+A 32-column vicinity that follows the player's position is
+independent of camera centering.  This makes loading behavior more
+predictable more consistent with 15- to 16-column machines, such as
+NES, SMS, and GBA.  A 16-column vicinity centered on the camera
+saves working memory should that become tight.
+
+Autotiling means modifying the edge of a tile based on whether it
+matches the tiles to its left and right.  This requires half a column
+of vicinity that is loaded and not displayed.
+
+Clamping
+--------
+
+We don't want the camera to go out of the map or into an area that is
+not yet loaded.  Nor do we want to slow the rest of the game down by
+doing too much camera work in one frame.  For this reason, we clamp
+camera X to the edges and limit scroll speed to one column per four
+frames, or the width of the screen in two-thirds of a second.
+
+Add the camera X offset to the player's position, and set the
+camera left edge 5 columns to the left of that.  Then calculate
+several clamping ranges and apply them to camera X.
+
+- Map boundaries
+- Half a column inside edge of vicinity
+- Half a column outside edge of drawn area
+- A quarter column away from camera X in the previous tick
+
+    If camera side past edge of drawn area:
+        Extend drawn area in that direction
+    Else if player within 12 columns of vicinity side
+        and vicinity side is not at map side:
+        Extend vicinity in that direction
+
+Vertical position
+-----------------
+
+Vertical scrolling uses a platform snapping paradigm.  The player's
+Y position is copied to player platform Y whenever the player is on
+the ground, climbing, using powered flight, or falling below the last
+player platform Y.
+
+The camera is usually vertically centered at player platform Y.
+However, if a target candidate was found during horizontal centering,
+center the camera Y halfway between player platform Y and the target.
+Because all of the map's height is drawn to the tilemap at once,
+there are no vertical vicinity checks.
+
+1. Take the average of player platform Y and cue Y
+2. Subtract half a screen height
+3. Clamp to top and bottom of map
+4. Subtract current Y position
+5. Clamp to one-half row per frame
+6. Divide by damping factor, rounding away from 0
+7. Add to Y position
