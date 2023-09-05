@@ -1,0 +1,152 @@
+;;
+; Draws wMapCol to tilemap at wMapFetchedX
+; @param A column to draw (0-31)
+blit_one_col_new:
+  local hThisColumnXAddr
+  local hAdjacentColumnXAddr
+  local hYPosition
+  local hVDestLo
+  local hVDestHi
+  local hMtDefsLo
+  local hMtDefsHi
+
+  ; Find the column being drawn
+  ldh [.hVDestLo], a
+  rra
+  and $0F
+  add high(wMapVicinity)
+  ldh [.hThisColumnXAddr], a
+
+  ; Find the adjacent column for autotiling comparison
+  ldh a, [.hVDestLo]
+  and a
+  jr z, .haveAdjacentColumnX
+    rra
+    ; decrease by 1 if NC or increase by 1 if C
+    dec a
+    jr nc, .haveAdjacentColumnX
+    add 2
+  .haveAdjacentColumnX:
+  add high(wMapVicinity)
+  ldh [.hAdjacentColumnXAddr], a
+  ld a, low(wMapVicinity)
+  ldh [.hYPosition], a
+  ld a, high(_SCRN0)
+  ldh [.hVDestHi], a
+
+  ; Choose definitions of the left or right half of a metatile
+  ; in order:
+  ; $00 top left attribute, edge
+  ; $01 bottom left attribute, edge
+  ; $02 top left tile number, edge
+  ; $03 bottom left tile number, edge
+  ; $04 top left attribute, interior
+  ; $05 bottom left attribute, interior
+  ; $06 top left tile number, interior
+  ; $07 bottom left tile number, interior
+  ; $08 top right attribute, edge
+  ; $09 bottom right attribute, edge
+  ; $0A top right tile number, edge
+  ; $0B bottom right tile number, edge
+  ; $0C top right attribute, interior
+  ; $0D bottom right attribute, interior
+  ; $0E top right tile number, interior
+  ; $0F bottom right tile number, interior
+  ldh a, [.hVDestLo]
+  rra
+  sbc a  ; 00: left, FF: right
+  and $08
+  add low(metatile_defs)
+  ldh [.hMtDefsLo], a
+  ld a, 0
+  add high(metatile_defs)
+  ldh [.hMtDefsHi], a
+
+  .blkloop:
+    ; look up metatile number
+    ldh a, [.hYPosition]
+    ld c, a
+    ldh a, [.hThisColumnXAddr]
+    ld b, a
+    ld a, [bc]
+    ld d, a
+
+    ; Calculate the offset from the start of the metatile table
+    ; for this metatile number
+    ld l, a
+    ld h, 0
+    add hl, hl  ; shift in left or right bit (always 0 because that's
+                ; baked into hMtDefsLo)
+
+    ; Decide whether to use the interior or edge variant of this
+    ; metatile
+    ldh a, [.hAdjacentColumnXAddr]
+    ld b, a
+    ld a, [bc]
+    xor d  ; $00: interior; nonzero: edge
+    cp 1   ; CF=1: interior; CF=0: edge
+    rl l
+    rl h
+    add hl, hl  ; start at top
+    add hl, hl  ; skip bottom
+
+    ; Translate the offset into an address
+    ldh a, [.hMtDefsLo]
+    add l
+    ld l, a
+    ldh a, [.hMtDefsHi]
+    adc h
+    sub l
+    ld h, a
+
+    ; Move source address to next row
+    inc c
+    ld a, c
+    ldh [.hSrcY], a
+
+    ldh a, [.hVDestLo]
+    ld e, a
+    ldh a, [.hVDestHi]
+    ld d, a
+    ld a, 1
+    ldh [rVBK], a
+
+    ; wait for mode 0 or 1
+    .stat01loop:
+      ldh a, [rSTAT]
+      and STATF_BUSY
+      jr nz, .stat01loop
+
+    ; write attributes (10 cycles vblank open)
+    ld a, [hl+]
+    ld [de], a
+    set 5, e
+    ld a, [hl+]
+    ld [de], a
+    res 5, e
+    xor a
+    ldh [rVBK], a
+
+    ; wait for mode 0 or 1
+    .stat01loop:
+      ldh a, [rSTAT]
+      and STATF_BUSY
+      jr nz, .stat01loop
+
+    ; write tile numbers
+    ld a, [hl+]
+    ld [de], a
+    set 5, e
+    ld a, [hl+]
+    ld [de], a
+
+    ; move destination to next row
+    ld a, e
+    add 32
+    ldh [.hVDestLo], a
+    adc d
+    sub e
+    ldh [.hVDestHi], a
+    cp $9C
+    jr c, .blkloop
+  ret

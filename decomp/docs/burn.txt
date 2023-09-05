@@ -1,8 +1,13 @@
+tile
+
+- Make converter for parkmetatiles
+- Figure out how to use some sort of metatile laying program
+- Convert metatile maps from that tool to Markov maps
+
 camera spreading the work
 
 - Track drawn area and vicinity separately to draw one half column
   at a time instead of 2-3
-- Switch to 32-column vicinity centered around Mindy
 - Draw GBC attribute
 - Draw column: use autotiling based on matching value in adjacent
   column in circular buffer
