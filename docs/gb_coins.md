@@ -242,4 +242,5 @@ peanut-gb 1.2.0      |   4/10  |   5/10  |   2/10  |   6/10  |   1/1   | DMG onl
 no$gmb 2.5           |   0/10  |   7/10  |   4/10  |   4/10  |   1/1   | DMG/SGB
 vba 1.7.2            |   6/10  |   1/10  |   2/10  |   4/10  |   1/1   |
 jsgb v0.02           |   3/10  |   3/10  |   3/10  |   3/10  |   1/1   | DMG only; click Run after each of four pauses for `di halt`
+3ds-vc               |   5/10  |   1/10  |   2/10  |   3/10  |   1/1   | DMG/GBC; use `rgbfix` to switch (thanks Sono)
 rew. 12stx           |   2/10  |   2/10  |   4/10  |   3/10  |   1/1   |
