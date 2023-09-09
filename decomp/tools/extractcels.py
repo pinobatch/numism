@@ -171,12 +171,16 @@ def parse_color(s):
             return tuple(int(m[i:i + 2], 16) for i in range(0, 6, 2))
     raise ValueError("color %s not recognized" % s)
 
-def parse_subpalette(words):
-    """Turn palette entry into a list of color-to-index mappings.
+def parse_subpalette(words, start=0):
+    """Turn palette entry into a list of color-to-index pairs.
 
-For example, #AAA=2 or #AAAAAA=2 means that (170, 170, 170) will be
-recognized as color 2 in that subpalette.
-If no =number is specified, indices are recognized sequentially from 1.
+words -- an iterable of strings of the form "#ABC", "#ABCDEF",
+    "#ABC=1", "#ABCDEF=1"
+start -- first index of words without a number
+
+For example, #AAA=2 or #AAAAAA=2 assigns (170, 170, 170) to color 2
+in that subpalette.  If no =number is specified, indices are assigned
+sequentially, with start as the first.
 
 Return a list of ((r, g, b), index) tuples.
 """
@@ -184,7 +188,7 @@ Return a list of ((r, g, b), index) tuples.
     for i, word in enumerate(words):
         color_index = word.split("=", 1)
         color = parse_color(color_index[0])
-        index = int(color_index[1]) if len(color_index) > 1 else i + 1
+        index = int(color_index[1]) if len(color_index) > 1 else i + start
         out.append((color, index))
     return out
 
@@ -272,7 +276,7 @@ class InputParser(object):
 
     def add_palette(self, words):
         paletteid = parseint(words[0])
-        colors = parse_subpalette(words[1:])
+        colors = parse_subpalette(words[1:], 1)
         self.palettes[paletteid] = colors
 
     def calc_global_palette(self):
