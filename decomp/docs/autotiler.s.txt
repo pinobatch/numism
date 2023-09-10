@@ -4,21 +4,23 @@
 blit_one_col_new:
   local hThisColumnXAddr
   local hAdjacentColumnXAddr
-  local hYPosition
-  local hVDestLo
-  local hVDestHi
   local hMtDefsLo
   local hMtDefsHi
 
+  ; register variables:
+  ; DE = VRAM destination address
+  ; C = vicinity row address
+
   ; Find the column being drawn
-  ldh [.hVDestLo], a
+  ld e, a
+  ld d, high(_SCRN0)
   rra
   and $0F
   add high(wMapVicinity)
   ldh [.hThisColumnXAddr], a
 
   ; Find the adjacent column for autotiling comparison
-  ldh a, [.hVDestLo]
+  ldh a, e
   and a
   jr z, .haveAdjacentColumnX
     rra
@@ -29,10 +31,6 @@ blit_one_col_new:
   .haveAdjacentColumnX:
   add high(wMapVicinity)
   ldh [.hAdjacentColumnXAddr], a
-  ld a, low(wMapVicinity)
-  ldh [.hYPosition], a
-  ld a, high(_SCRN0)
-  ldh [.hVDestHi], a
 
   ; Choose definitions of the left or right half of a metatile
   ; in order:
@@ -52,7 +50,7 @@ blit_one_col_new:
   ; $0D bottom right attribute, interior
   ; $0E top right tile number, interior
   ; $0F bottom right tile number, interior
-  ldh a, [.hVDestLo]
+  ld a, e
   rra
   sbc a  ; 00: left, FF: right
   and $08
@@ -62,33 +60,29 @@ blit_one_col_new:
   add high(metatile_defs)
   ldh [.hMtDefsHi], a
 
+  ld c, low(wMapVicinity)
   .blkloop:
-    ; look up metatile number
-    ldh a, [.hYPosition]
-    ld c, a
+    ; look up metatile number in vicinity
     ldh a, [.hThisColumnXAddr]
     ld b, a
     ld a, [bc]
-    ld d, a
-
-    ; Calculate the offset from the start of the metatile table
-    ; for this metatile number
     ld l, a
-    ld h, 0
-    add hl, hl  ; shift in left or right bit (always 0 because that's
-                ; baked into hMtDefsLo)
 
-    ; Decide whether to use the interior or edge variant of this
-    ; metatile
+    ; Choose interior or edge variant of this metatile
     ldh a, [.hAdjacentColumnXAddr]
     ld b, a
     ld a, [bc]
-    xor d  ; $00: interior; nonzero: edge
-    cp 1   ; CF=1: interior; CF=0: edge
+    xor l       ; A=$00: interior; nonzero: edge
+
+    ; Translate metatile number to offset from metatile table start
+    ld h, 0
+    add hl, hl  ; start at whatever left or right half is baked
+                ; into hMtDefsLo
+    cp 1        ; CF=1: interior; CF=0: edge
     rl l
     rl h
-    add hl, hl  ; start at top
-    add hl, hl  ; skip bottom
+    add hl, hl  ; start at top (vs. bottom)
+    add hl, hl  ; start at attribute (vs. tile)
 
     ; Translate the offset into an address
     ldh a, [.hMtDefsLo]
@@ -99,17 +93,8 @@ blit_one_col_new:
     sub l
     ld h, a
 
-    ; Move source address to next row
-    inc c
-    ld a, c
-    ldh [.hSrcY], a
-
-    ldh a, [.hVDestLo]
-    ld e, a
-    ldh a, [.hVDestHi]
-    ld d, a
     ld a, 1
-    ldh [rVBK], a
+    ldh [rVBK], a  ; prepare to write attribute
 
     ; wait for mode 0 or 1
     .stat01loop:
@@ -117,15 +102,16 @@ blit_one_col_new:
       and STATF_BUSY
       jr nz, .stat01loop
 
-    ; write attributes (10 cycles vblank open)
+    ; write attributes (10 cycles hblank open)
     ld a, [hl+]
     ld [de], a
     set 5, e
     ld a, [hl+]
     ld [de], a
     res 5, e
+    inc c          ; go to next row of vicinity
     xor a
-    ldh [rVBK], a
+    ldh [rVBK], a  ; prepare to write tile number
 
     ; wait for mode 0 or 1
     .stat01loop:
@@ -140,13 +126,13 @@ blit_one_col_new:
     ld a, [hl+]
     ld [de], a
 
-    ; move destination to next row
+    ; move destination address to next row
     ld a, e
     add 32
-    ldh [.hVDestLo], a
+    ld e, a
     adc d
     sub e
-    ldh [.hVDestHi], a
-    cp $9C
+    ld d, a
+    cp high(_SCRN0 + VICINITY_HT * 64 / 4)
     jr c, .blkloop
   ret
