@@ -45,7 +45,7 @@ This is run in OpenJDK 17:
 
 This is run in mGBA:
 
-* [Goomba Color](https://www.dwedit.org/gba/goombacolor.php) 12-14-2014
+* [Jagoomba Color](https://github.com/EvilJagaGenius/jagoombacolor) 0.5
 
 This is run in Firefox:
 
@@ -83,19 +83,19 @@ VisualBoyAdvance 1.7.2 for Windows (from before the VBA-M fork)
 requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
 redistributable package, sometimes called [vcredist].
 
-The Goomba Color ROM builder is written in Visual Basic 6 and needs
+The `goombafront` ROM builder is written in Visual Basic 6 and needs
 the [Visual Basic 6 runtime].  Skip it.  Just use `cat` 😸️
 ```
-$ cat goomba.gba libbet.gb gb240p.gb exerciser.gb > magicflr.gba
-C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
+$ cat jagoomba.gba libbet.gb gb240p.gb exercise.gb > magicflr.gba
+C:\>copy /b jagoomba.gba+libbet.gb+gb240p.gb+exercise.gb magicflr.gba
 ```
-Better yet, use this Bash script:
+Better yet, use a Bash script like this:
 ```
 #!/bin/sh
 set -e
 tmpfile=$(mktemp /tmp/goombaXXXXXX.gba) || exit 1
 trap "rm -f $tmpfile" EXIT
-cat "/home/pino/develop/emulators/goomba.gba" "$1" > "$tmpfile"
+cat "/home/pino/develop/emulators/jagoomba.gba" "$1" > "$tmpfile"
 mgba-qt "$tmpfile"
 ```
 
