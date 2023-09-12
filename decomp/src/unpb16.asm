@@ -20,9 +20,6 @@
 ;
 include "src/global.inc"
 
-  rsset hLocals
-pb16_byte0 rb 1
-
 section "pb16", ROM0
 
 ; The PB16 format is a starting point toward efficient RLE image
@@ -32,23 +29,25 @@ section "pb16", ROM0
 ; 1: Repeat from 2 bytes ago
 
 pb16_unpack_packet:
+  local hByte0
   ; Read first bit of control byte.  Treat B as a ring counter with
   ; a 1 bit as the sentinel.  Once the 1 bit reaches carry, B will
   ; become 0, meaning the 8-byte packet is complete.
+  scf
+.after_scf:
   ld a,[de]
   inc de
-  scf
   rla
   ld b,a
 .byteloop:
   ; If the bit from the control byte is clear, plane 0 is is literal
   jr nc,.p0_is_literal
-  ldh a,[pb16_byte0]
+  ldh a,[.hByte0]
   jr .have_p0
 .p0_is_literal:
   ld a,[de]
   inc de
-  ldh [pb16_byte0],a
+  ldh [.hByte0],a
 .have_p0:
   ld [hl+],a
 
@@ -68,27 +67,43 @@ pb16_unpack_packet:
   jr nz,.byteloop
   ret
 
-pb16_unpack_to_CHRRAM0::
-  ld hl, CHRRAM0
-  ; fall through
+;;
+; As pb16_unpack_block except destination and packet count
+; precede length.
+pb16_unpack_dest_length_block::
+  ld a, [de]
+  inc de
+  ld l, a
+  ld a, [de]
+  inc de
+  ld h, a
+  fallthrough pb16_unpack_length_block
+
+;;
+; As pb16_unpack_block except packet count precedes length.
+pb16_unpack_length_block::
+  ld a, [de]
+  inc de
+  ld b, a
+  fallthrough pb16_unpack_block
 
 ;;
 ; Unpacks 2*B packets from DE to HL (opposite direction vs. memcpy),
 ; producing 8 bytes per packet.
 ; About 127 cycles (2 scanlines) per 8-byte packet; filling CHR RAM
 ; thus takes (6144/8)*127 = about 97536 cycles or 93 ms
-; @return B: 0; DE: end of source; HL: end of destination
 pb16_unpack_block::
   ; Prefill with zeroes
   xor a
-  ldh [pb16_byte0],a
-.packetloop:
+  ldh [pb16_unpack_packet.hByte0],a
   ld c,a
+.packetloop:
   push bc
   call pb16_unpack_packet
-  call pb16_unpack_packet
+  call pb16_unpack_packet.after_scf
   ld a,c
   pop bc
+  ld c,a
   dec b
   jr nz,.packetloop
   ret

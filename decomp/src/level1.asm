@@ -68,15 +68,10 @@ section "main", ROM0
 main:
   call show_title
   call lcd_off
-  ld hl, level1chr_2b
-  ld de, $9000
-  call memcpy_pascal16
-  ld hl, coincels_2b
-  ld de, $8000 + 16 * COINCELS_BASE_TILE
-  call memcpy_pascal16
-  ld hl, cursor_2b
-  ld de, $8000 + 16 * CURSOR_TILE_NO_MATCH
-  call memcpy_pascal16
+  ld de, static_tiles
+  call pb16_unpack_dest_length_block
+  call pb16_unpack_dest_length_block
+  call pb16_unpack_dest_length_block
 
   ; Set up initial map pointer
   ld hl, wCameraY
@@ -1140,22 +1135,16 @@ sign_pos:
 def NUM_DEFINED_SIGNS equ (@-sign_pos)/2
 
 section "bgchr", ROMX, BANK[1]
-
-level1chr_2b:
-  dw .end-.start
-.start:
-  incbin "obj/gb/level1chr.2b"
-.end:
-coincels_2b:
-  dw .end-.start
-.start:
-  incbin "obj/gb/coincels.2b"
-.end:
-cursor_2b:
-  dw .end-.start
-.start:
-  incbin "obj/gb/cursor.2b"
-.end:
+static_tiles:
+  dw $9000
+  db 80
+  incbin "obj/gb/level1chr.2b.pb16"
+  dw $8000 + 16 * COINCELS_BASE_TILE
+  db 5
+  incbin "obj/gb/coincels.2b.pb16"
+  dw $8000 + 16 * CURSOR_TILE_NO_MATCH
+  db 4
+  incbin "obj/gb/cursor.2b.pb16"
 
 ; Static sprite drawing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
