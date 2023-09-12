@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import os, sys, argparse, re
+"""
+Metatileset converter for Mindy's Hike
+"""
+import os, sys, argparse, re, array
 from collections import namedtuple
 from PIL import Image, ImageChops
 from pilbmp2nes import pilbmp2chr, formatTilePlanar
@@ -276,7 +279,77 @@ Return a 2-tuple (final image, attribute map)
 # $0E top right tile number, interior
 # $0F bottom right tile number, interior
 
+def uniq(tiledata, fixtiles=()):
+    itiles = {v: k for k, v in enumerate(fixtiles)}
+    tilemap = [
+        itiles.setdefault(tile, len(itiles)) for tile in tiledata
+    ]
+    tiles = [None] * len(itiles)
+    for tile, i in itiles.items(): tiles[i] = tile
+    return tiles, itiles, tilemap
+
+def mtify(tiledata, attrs, tiles_per_row,
+          fixtiles=(), base_tile_id=0x00):
+    if tiles_per_row <= 0 or tiles_per_row % 4 != 0:
+        raise ValueError("tiles_per_row %s not a multiple of 4"
+                         % repr(tiles_per_row))
+    if len(tiledata) != len(attrs):
+        raise ValueError("tiledata length %d does not match attribute length %d"
+                         % (len(tiledata), len(attrs)))
+
+    # Pull out tile data and attribute data in this order
+    # 0 2 4 6
+    # 1 3 5 7
+    metatile_defs = [
+        [
+            (tiledata[i], attrs[i])
+            for colstart in range(topleft, topleft + 4)
+            for i in (colstart, colstart + tiles_per_row)
+        ]
+        for rowstart in range(0, len(tiledata), 2 * tiles_per_row)
+        for topleft in range(rowstart, rowstart+tiles_per_row, 4)
+    ]
+    # Duplicate left half into right half if right half is blank
+    blank_tile = bytes(len(tiledata[0]))
+    for mt in metatile_defs:
+        if all(t == blank_tile for t, a in mt[4:]):
+            mt[4:] = mt[:4]
+
+    # Now that it's been reordered, calculate unique tiles
+    tiles_only = [t[0] for mt in metatile_defs for t in mt]
+    utiles, itiles, tilemap = uniq(tiles_only, fixtiles)
+    if len(utiles) > 256:
+        raise ValueError("too many tiles: %d > 256" % len(utiles))
+
+    # Put the columns in the order left edge, left interior,
+    # right edge, right interior
+    mt_reorder = [0, 1, 4, 5, 6, 7, 2, 3]
+    mtdata = [
+        array.array("H", (
+            (a << 8) | (itiles[t] + base_tile_id & 0xFF) for t, a in mt
+        ))
+        for mt in metatile_defs
+    ]
+    mtdata = array.array("H", (
+        mt[i] for mt in mtdata for i in mt_reorder
+    ))
+
+    # The metatiler uses big endian to write the GBC before DMG
+    # so as to work correctly on both GBC and DMG.
+    # Endianness of the interpreter is implementation-defined,
+    # and byteswap() is in-place, so it must be done last.
+    little = array.array("H", [1]).tobytes()[0]
+    if little: mtdata.byteswap()
+    return utiles, mtdata.tobytes()
+
 # forming assembly ##################################################
+
+def hexdump(s, width=16):
+    print("\n".join(
+        "%4x: %s" % (i, s[i:i + width].hex())
+        for i in range(0, len(s), width)
+    ))
+
 
 # cli ###############################################################
 
@@ -297,16 +370,17 @@ def main(argv=None):
     crpalettes = prep_palette_lines_for_colorround(palette_lines)
     with Image.open(args.image) as im:
         im = im.convert("RGB")
-        imcr, attrs = colorround(im, crpalettes, (8, 8), 4)
+        im_quantized, attrs = colorround(im, crpalettes, (8, 8), 4)
         im = None
     gbformat = lambda im: formatTilePlanar(im, "0,1")
-    imtiles = pilbmp2chr(imcr, formatTile=gbformat)
-    imtw = imcr.size[0] // 8
+    imtiles = pilbmp2chr(im_quantized, formatTile=gbformat)
+    tiles_per_row = im_quantized.size[0] // 8
+    utiles, mtdata = mtify(imtiles, attrs, tiles_per_row)
 
-    print("\n".join(
-        repr(attrs[i:i + imtw]) for i in range(0, len(attrs), imtw)
-    ))
-    print("\n".join(row.hex() for row in imtiles))
+    print("unique tiles:")
+    hexdump(b''.join(utiles))
+    print("metatiles:")
+    hexdump(mtdata)
 
     print("Nick to ID")
     print("\n".join(repr(row) for row in n2i.items()))

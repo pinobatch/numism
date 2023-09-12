@@ -92,8 +92,9 @@ For each function, SAVE calculates a start and end offset.
   local variables, but no less than the largest end offset of its
   tail callees.
 
-SAVE writes a UNION containing each function's offsets to an assembly
-language file.  Assemble it with RGBASM and link it into your 
+SAVE writes a UNION defining each function's local variables to an
+assembly language file.  Assemble it with RGBASM and link it into
+your program.
 
 One limit is that SAVE cannot see macros defined in an include file.
 SAVE does not follow `INCLUDE` directives because RGBDS searches for
