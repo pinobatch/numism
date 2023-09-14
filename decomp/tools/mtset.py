@@ -321,35 +321,66 @@ def mtify(tiledata, attrs, tiles_per_row,
     if len(utiles) > 256:
         raise ValueError("too many tiles: %d > 256" % len(utiles))
 
-    # Put the columns in the order left edge, left interior,
-    # right edge, right interior
-    mt_reorder = [0, 1, 4, 5, 6, 7, 2, 3]
+    # Put tile ID in the high byte so that it can be written last.
+    # The metatile plotter writes GBC attributes before tile numbers
+    # so as to work correctly on both GBC and DMG.
     mtdata = [
         array.array("H", (
-            (a << 8) | (itiles[t] + base_tile_id & 0xFF) for t, a in mt
+            (a & 0xFF) | ((itiles[t] + base_tile_id & 0xFF) << 8)
+            for t, a in mt
         ))
         for mt in metatile_defs
     ]
+
+    # The columns are in the order
+    # left interior, right edge, right interior, left edge
+    # Put the columns in the order
+    # left edge, left interior, right edge, right interior
+    mt_reorder = [0, 1, 4, 5, 6, 7, 2, 3]
     mtdata = array.array("H", (
         mt[i] for mt in mtdata for i in mt_reorder
     ))
-
-    # The metatiler uses big endian to write the GBC before DMG
-    # so as to work correctly on both GBC and DMG.
-    # Endianness of the interpreter is implementation-defined,
-    # and byteswap() is in-place, so it must be done last.
-    little = array.array("H", [1]).tobytes()[0]
-    if little: mtdata.byteswap()
-    return utiles, mtdata.tobytes()
+    return utiles, mtdata
 
 # forming assembly ##################################################
 
-def hexdump(s, width=16):
-    print("\n".join(
-        "%4x: %s" % (i, s[i:i + width].hex())
-        for i in range(0, len(s), width)
-    ))
+def iterwidth(s, width):
+    for i in range(0, len(s), width):
+        yield s[i:i + width]
 
+def dbdump(s, prefix="  db ", width=16):
+    for line in iterwidth(s, width):
+        yield prefix + ",".join(str(s) for s in line)
+
+def extend_nicks(id_to_nick, chains):
+    """Extend nicknames to cover their chain children
+
+id_to_nick -- a mutable mapping modified in place
+chains -- list where chains[i] = the most common block below i
+"""
+    for tile_id, base_nick in list(id_to_nick.items()):
+        while True:
+            tile_id = chains[tile_id]
+            if tile_id in id_to_nick: break
+            id_to_nick[tile_id] = "%s_%02X" % (base_nick, tile_id)
+
+def format_asm_file(mtdata, id_to_nick, chains, name="metatiles"):
+    lines = [
+        "; generated with mtset.py",
+        "%s_defs::" % name,
+    ]
+    for i, row in enumerate(iterwidth(mtdata, 8)):
+        row = ",".join("$%04x" % x for x in row)
+        nick = id_to_nick.get(i)
+        lines.append("  dw %s  ; %2x: %s"
+                     % (row, i, nick or "--"))
+    lines.append("%s_chains::" % name)
+    lines.extend(dbdump(chains, prefix="  db ", width=16))
+    id2n_ls = sorted(id_to_nick.items())
+    lines.extend("export MT_%s" % row[1] for row in id2n_ls)
+    lines.extend("def MT_%s equ %d" % (v, tile_id) for tile_id, v in id2n_ls)
+    lines.append("")
+    return "\n".join(lines)
 
 # cli ###############################################################
 
@@ -357,6 +388,15 @@ def parse_argv(argv):
     p = argparse.ArgumentParser()
     p.add_argument("-v", "--verbose", action="store_true",
                    help="show work")
+    p.add_argument("--fix-tiles", action="store_true",
+                   help="use this 2bpp file as the first tiles")
+    p.add_argument("-b", "--base-tiles", type=parseint,
+                   help="base tile ID (default 0x00)")
+    p.add_argument("-o", "--output",
+                   help="write unique 2bpp tiles")
+    p.add_argument("-t", "--metatiles", default="-",
+                   help="write metatile definition asm file "
+                   "(default: standard output)")
     p.add_argument("descfile")
     p.add_argument("image")
     return p.parse_args(argv[1:])
@@ -367,6 +407,7 @@ def main(argv=None):
         sections = parse_sections(infp)
     palette_lines = parse_palettes_section(sections["palettes"])
     n2i, i2n, chains = parse_metatile_section(sections["metatiles"])
+    extend_nicks(i2n, chains)
     crpalettes = prep_palette_lines_for_colorround(palette_lines)
     with Image.open(args.image) as im:
         im = im.convert("RGB")
@@ -375,24 +416,29 @@ def main(argv=None):
     gbformat = lambda im: formatTilePlanar(im, "0,1")
     imtiles = pilbmp2chr(im_quantized, formatTile=gbformat)
     tiles_per_row = im_quantized.size[0] // 8
-    utiles, mtdata = mtify(imtiles, attrs, tiles_per_row)
+    fixtiles = [bytes(16)]
+    if args.fix_tiles:
+        with open(args.fix_tiles, "rb") as infp:
+            fixtiles = infp.read()
+        fixtiles = [fixtiles[i:i + 16] for i in range(0, len(fixtiles), 16)]
+    utiles, mtdata = mtify(imtiles, attrs, tiles_per_row, fixtiles=fixtiles)
 
-    print("unique tiles:")
-    hexdump(b''.join(utiles))
-    print("metatiles:")
-    hexdump(mtdata)
+    if args.output:
+        with open(args.output, "wb") as outfp:
+            outfp.writelines(utiles)
 
-    print("Nick to ID")
-    print("\n".join(repr(row) for row in n2i.items()))
-    print("ID to nick")
-    print("\n".join(repr(row) for row in i2n.items()))
-    print("Chains")
-    print("\n".join("%2d: %2d" % (i, tn) for i, tn in enumerate(chains)))
+    asm = format_asm_file(mtdata, i2n, chains)
+    if args.metatiles == '-':
+        sys.stdout.write(asm)
+    else:
+        with open(args.metatiles, "w", encoding="utf-8") as outfp:
+            outfp.write(asm)
 
 if __name__=='__main__':
     if 'idlelib' in sys.modules:
         main("""
-./mtset.py -v ../tilesets/parkmetatiles.mt ../tilesets/parkmetatiles.png
+./mtset.py -v -o mtset-test.2bpp
+../tilesets/parkmetatiles.mt ../tilesets/parkmetatiles.png
 """.split())
     else:
         main()
