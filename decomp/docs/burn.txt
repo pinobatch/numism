@@ -1,24 +1,15 @@
-metatile conversion
+camera spreading the work
 
-- separate converted tileset into 32x16-pixel metatiles
-- duplicate left half of 32x16 into empty right half
-- deduplicate 8x8 pixels
-- output columns 0, 2, 3, 1 (left edge, left interior, right edge,
-  right interior)
-- bring in new metatile writer
+- set GBC palettes for bg and obj
+- set GBC palettes for title screen
+- bring in new metatile writer (with autotiling and GBC attributes)
+- Track drawn area and vicinity separately to draw one half column
+  at a time instead of 2-3
 
 map design
 
 - Figure out how to use some sort of metatile laying program
 - Convert metatile maps from that tool to Markov maps
-
-camera spreading the work
-
-- Track drawn area and vicinity separately to draw one half column
-  at a time instead of 2-3
-- Draw GBC attribute
-- Draw column: use autotiling based on matching value in adjacent
-  column in circular buffer
 
 Mindy sprite sheet
 

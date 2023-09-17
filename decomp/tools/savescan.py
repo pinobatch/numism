@@ -539,7 +539,7 @@ and itoposort is its inverse {(filename, label): index into toposort, ...}
         toposort[index] = symbol
     return toposort, itoposort
 
-def allocate(files, exports, toposort):
+def allocate(files, exports, toposort, trace_label):
     """Allocate local variables per a topological sort.
 
 files -- {filename: module, ...} where
@@ -553,10 +553,22 @@ Return an allocation
 {(filename, label): (callee_use_end, self_use_end), ...}
 """
     func_allocation = {}
+    found_trace_label = False
     for caller_key in toposort:
         filename, label = caller_key
+        if label == trace_label: found_trace_label = True
         module = files[filename]
-        caller_locals = module.locals_size.get(label, [])
+        try:
+            caller_locals = module.locals_size[label]
+        except KeyError:
+            caller_locals = []
+            if label == trace_label:
+                print("savescan: %s called from %s has no caller_locals"
+                      % (label, filename), file=sys.stderr)
+        else:
+            if label == trace_label:
+                print("savescan: %s caller_locals is %s"
+                      % (label, repr(caller_locals)), file=sys.stderr)
 
         # find module for each callee
         callees = module.calls[label]
@@ -591,6 +603,9 @@ Return an allocation
         self_total = sum(row[1] for row in caller_locals)
         self_end = max(tailcallee_max, self_total + callee_max)
         func_allocation[caller_key] = callee_max, self_end
+    if trace_label and not found_trace_label:
+        print("savescan: allocate did not reach %s"
+              % (trace_label,), file=sys.stderr)
     return func_allocation
 
 def format_allocation(files, allocation):
@@ -628,6 +643,46 @@ allocation -- {(filename, label): (callee_use_end, self_use_end), ...}
     lines.append('')
     return '\n'.join(lines)
 
+# Tracing ###########################################################
+# Tools to troubleshoot why a subroutine's local variables
+# aren't getting allocated
+
+def trace_label_files(files, trace_label):
+    is_caller_anywhere = is_callee_anywhere = False
+    for filename, file in files.items():
+        for caller, callees in file.calls.items():
+            is_caller = trace_label == caller
+            is_callee = trace_label in callees
+            if is_caller: is_caller_anywhere = True
+            if is_callee: is_callee_anywhere = True
+            if is_caller or is_callee:
+                print("savescan: %s in %s calls %s"
+                      % (caller, filename, ", ".join(callees)),
+                      file=sys.stderr)
+        for caller, callees in file.tailcalls.items():
+            is_caller = trace_label == caller
+            is_callee = trace_label in callees
+            if is_caller: is_caller_anywhere = True
+            if is_callee: is_callee_anywhere = True
+            if trace_label == caller or trace_label in callees:
+                print("savescan: %s in %s tailcalls %s"
+                      % (caller, filename, ", ".join(callees)),
+                      file=sys.stderr)
+    if not is_caller_anywhere:
+        print("savescan: %s is a leaf" % trace_label, file=sys.stderr)
+    if not is_caller_anywhere:
+        print("savescan: %s is not called" % trace_label, file=sys.stderr)
+
+def trace_label_exports(exports, trace_label):
+    try:
+        trace_tmp = exports[trace_label]
+    except KeyError:
+        print("savescan: %s is not exported"
+              % (trace_label,), file=sys.stderr)
+    else:
+        print("savescan: %s exported at %s line %d"
+              % (trace_label, trace_tmp[0], trace_tmp[1]), file=sys.stderr)
+
 # command line ######################################################
 
 def parse_argv(argv):
@@ -639,13 +694,17 @@ def parse_argv(argv):
                    help="print more debugging information")
     p.add_argument("-o", "--output", default="-",
                    help="write allocation to this file instead of standard output")
+    p.add_argument("--trace-label",
+                   help="print debugging info related to this label")
     return p.parse_args(argv[1:])
 
 def main(argv=None):
     args = parse_argv(argv or sys.argv)
     result = load_files(args.sourcefile, verbose=args.verbose)
     files, all_errors, all_warnings = result
+    if args.trace_label: trace_label_files(files, args.trace_label)
     exports, errors = get_exports(files)
+    if args.trace_label: trace_label_exports(exports, args.trace_label)
     all_errors.extend(errors)
     if all_errors:
         print("\n".join(
@@ -658,7 +717,7 @@ def main(argv=None):
     if all_errors:
         exit(1)
     toposort, itoposort = postorder_callees(files, exports)
-    allocation = allocate(files, exports, toposort)
+    allocation = allocate(files, exports, toposort, args.trace_label)
     tallocation = format_allocation(files, allocation)
     if args.output == '-':
         sys.stdout.write(tallocation)

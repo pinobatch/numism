@@ -1,7 +1,12 @@
+include "src/hardware.inc"
+include "src/hardware.inc"
+include "src/global.inc"
+
+section "autotiler", ROM0
 ;;
-; Draws wMapCol to tilemap at wMapFetchedX
+; Draws a half-column in vicinity to the screen
 ; @param A column to draw (0-31)
-blit_one_col_new:
+blit_one_col_new::
   local hThisColumnXAddr
   local hAdjacentColumnXAddr
   local hMtDefsLo
@@ -20,7 +25,7 @@ blit_one_col_new:
   ldh [.hThisColumnXAddr], a
 
   ; Find the adjacent column for autotiling comparison
-  ldh a, e
+  ld a, e
   and a
   jr z, .haveAdjacentColumnX
     rra
@@ -54,10 +59,10 @@ blit_one_col_new:
   rra
   sbc a  ; 00: left, FF: right
   and $08
-  add low(metatile_defs)
+  add low(metatiles_defs)
   ldh [.hMtDefsLo], a
   ld a, 0
-  add high(metatile_defs)
+  add high(metatiles_defs)
   ldh [.hMtDefsHi], a
 
   ld c, low(wMapVicinity)
@@ -97,10 +102,10 @@ blit_one_col_new:
     ldh [rVBK], a  ; prepare to write attribute
 
     ; wait for mode 0 or 1
-    .stat01loop:
+    .stat01loop_attr:
       ldh a, [rSTAT]
       and STATF_BUSY
-      jr nz, .stat01loop
+      jr nz, .stat01loop_attr
 
     ; write attributes (10 cycles hblank open)
     ld a, [hl+]
@@ -114,10 +119,10 @@ blit_one_col_new:
     ldh [rVBK], a  ; prepare to write tile number
 
     ; wait for mode 0 or 1
-    .stat01loop:
+    .stat01loop_tilenum:
       ldh a, [rSTAT]
       and STATF_BUSY
-      jr nz, .stat01loop
+      jr nz, .stat01loop_tilenum
 
     ; write tile numbers
     ld a, [hl+]
@@ -128,11 +133,11 @@ blit_one_col_new:
 
     ; move destination address to next row
     ld a, e
-    add 32
+    add SCRN_VX_B
     ld e, a
     adc d
     sub e
     ld d, a
-    cp high(_SCRN0 + VICINITY_HT * 64 / 4)
+    cp high(_SCRN0 + MAP_COLUMN_HEIGHT_MT * MT_HEIGHT_CHARS * SCRN_VX_B)
     jr c, .blkloop
   ret
