@@ -1,9 +1,6 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-; the width of the area that can affect autotiling of onscreen tiles
-def MAP_VICINITY_WIDTH_MT equ 16
-def MAP_COLUMN_HEIGHT_MT equ 16
 
 def COINCELS_BASE_TILE equ $7B
 
@@ -634,7 +631,7 @@ blit_c_columns:
   .drawloop:
     push bc
     ld a, b
-    call blit_one_col
+    call blit_one_col_new
     pop bc
     inc b
     dec c
@@ -820,9 +817,9 @@ map_decode_markov:
     or a
     jr nz, .skip_markov
       ld a, c
-      add low(mt_next)
+      add low(metatiles_chains)
       ld e, a
-      adc high(mt_next)
+      adc high(metatiles_chains)
       sub e
       ld d, a
       ld a, [de]
@@ -842,57 +839,6 @@ map_stash_decoded_col:
   ld hl, wMapCol
   ld bc, MAP_COLUMN_HEIGHT_MT
   jp memcpy
-
-;;
-; Draws wMapCol to tilemap at wMapFetchedX
-; @param A column to draw (0-31)
-blit_one_col:
-  ; Calculate addresses in tilemap and metatile map
-  ld bc, wMapVicinity
-  ld d, high(_SCRN0)
-  and $1F
-  ld e, a  ; DE: pointer into destination tilemap
-  rra
-  add b
-  ld b, a  ; BC: pointer into vicinity (metatile IDs)
-           ; B: X position; C: Y position
-  .blkloop:
-    ; find metatile definition
-    ld a, e
-    rra  ; CF = E bit 0, selecting left or right half
-    ld h, 0
-    ld a, [bc]
-    rla
-    rl h
-    rla
-    rl h
-    add low(metatile_defs)
-    ld l, a
-    ld a, h
-    adc high(metatile_defs)
-    ld h, a
-
-    ; wait for mode 0 or 1
-    .stat01loop:
-      ldh a, [rSTAT]
-      and STATF_BUSY
-      jr nz, .stat01loop
-    ; write it to VRAM
-    ld a, [hl+]  ; top left
-    ld [de], a
-    set 5, e
-    ld a, [hl]  ; bottom left
-    ld [de], a
-    ld a, e
-    add 32
-    ld e, a
-    adc d
-    sub e
-    ld d, a
-    inc c
-    bit 2, d  ; once D reaches $9C00 we're done
-    jr z, .blkloop
-  ret
 
 ; Test level data ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1068,57 +1014,6 @@ db MT_GROUND
 db MT_GROUND
 db MT_GROUND
 
-
-mt_next:
-  db 0, 2, 2, 4, 4, 0, 1, 1
-  db 10, 11, 1, 1, 0, 0, 0, 1
-  db 1, 1, 1, 20, 1, 0, 24, 25
-  db 26, 27, 1, 1, 30, 0, 0, 0
-  db 33, 33
-
-section "metatile_defs", ROM0, align[3]
-metatile_defs:
-  ;  /X \/  \/ X\/  \
-  ;  \  /\X /\  /\ X/
-  db $00,$00,$00,$00  ; sky
-  db $4E,$03,$4D,$03  ; ground top
-  db $03,$03,$03,$03  ; ground inside
-  db $08,$18,$09,$19  ; ladder top
-  db $18,$18,$19,$19  ; ladder inside
-  db $00,$00,$00,$00
-  db $0A,$1A,$0B,$1B  ; sign
-  db $2A,$3A,$2B,$3B  ; ! sign
-
-  db $10,$20,$11,$21  ; bushtl
-  db $12,$22,$13,$23  ; bushtr
-  db $30,$0C,$31,$03  ; bushbl
-  db $32,$03,$33,$0F  ; bushbr
-  db $00,$00,$04,$14  ; cloudL
-  db $05,$15,$06,$16  ; cloudC
-  db $07,$17,$00,$00  ; cloudR
-  db $28,$38,$29,$39  ; smbush
-
-  db $00,$00,$46,$3F  ; flower1
-  db $00,$00,$47,$3F  ; flower2
-  db $00,$00,$2F,$3F  ; flower3
-  db $00,$00,$2C,$3F  ; flower4 top
-  db $00,$00,$3C,$3F  ; flower4 extended
-  db $00,$00,$00,$00
-  db $30,$0C,$31,$0D  ; treetop_bl
-  db $32,$0E,$33,$0F  ; treetop_br
-
-  db $1C,$00,$1D,$2D  ; treetrunk_tl
-  db $1E,$2E,$1F,$00  ; treetrunk_tr
-  db $00,$00,$2D,$3D  ; treetrunk_bl
-  db $2E,$3E,$00,$00  ; treetrunk_br
-  db $00,$35,$00,$35  ; bridge rail
-  db $24,$34,$25,$00  ; bridge left
-  db $36,$00,$36,$00  ; bridge middle
-  db $26,$00,$27,$37  ; bridge bottom
-
-  db $4E,$02,$4D,$02  ; 0ht top
-  db $01,$02,$02,$01  ; 0ht inside
-
 coin_pos: 
   db 15, 9
   db 24, 8
@@ -1138,7 +1033,7 @@ section "bgchr", ROMX, BANK[1]
 static_tiles:
   dw $9000
   db 80
-  incbin "obj/gb/level1chr.2b.pb16"
+  incbin "obj/gb/parkmetatiles.2b.pb16"
   dw $8000 + 16 * COINCELS_BASE_TILE
   db 5
   incbin "obj/gb/coincels.2b.pb16"

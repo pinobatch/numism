@@ -1,5 +1,4 @@
 include "src/hardware.inc"
-include "src/hardware.inc"
 include "src/global.inc"
 
 section "autotiler", ROM0
@@ -17,10 +16,11 @@ blit_one_col_new::
   ; C = vicinity row address
 
   ; Find the column being drawn
+  and SCRN_VX_B-1
   ld e, a
   ld d, high(_SCRN0)
   rra
-  and $0F
+  and MAP_VICINITY_WIDTH_MT-1
   add high(wMapVicinity)
   ldh [.hThisColumnXAddr], a
 
@@ -34,6 +34,7 @@ blit_one_col_new::
     jr nc, .haveAdjacentColumnX
     add 2
   .haveAdjacentColumnX:
+  and MAP_VICINITY_WIDTH_MT-1
   add high(wMapVicinity)
   ldh [.hAdjacentColumnXAddr], a
 
@@ -95,7 +96,6 @@ blit_one_col_new::
     ld l, a
     ldh a, [.hMtDefsHi]
     adc h
-    sub l
     ld h, a
 
     ld a, 1
@@ -138,6 +138,6 @@ blit_one_col_new::
     adc d
     sub e
     ld d, a
-    cp high(_SCRN0 + MAP_COLUMN_HEIGHT_MT * MT_HEIGHT_CHARS * SCRN_VX_B)
+    cp high(_SCRN0 + MAP_COLUMN_HEIGHT_MT * MT_HEIGHT_CHARS * SCRN_VY_B)
     jr c, .blkloop
   ret

@@ -19,9 +19,15 @@ endm
 macro local
 endm
 
-; still haven't ported things to SECTION UNION
+; for things still noet yet ported to SAVE
 ; http://gbdev.gg8.se/forums/viewtopic.php?pid=3176#p3176
 DEF hLocals EQU $FF80
 DEF locals_size EQU 16
+
+; the width of the area that can affect autotiling of onscreen tiles
+def MAP_VICINITY_WIDTH_MT equ 16
+def MAP_COLUMN_HEIGHT_MT equ 16
+def MT_WIDTH_CHARS equ 2
+def MT_HEIGHT_CHARS equ 2
 
   ENDC

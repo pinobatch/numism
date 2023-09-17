@@ -321,13 +321,10 @@ def mtify(tiledata, attrs, tiles_per_row,
     if len(utiles) > 256:
         raise ValueError("too many tiles: %d > 256" % len(utiles))
 
-    # Put tile ID in the high byte so that it can be written last.
-    # The metatile plotter writes GBC attributes before tile numbers
-    # so as to work correctly on both GBC and DMG.
+    # Combine tile IDs with attributes
     mtdata = [
         array.array("H", (
-            (a & 0xFF) | ((itiles[t] + base_tile_id & 0xFF) << 8)
-            for t, a in mt
+            (a << 8) | (itiles[t] + base_tile_id & 0xFF) for t, a in mt
         ))
         for mt in metatile_defs
     ]
@@ -364,21 +361,42 @@ chains -- list where chains[i] = the most common block below i
             if tile_id in id_to_nick: break
             id_to_nick[tile_id] = "%s_%02X" % (base_nick, tile_id)
 
-def format_asm_file(mtdata, id_to_nick, chains, name="metatiles"):
+def format_asm_file(mtdata, id_to_nick, chains,
+                    label_prefix="metatiles", constant_prefix="MT",
+                    section=None, bank=None):
     lines = [
-        "; generated with mtset.py",
-        "%s_defs::" % name,
+        "; generated with mtset.py"
     ]
-    for i, row in enumerate(iterwidth(mtdata, 8)):
-        row = ",".join("$%04x" % x for x in row)
-        nick = id_to_nick.get(i)
-        lines.append("  dw %s  ; %2x: %s"
-                     % (row, i, nick or "--"))
-    lines.append("%s_chains::" % name)
+    section_directive = ('section fragment "%s"' % section
+                         if section is not None
+                         else 'section "%s"' % label_prefix)
+    bank_name = ('ROMX' if bank is None
+                 else "ROM0" if bank == 0
+                 else "ROMX,BANK[%d]" % bank)
+    lines.append("%s,%s" % (section_directive, bank_name))
+    lines.append("%s_defs::" % (label_prefix,))
+
+    # Put attributes before tile numbers so that the metatile
+    # plotter works correctly on both GBC and DMG.
+    tbtb_data = bytearray()
+    for top, bottom in iterwidth(mtdata, 2):
+        tbtb_data.append(top >> 8)
+        tbtb_data.append(bottom >> 8)
+        tbtb_data.append(top & 0xFF)
+        tbtb_data.append(bottom & 0xFF)
+
+    for tile_id, row in enumerate(iterwidth(tbtb_data, 16)):
+        row = ",".join("$%02x" % x for x in row)
+        lines.append("  db %s  ; %02x: %s"
+                     % (row, tile_id, id_to_nick.get(tile_id, "--")))
+    lines.append("%s_chains::" % (label_prefix,))
     lines.extend(dbdump(chains, prefix="  db ", width=16))
     id2n_ls = sorted(id_to_nick.items())
-    lines.extend("export MT_%s" % row[1] for row in id2n_ls)
-    lines.extend("def MT_%s equ %d" % (v, tile_id) for tile_id, v in id2n_ls)
+    id2n_ls.append((max(id_to_nick.keys()), "LAST_VALUE"))
+    lines.extend("export %s_%s" % (constant_prefix, row[1])
+                 for row in id2n_ls)
+    lines.extend("def %s_%s equ %d" % (constant_prefix, v, tile_id)
+                 for tile_id, v in id2n_ls)
     lines.append("")
     return "\n".join(lines)
 
@@ -397,6 +415,14 @@ def parse_argv(argv):
     p.add_argument("-t", "--metatiles", default="-",
                    help="write metatile definition asm file "
                    "(default: standard output)")
+    p.add_argument("--label-prefix", default="metatiles",
+                   help="word prepended to assembly labels")
+    p.add_argument("--constant-prefix", default="MT",
+                   help="word prepended to assembly constants")
+    p.add_argument("--section", default=None,
+                   help="name of section (default: same as metatiles)")
+    p.add_argument("--bank", type=parseint, default=None,
+                   help="ROMX bank number (default: superfree)")
     p.add_argument("descfile")
     p.add_argument("image")
     return p.parse_args(argv[1:])
@@ -427,7 +453,10 @@ def main(argv=None):
         with open(args.output, "wb") as outfp:
             outfp.writelines(utiles)
 
-    asm = format_asm_file(mtdata, i2n, chains)
+    asm = format_asm_file(mtdata, i2n, chains,
+                          label_prefix=args.label_prefix,
+                          constant_prefix=args.constant_prefix,
+                          section=args.section, bank=args.bank)
     if args.metatiles == '-':
         sys.stdout.write(asm)
     else:
@@ -437,7 +466,7 @@ def main(argv=None):
 if __name__=='__main__':
     if 'idlelib' in sys.modules:
         main("""
-./mtset.py -v -o mtset-test.2bpp
+./mtset.py -v -o mtset-test.2bpp -t mtset-test.asm --bank 0
 ../tilesets/parkmetatiles.mt ../tilesets/parkmetatiles.png
 """.split())
     else:
