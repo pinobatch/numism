@@ -135,7 +135,8 @@ def parse_metatile_section(lines):
             if old_bottom != bottom:
                 raise ValueError("tile ID %d has more than one tile below (%d and %d)"
                                  % (top, old_bottom, bottom))
-    chains_ls = [0] * (1 + max(chains))
+    last_tile_id = max(max(chains), max(chains.values()), max(id_to_nick))
+    chains_ls = [0] * (1 + last_tile_id)
     for k, v in chains.items(): chains_ls[k] = v
     return nick_to_id, id_to_nick, chains_ls
 
@@ -357,7 +358,12 @@ chains -- list where chains[i] = the most common block below i
 """
     for tile_id, base_nick in list(id_to_nick.items()):
         while True:
-            tile_id = chains[tile_id]
+            try:
+                tile_id = chains[tile_id]
+            except IndexError:
+                print("tried to read tile_id %d of chains length %d"
+                      % (tile_id, len(chains)), file=sys.stdout)
+                raise
             if tile_id in id_to_nick: break
             id_to_nick[tile_id] = "%s_%02X" % (base_nick, tile_id)
 
