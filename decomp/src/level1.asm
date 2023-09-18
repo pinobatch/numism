@@ -13,11 +13,11 @@ def GLOBAL_SUBPIXEL_ADD equ 159
 def STARTING_CURSOR_Y equ 64
 def STARTING_CURSOR_X equ 64
 
-def WINDOW_ROWS equ 5
 def NUM_HIDDEN_OBJS equ 10
 def PAGE_MINDY equ 9
 def PAGE_FOUND_THEM_ALL equ 10
 def PAGE_INSTRUCTIONS equ 11
+export PAGE_INSTRUCTIONS
 
 section "tilemapcol", WRAM0
 wMapCol: ds MAP_COLUMN_HEIGHT_MT
@@ -29,40 +29,30 @@ section "mapdecodestate", WRAM0, ALIGN[1]
 ; from the predicted metatile.  The contents represent the (nonzero)
 ; metatile that replaces each predicted metatile.
 
-wCameraY: ds 1
-wCameraX: ds 2         ; pixel position (1/16 column) of camera
-wMapVicinityLeft: ds 1 ; left column of valid area of sliding window
-wMapFetchedX: ds 1     ; Column corresponding to wMapCol
-wMapDecodeX: ds 1      ; Column corresponding to wMapContentsPtr
-wMapBitmapBase: ds 2   ; Pointer to the base of a map's bitmap
-wMapContentsPtr: ds 2  ; Pointer to contents at column wMapDecodeX
+wCameraY:: ds 1
+wCameraX:: ds 2         ; pixel position (1/16 column) of camera
+wMapVicinityLeft: ds 1  ; left column of valid area of sliding window
+wMapFetchedX: ds 1      ; Column corresponding to wMapCol
+wMapDecodeX: ds 1       ; Column corresponding to wMapContentsPtr
+wMapBitmapBase: ds 2    ; Pointer to the base of a map's bitmap
+wMapContentsPtr: ds 2   ; Pointer to contents at column wMapDecodeX
 
 wGlobalSubpixel: ds 1
 wCursorY: ds 1
 wCursorX: ds 2
 wCursorYAdd: ds 1
 wCursorXAdd: ds 1
-wWindowProgress: ds 1
-wWindowTextPtr: ds 2
 
 wCursorItem: ds 1
-wMindyLoadedCel: ds 1
-wMindyDisplayCelBase: ds 1
-wWindowLoadedPage: ds 1
-wMindyFacing: ds 1
 
 section "seenpages", WRAM0
 wSeenPages: ds NUM_HIDDEN_OBJS
 
 def TEST_REWIND_COLUMN equ 4
 
-section "stack", WRAM0, ALIGN[1]
-wStackTop: ds 64
-wStackStart:
-
 section "main", ROM0
 
-main:
+main::
   call show_title
   call lcd_off
   ld de, static_tiles
@@ -113,12 +103,8 @@ main:
   ld c, NUM_HIDDEN_OBJS
   rst memset_tiny
 
-  ld [wMindyDisplayCelBase], a
-  dec a
-  ld [wMindyLoadedCel], a
-  ld [wWindowLoadedPage], a
-
-  call init_window
+  call mindy_init
+  call textwindow_init
   ld hl, wMapVicinity
   call redraw_whole_screen
   xor a
@@ -144,7 +130,7 @@ main:
   call move_camera
   ld a, %11100100
   ldh [rBGP], a
-  call update_window
+  call textwindow_update
   xor a
   ld [wOAMUsed], a
   call draw_cursor
@@ -171,10 +157,10 @@ main:
   ld a, [wCameraY]
   ldh [rSCY], a
   ld a, [wWindowProgress]
-  sub WINDOW_ROWS
+  sub TEXTWINDOW_ROWS
   add a  ; CF true to hide window
   sbc a
-  or SCRN_Y-WINDOW_ROWS * 8
+  or SCRN_Y-TEXTWINDOW_ROWS * 8
   ld [rWY], a
   jr .forever
 
@@ -228,7 +214,7 @@ move_cursor:
       xor low(wSeenPages + NUM_HIDDEN_OBJS)
       jr nz, .seenloop
     ld a, PAGE_FOUND_THEM_ALL
-    call start_window_page_a
+    call textwindow_start_page
     jr .no_cursor_movement
   .not_won_msg:
     ld a, $FF
@@ -237,15 +223,7 @@ move_cursor:
 
   ldh a, [hNewKeys]
   bit PADB_SELECT, a
-  jr z, .notSelect
-    ld a, [wMindyLoadedCel]
-    inc a
-    cp MINDY_NUM_FRAMES
-    jr c, .noFrameWrap
-      xor a
-    .noFrameWrap:
-    call mindy_set_cel_A
-  .notSelect:
+  call nz, mindy_set_next_cel
 
   ; 2. move the cursor itself
   ld hl, wCursorYAdd
@@ -385,7 +363,7 @@ move_cursor:
   ld h, a
   ld [hl], 1
   pop af
-  jp start_window_page_a
+  jp textwindow_start_page
 
 .notOverMindy:
   ret
@@ -439,7 +417,7 @@ move_camera:
 
   ; Don't update horizontally if window is being drawn
   ld a, [wWindowProgress]
-  cp WINDOW_ROWS
+  cp TEXTWINDOW_ROWS
   ret c
 
   ; calculate horizontal displacement
@@ -1134,499 +1112,6 @@ draw_cursor:
   ld [wOAMUsed], a
   ret
 
-; Drawing Mindy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-section "Mindy", ROMX,BANK[1]
-
-def MINDY_MAX_TILES_PER_CEL equ 9
-def MINDY_EST_LINES_PER_TILE equ 5
-
-mindy_set_cel_A:
-  ; don't load it if it's already loaded
-  ld hl, wMindyLoadedCel
-  cp [hl]
-  ret z
-
-  ld [hl], a
-  add a
-  add low(Mindy_mspr)
-  ld l, a
-  adc high(Mindy_mspr)
-  sub l
-  ld h, a
-  ld a, [hl+]
-  ld d, [hl]
-  ld e, a
-  ; DE points at a cel definition:
-  ; number of distinct tiles, tile IDs, and horizontal strips
-  ld a, [de]
-  inc de
-  or a
-  ret z  ; blank cel
-  ld c, a  ; C: tile count
-
-  ; Find the destination address in CHR RAM
-  ld a, [wMindyDisplayCelBase]
-  cp 1
-  sbc a
-  and MINDY_MAX_TILES_PER_CEL
-  ld [wMindyDisplayCelBase], a
-  ld h, $8000 >> 12
-  ld l, a
-  rept 4
-    add hl, hl
-  endr
-
-  .tileloop:
-    ; Grab one tile ID from the cel definition
-    ld a, [de]
-    inc de
-    push de
-
-    ; Calculate ROM address of this tile
-    ld d, 0
-    rept 4
-      add a
-      rl d
-    endr
-    add low(Mindy_chr)
-    ld e, a
-    ld a, d
-    adc high(Mindy_chr)
-    ld d, a
-
-    ; Copy it
-    ld b, 16/4
-    call hblankcopy
-    pop de
-    dec c
-    jr nz, .tileloop
-  ret
-
-def MINDY_X equ 288
-def MINDY_Y equ 144
-def MINDY_NUM_FRAMES equ 41
-
-mindy_draw_current_cel:
-  ld hl, wCameraY
-  ld a, low(MINDY_Y)
-  sub [hl]
-  ldh [draw_metasprite.hYLo], a
-  ld a, high(MINDY_Y)
-  sbc 0
-  ldh [draw_metasprite.hYHi], a
-
-  ld hl, wCameraX
-  ld a, low(MINDY_X)
-  sub [hl]
-  inc hl
-  ldh [draw_metasprite.hXLo], a
-  ld a, high(MINDY_X)
-  sbc [hl]
-  ldh [draw_metasprite.hXHi], a
-  ld a, [wMindyFacing]
-  ldh [draw_metasprite.hAttr], a
-  ld a, [wMindyDisplayCelBase]
-  ld [draw_metasprite.hBaseTile], a
-
-  ; lookup the metatile
-  ld a, [wMindyLoadedCel]
-  add a
-  add low(Mindy_mspr)
-  ld l, a
-  adc high(Mindy_mspr)
-  sub l
-  ld h, a  ; HL: pointer to pointer to cel
-  ld a, [hl+]
-  ld h, [hl]
-  ld l, a  ; HL: pointer to cel's tile count
-  ld a, [hl+]
-  add l
-  ld l, a
-  adc h
-  sub l
-  ld h, a  ; HL: pointer to cel's rectangles
-  jp draw_metasprite
-
-def TMARGIN equ 16
-def LMARGIN equ 8
-def SPRITEHT equ 8  ; or 16?
-def SPRITEWID equ 8
-
-section "metasprite", ROM0
-
-;;
-; Draws to shadow OAM a list of sprites forming one cel.
-;
-; The cel data is of the form
-; (Y, X, attributes, tile+)+, $00
-; where:
-; Y is excess-128 offset of sprite top down from hotspot (128 is center)
-; X is excess-128 offset to right of hotspot (128 is center)
-; attributes is a bitfield, where bits 4-0 go to OAM attribute 3
-; and 7-5 are the number of tiles to follow minus 1
-; 7654 3210
-; |||| |+++- GBC palette ID
-; |||| +---- GBC bank ID
-; |||+------ DMG palette ID
-; +++------- Length of strip (0: 1 sprite/8 pixels; 7: 8 sprites/64 pixels)
-; tile bits 7-6 are flip, and 5-0 are data
-; 7654 3210
-; ||++-++++- offset from hmsprBaseTile
-; |+-------- Flip this sprite horizontally
-; +--------- Flip this tile vertically
-; and "+" means something is repeated 1 or more times
-;
-; @param hYHi, hYLo 16-bit Y coordinate of hotspot
-; @param hXHi, hXLo 16-bit Y coordinate of hotspot
-; @param hAttr palette and horizontal flip
-; @param hBaseTile index of this sprite sheet in VRAM
-; @param HL pointer to cel data
-; Uses 8 bytes of locals for arguments and 4 bytes for scratch
-draw_metasprite::
-  ; args
-  local hYLo
-  local hYHi
-  local hXLo
-  local hXHi
-  local hAttr
-  local hSheetID
-  local hFrame
-  local hBaseTile
-  ; internal
-  local hXAdd
-  local hStripY
-  local hStripXLo
-  local hStripXHi
-
-  ldh a,[.hAttr]
-  ld c,a  ; C = flip flags
-
-  ; Correct coordinates for offset binary representation.
-  ; Not correcting for Y flip until a Y flip is needed in a game.
-  ldh a,[.hYLo]
-  sub 128-TMARGIN
-  ldh [.hYLo],a
-  ldh a,[.hYHi]
-  sbc 0
-  ldh [.hYHi],a
-
-  ; Convert X coordintes and set increase direction for X flip
-  ld b,128-LMARGIN
-  ld a,SPRITEWID
-  bit OAMB_XFLIP,c
-  jr z,.noxcoordflipcorrect
-    ld b,127+SPRITEWID-LMARGIN
-    ld a,-SPRITEWID
-  .noxcoordflipcorrect:
-  ldh [.hXAdd],a
-  ldh a,[.hXLo]
-  sub b
-  ldh [.hXLo],a
-  ldh a,[.hXHi]
-  sbc 0
-  ldh [.hXHi],a
-
-  ; Load destination address
-  ld de, wOAMUsed
-  ld a, [de]
-  ld e, a
-  .rowloop:
-    ; Invariants here:
-    ; DE is multiple of 4 and within shadow OAM
-    ; HL at start of sprite strip
-    ; C equals [.hAttr], not modified by a strip
-
-    ; Load Y strip offset
-    ld a,[hl+]
-    or a  ; Y=0 (that is, -128) terminates cel
-    ret z
-    bit OAMB_YFLIP,c
-    jr z,.noystripflipcorrect
-      cpl
-    .noystripflipcorrect:
-    ld b,a
-    ldh a,[.hYLo]
-    add b
-    ld b,a
-    ldh a,[.hYHi]
-    adc 0
-    jr nz,.strip_below_screen
-    ld a,b
-    cp TMARGIN+1-SPRITEHT
-    jr c,.strip_below_screen
-    cp SCRN_Y+TMARGIN
-    jr c,.strip_within_y_range
-    .strip_below_screen:
-      inc hl  ; skip X position
-      ld a,[hl+]  ; load length and attributes
-      and $E0  ; strip PVH bits contain width-1
-      rlca
-      rlca
-      rlca
-      inc a
-      add l
-      ld l,a
-      jr nc,.rowloop
-      inc h
-      jr .rowloop
-    .strip_within_y_range:
-    ldh [.hStripY],a
-
-    ; Load X strip offset
-    ld a,[hl+]
-    bit OAMB_XFLIP,c
-    jr z,.noxstripflipcorrect
-      cpl
-    .noxstripflipcorrect:
-    ld b,a
-    ldh a,[.hXLo]
-    add b
-    ldh [.hStripXLo],a
-    ldh a,[.hXHi]
-    adc 0
-    ldh [.hStripXHi],a
-
-    ; Third byte of strip is palette (bits 4-0) and length (bits 7-5)
-    ld a,[hl]
-    and $1F
-    xor c
-    ld c,a
-    ld a,[hl+]
-    and $E0  ; strip PVH bits contain width-1
-    rlca
-    rlca
-    rlca
-    inc a
-    ld b,a
-
-    ; Copy sprites to OAM
-    .spriteloop:
-      push bc  ; sprite count and strip attribute
-      ldh a,[.hStripY]
-      ld [de],a
-
-      ; Only resulting X locations in 1-167 are in range
-      ldh a,[.hStripXHi]
-      or a
-      jr nz,.skip_one_tile
-      ldh a,[.hStripXLo]
-      or a
-      jr z,.skip_one_tile
-      cp SCRN_X+LMARGIN
-      jr nc,.skip_one_tile
-
-      ; We're in range, and Y is already written.
-      ; Acknowledge writing Y, and write X, tile, and attribute
-      inc e
-      ld [de],a
-      inc e
-      ld a,[hl]
-      and $3F
-      ld b,a
-      ldh a,[.hBaseTile]
-      add b
-      ld [de],a
-      inc e
-      ld a,[hl]
-      and $C0  ; combine with tile flip attribute
-      rrca
-      xor c
-      ld [de],a
-      inc e
-
-    .skip_one_tile:
-      ldh a,[.hXAdd]
-      ld b,a
-      ldh a,[.hStripXLo]
-      add b
-      ldh [.hStripXLo],a
-      ldh a,[.hStripXHi]
-      adc 0
-      bit 7,b
-      jr z,.anoneg
-        dec a
-      .anoneg:
-      ldh [.hStripXHi],a
-      pop bc
-      inc hl
-      dec b
-      jr nz,.spriteloop
-    ld a, e
-    ld [wOAMUsed], a
-    ldh a,[.hAttr]
-    ld c,a
-    jp .rowloop
-
-Mindy_mspr:
-  include "obj/gb/Mindy.asm"
-
-section "Mindy_chr", ROMX, bank[1], align[4]
-Mindy_chr:
-  incbin "obj/gb/Mindy.2b"
-
-; Drawing the window ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-section "txt_window_code", ROM0
-
-init_window:
-  ; clear pattern table
-  ld hl, $9000-WINDOW_ROWS*$100
-  xor a
-  ld c, a
-  rept WINDOW_ROWS
-    rst memset_tiny
-  endr
-
-  ; set up nametable
-  ld hl, $9C00
-  ld b, $05
-  .rowloop:
-    xor a
-    ld [hl+], a
-    ld [hl+], a
-    ld c, 16
-    ld a, c
-    sub b  ; window uses tiles $B0-$FF
-    swap a
-    call memset_inc
-    ld c, 14
-    xor a
-    call memset_tiny
-    dec b
-    jr nz, .rowloop
-
-  ld a, PAGE_INSTRUCTIONS
-  fallthrough start_window_page_a
-
-;;
-; Draws page A
-start_window_page_a:
-  ; If the page is already loaded and showing,
-  ; don't try to load it again
-  ld hl, wWindowLoadedPage
-  cp [hl]
-  ld [hl], a
-  jr nz, .not_already_loaded
-    ld a, [wWindowProgress]
-    cp WINDOW_ROWS
-    ret z
-  .not_already_loaded:
-  ld a, [hl]  ; restore loaded page
-  add a
-  ld hl, window_txts
-  add l
-  ld l, a
-  adc h
-  sub l
-  ld h, a
-  ld a, [hl+]
-  ld [wWindowTextPtr], a
-  ld a, [hl+]
-  ld [wWindowTextPtr+1], a
-  xor a
-  ld [wWindowProgress], a
-  ret
-
-update_window:
-  ; run only if a window update is requested and the screen is on
-  ld a, [wWindowProgress]
-  cp WINDOW_ROWS
-  ret nc
-  ldh a, [rLCDC]
-  add a
-  ret nc
-
-  call vwfClearBuf
-  ld hl, wWindowTextPtr
-  ld a, [hl+]
-  ld h, [hl]
-  ld l, a
-  ld b, 0
-  call vwfPuts
-  ; skip newline; don't skip NUL terminator
-  ld a, [hl]
-  or a
-  jr z, .no_skip_newline
-    inc hl
-  .no_skip_newline:
-  ld a, l
-  ld [wWindowTextPtr], a
-  ld a, h
-  ld [wWindowTextPtr+1], a
-  ld hl, wWindowProgress
-  ld a, [hl]
-  inc [hl]
-  add $8B
-  ld h, a
-  ld l, 1
-  ld c, 16
-  jp vwfPutBufHBlank
-
-
-window_txts:
-  dw coin1_msg, coin2_msg, coin3_msg, coin4_msg, coin5_msg
-  dw sign1_msg, sign2_msg, sign3_msg, sign4_msg, Mindy_msg
-  dw win_msg, instructions_msg
-
-def LF equ $0A
-coin1_msg:
-  db "800 Rupees",LF
-  db "Currency of Hyrule and India",LF
-  db "(That's about $10)",0
-coin2_msg:
-  db "800 Pokedollars",LF
-  db "Currency of Kanto",LF
-  db "and the Russia",LF
-  db "(That's about $10)",0
-coin3_msg:
-  db "1400 Bells",LF
-  db "Currency of territories",LF
-  db "controlled by the Nook family",LF
-  db "(That's about $10)",0
-coin4_msg:
-  db "5 Eurodollars",LF
-  db "Currency of Night City and",LF
-  db "banks outside the USA",LF
-  db "Invented by USSR in 1956",LF
-  db "Banned in USSR in Cyberpunk",0
-coin5_msg:
-  db "A roll of quarters",LF
-  db "Currency of Toy Town",LF
-  db "(That's about $10)",0
-sign1_msg:
-  db "DANGER",LF
-  db "BRIDGE OUT AHEAD",0
-sign2_msg:
-  db "BEWARE OF FUNNY MONEY",LF
-  db "If something looks off,",LF
-  db "take no cash.",0
-sign3_msg:
-  db "NO",LF
-  db "JUMPING",0
-sign4_msg:
-  db "EVENT CALENDAR",LF
-  db "May 28-June 4:",LF
-  db "  Summer Games Done Quick",LF
-  db "June 10: Yogic Flying Lesson",LF
-  db "June 16-18: Flea Market",0
-Mindy_msg:
-  db "Hi! I'm Mindy!",LF
-  db "I'm looking for money so I",LF
-  db "can buy Game Boy games",LF
-  db "like Esprit and Star Anise.",0
-win_msg:
-  db "You found them all!",LF
-  db "Thanks for playing my entry",LF
-  db "to Games Made QVIIck.",LF
-  db "- Pino",0
-instructions_msg:
-  db "Control Pad moves cursor.",LF
-  db "Cursor is solid when over",LF
-  db "something; press the",LF
-  db "A Button to view it.",LF
-  db "View all 10 things to win.",0
-
 ; Title screen ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 section "title", ROMX,BANK[1]
@@ -1664,243 +1149,3 @@ title_2b:
   incbin "obj/gb/title.2b"
 .end:
   incbin "obj/gb/title.nam"
-
-; Administrative stuff ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-section "Shadow OAM", WRAM0, ALIGN[8]
-wShadowOAM: ds 160
-wOAMUsed: ds 1
-
-section "PPU various variables", HRAM
-hVblanks: ds 1
-
-section "header", ROM0[$100]
-  nop
-  jp init
-  ds 76, $00
-init:
-  di
-  ld sp, wStackStart
-  call lcd_off
-  ld a, $FF
-  ldh [hCurKeys], a
-  ld hl, hramcode_LOAD
-  ld de, hramcode_RUN
-  call memcpy_pascal16
-  xor a
-  ldh [hVblanks], a
-  ld hl, wShadowOAM
-  ld c, 160
-  rst memset_tiny
-  call run_dma
-  jp main
-
-section "vblank_isr", ROM0[$40]
-  push af
-  ld a, [hVblanks]
-  inc a
-  ldh [hVblanks], a
-  pop af
-  reti
-
-section "ppuclear", ROM0
-;;
-; Waits for forced blank (rLCDC bit 7 clear) or vertical blank
-; (rLY >= 144).  Use before VRAM upload or before clearing rLCDC bit 7.
-busy_wait_vblank::
-  ; If rLCDC bit 7 already clear, we're already in forced blanking
-  ldh a,[rLCDC]
-  rlca
-  ret nc
-
-  ; Otherwise, wait for LY to become 144 through 152.
-  ; Most of line 153 is prerender, during which LY reads back as 0.
-.wait:
-  ldh a, [rLY]
-  cp 144
-  jr c, .wait
-  ret
-
-lcd_off::
-  call busy_wait_vblank
-
-  ; Use a RMW instruction to turn off only bit 7
-  ld hl, rLCDC
-  res 7, [hl]
-  ret
-
-;;
-; Moves sprites in the display list from wShadowOAM+[wOAMUsed]
-; through wShadowOAM+$9C offscreen by setting their Y coordinate to
-; 0, which is completely above the screen top (16).
-lcd_clear_oam::
-  ; Destination address in shadow OAM
-  ld hl, wOAMUsed
-  ld a, [hl]
-  and $FC
-  ld l,a
-
-  ; iteration count
-  rrca
-  rrca
-  add 256 - 40
-  ld c,a
-
-  xor a
-.rowloop:
-  ld [hl+],a
-  inc l
-  inc l
-  inc l
-  inc c
-  jr nz, .rowloop
-  ret
-
-load_full_nam::
-  ld bc,256*20+18
-  fallthrough load_nam
-;;
-; Copies a B column by C row tilemap from HL to screen at DE.
-load_nam::
-  push bc
-  push de
-  .byteloop:
-    ld a,[hl+]
-    ld [de],a
-    inc de
-    dec b
-    jr nz,.byteloop
-
-  ; Move to next screen row
-  pop de
-  ld a,32
-  add e
-  ld e,a
-  jr nc,.no_inc_d
-    inc d
-  .no_inc_d:
-
-  ; Restore width; do more rows remain?
-  pop bc
-  dec c
-  jr nz,load_nam
-  ret
-
-section "memset_tiny",ROM0[$08]
-;;
-; Writes C bytes of value A starting at HL.
-memset_tiny::
-  ld [hl+],a
-  dec c
-  jr nz,memset_tiny
-  ret
-
-section "memset_inc",ROM0
-;;
-; Writes C bytes of value A, A+1, ..., A+C-1 starting at HL.
-memset_inc::
-  ld [hl+],a
-  inc a
-  dec c
-  jr nz,memset_inc
-  ret
-
-section "memcpy", ROM0
-;;
-; Copy a string preceded by a 2-byte length from HL to DE.
-; @param HL source address
-; @param DE destination address
-memcpy_pascal16::
-  ld a, [hl+]
-  ld c, a
-  ld a, [hl+]
-  ld b, a
-  fallthrough memcpy
-
-;;
-; Copies BC bytes from HL to DE.
-; @return A: last byte copied; HL at end of source;
-; DE at end of destination; B=C=0
-memcpy::
-  ; Increment B if C is nonzero
-  dec bc
-  inc b
-  inc c
-.loop:
-  ld a, [hl+]
-  ld [de],a
-  inc de
-  dec c
-  jr nz,.loop
-  dec b
-  jr nz,.loop
-  ret
-
-section "hblankcopy", ROM0
-;;
-; Performs an hblank copy that isn't a stack copy.
-; Copies 4*B bytes from DE to HL (opposite of standard memcpy)
-; at 4 bytes per line.  C unchanged
-hblankcopy:
-  ldh a, [rLCDC]
-  add a
-  jr nc, .unbusy_done
-  ; wait for mode not 0
-.unbusy:
-  ldh a, [rSTAT]
-  and $03
-  jr z, .unbusy
-.unbusy_done:
-
-  push bc
-  ; then wait for mode 0 or 1
-  ld a, [de]
-  ld c, a
-  inc e
-  ld a, [de]
-  ld b, a
-  inc e
-.busy:
-  ldh a, [rSTAT]
-  and $02
-  jr nz, .busy  ; spin wait can take up to 12 cycles
-  ld a, c      ; 1
-  ld [hl+], a  ; 2
-  ld a, b      ; 1
-  ld [hl+], a  ; 2
-  ld a, [de]   ; 2
-  ld [hl+], a  ; 2
-  inc e        ; 1
-  ld a, [de]   ; 2
-  ld [hl+], a  ; 2
-  inc de
-  pop bc
-  dec b
-  jr nz, hblankcopy
-  ret
-
-section "HRAMCODE_src", ROM0
-;;
-; While OAM DMA is running, the CPU keeps fetching instructions
-; while ROM and WRAM are inaccessible.  A program needs to jump to
-; HRAM and busy-wait 160 cycles until OAM DMA finishes.
-hramcode_LOAD:
-  dw hramcode_RUN_end-hramcode_RUN
-load "HRAMCODE", HRAM
-hramcode_RUN:
-
-;;
-; Copy a display list from shadow OAM to OAM
-; @param HL address to read once while copying is in progress
-; @return A = value read from [HL]
-run_dma::
-  ld a, wShadowOAM >> 8
-  ldh [rDMA],a
-  ld b, 40
-.loop:
-  dec b
-  jr nz,.loop
-  ret
-
-hramcode_RUN_end:
-endl

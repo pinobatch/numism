@@ -3,7 +3,7 @@ set -e
 
 title=Mindy_GMQ7
 inttitle='MINDYS HIKE'
-objlist='level1 autotiler pads vwfdraw unpb16'
+objlist='level1 init ppuclear player textwindow autotiler pads vwfdraw unpb16'
 genobjlist='Fauxtura level1.shelves localvars'
 twobitlist=''
 pb16twobitlist='level1chr coincels cursor'

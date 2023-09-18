@@ -2,7 +2,8 @@ camera spreading the work
 
 - set GBC palettes for bg and obj
 - set GBC palettes for title screen
-- bring in new metatile writer (with autotiling and GBC attributes)
+- investigate why left side of ground at gravity barrier at x=16
+  is drawn wrong
 - Track drawn area and vicinity separately to draw one half column
   at a time instead of 2-3
 

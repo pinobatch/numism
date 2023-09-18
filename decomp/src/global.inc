@@ -30,4 +30,6 @@ def MAP_COLUMN_HEIGHT_MT equ 16
 def MT_WIDTH_CHARS equ 2
 def MT_HEIGHT_CHARS equ 2
 
+def TEXTWINDOW_ROWS equ 5
+
   ENDC
