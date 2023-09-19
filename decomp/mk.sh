@@ -44,4 +44,4 @@ done
 # make executable
 objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist $tilesetlist)
 rgblink -dt -p 0xFF -o "$title.gb" -n "$title.sym" $objlisto
-rgbfix -jv -t "$inttitle" -p 0xFF "$title.gb"
+rgbfix -jvc -t "$inttitle" -p 0xFF "$title.gb"

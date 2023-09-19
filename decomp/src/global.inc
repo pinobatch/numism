@@ -32,4 +32,23 @@ def MT_HEIGHT_CHARS equ 2
 
 def TEXTWINDOW_ROWS equ 5
 
+;;
+; Syntax: drgb $FF9966 for color #FF9966
+; Divides each hex tuplet by 8 and rounds down, forming an RGB555
+; color word suitable for SNES/SGB or GBC/GBA/DS.
+macro drgb
+  REPT _NARG
+    dw (\1 & $F80000) >> 19 | (\1 & $00F800) >> 6 | (\1 & $0000F8) << 7
+    shift 1
+  ENDR
+endm
+
+;;
+; Syntax: lb rp, hivalue, lovalue
+; Loads hivalue into the upper register of a pair (B, D, or H)
+; and lovalue into the lower register of the same pair (C, E, or L).
+macro lb
+  ld \1, low(\2) << 8 | low(\3)
+endm
+
   ENDC

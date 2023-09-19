@@ -367,7 +367,26 @@ chains -- list where chains[i] = the most common block below i
             if tile_id in id_to_nick: break
             id_to_nick[tile_id] = "%s_%02X" % (base_nick, tile_id)
 
-def format_asm_file(mtdata, id_to_nick, chains,
+def crpalettes_to_gbc(crpalettes, subpalsize=4):
+    """Convert palettes for RGB555 for SNES, GBC, or GBA
+
+crpalettes: [[(r, g, b), ...], ...] where r, g, b in range(256)
+subpalsize: 16 for SNES 4bpp or GBA, 4 for SNES 2bpp or GBC
+
+Return an array.array("H") of values.
+"""
+    out = array.array("H")
+    for palette in crpalettes:
+        values = [
+            ((0xF8 & r) >> 3) | ((0xF8 & g) << 2) | ((0xF8 & b) << 7)
+            for r, g, b in palette[:subpalsize]
+        ]
+        values.extend(values[:1] * (subpalsize - len(values)))
+        assert len(values) == subpalsize
+        out.extend(values)
+    return out
+
+def format_asm_file(mtdata, id_to_nick, chains, gbcpalettes, 
                     label_prefix="metatiles", constant_prefix="MT",
                     section=None, bank=None):
     lines = [
@@ -397,8 +416,11 @@ def format_asm_file(mtdata, id_to_nick, chains,
                      % (row, tile_id, id_to_nick.get(tile_id, "--")))
     lines.append("%s_chains::" % (label_prefix,))
     lines.extend(dbdump(chains, prefix="  db ", width=16))
+    lines.append("%s_palettes::" % (label_prefix,))
+    lines.extend(dbdump(gbcpalettes, prefix="  dw ", width=4))
     id2n_ls = sorted(id_to_nick.items())
     id2n_ls.append((max(id_to_nick.keys()), "LAST_VALUE"))
+    id2n_ls.append((len(gbcpalettes) // 4, "NUM_PALETTES"))
     lines.extend("export %s_%s" % (constant_prefix, row[1])
                  for row in id2n_ls)
     lines.extend("def %s_%s equ %d" % (constant_prefix, v, tile_id)
@@ -454,12 +476,13 @@ def main(argv=None):
             fixtiles = infp.read()
         fixtiles = [fixtiles[i:i + 16] for i in range(0, len(fixtiles), 16)]
     utiles, mtdata = mtify(imtiles, attrs, tiles_per_row, fixtiles=fixtiles)
+    gbcpalettes = crpalettes_to_gbc(crpalettes)
 
     if args.output:
         with open(args.output, "wb") as outfp:
             outfp.writelines(utiles)
 
-    asm = format_asm_file(mtdata, i2n, chains,
+    asm = format_asm_file(mtdata, i2n, chains, gbcpalettes,
                           label_prefix=args.label_prefix,
                           constant_prefix=args.constant_prefix,
                           section=args.section, bank=args.bank)

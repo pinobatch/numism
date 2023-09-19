@@ -1,7 +1,6 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-
 def COINCELS_BASE_TILE equ $7B
 
 ; This number is added to wGlobalSubpixel every frame.  It must be
@@ -54,7 +53,7 @@ section "main", ROM0
 
 main::
   call show_title
-  call lcd_off
+  call clear_gbc_attr
   ld de, static_tiles
   call pb16_unpack_dest_length_block
   call pb16_unpack_dest_length_block
@@ -118,6 +117,13 @@ main::
   ld a, FRAME_Mindy_walk1
   call mindy_set_cel_A
 
+  ld a, %11100100
+  ldh [rBGP], a
+  ld hl, metatiles_palettes
+  lb bc, MT_NUM_PALETTES * 8, low(rBCPS)
+  ld a, $80
+  call set_gbc_palette
+
 .forever:
   ld hl, wGlobalSubpixel
   ld a, GLOBAL_SUBPIXEL_ADD
@@ -125,11 +131,7 @@ main::
   ld [hl], a
   call read_pad
   call move_cursor
-  ld a, %11100111
-  ldh [rBGP], a
   call move_camera
-  ld a, %11100100
-  ldh [rBGP], a
   call textwindow_update
   xor a
   ld [wOAMUsed], a
@@ -144,14 +146,13 @@ main::
   halt
   call run_dma
   ld a, %11100100
-  ldh [rBGP], a
-  ldh [rOBP1], a
+  call set_obp1
   ld a, [hVblanks]
   rra
   sbc a
   and %00010000
   or  %10000000
-  ldh [rOBP0], a
+  call set_obp0
   ld a, [wCameraX]
   ldh [rSCX], a
   ld a, [wCameraY]
@@ -1132,7 +1133,7 @@ show_title:
   ldh [rIE], a
   ei
   ld a, %11100100
-  ldh [rBGP], a
+  call set_bgp
   ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG9800|LCDCF_BG8800
   ldh [rLCDC], a
 

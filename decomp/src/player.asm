@@ -21,7 +21,10 @@ mindy_init::
   ld [wMindyDisplayCelBase], a
   dec a
   ld [wMindyLoadedCel], a
-  ret
+  ld hl, Mindy_palette
+  lb bc, Mindy_palette.end - Mindy_palette, low(rOCPS)
+  ld a, $B0
+  jp set_gbc_palette
 
 mindy_set_next_cel::
   ld a, [wMindyLoadedCel]
@@ -347,6 +350,11 @@ draw_metasprite::
 
 Mindy_mspr:
   include "obj/gb/Mindy.asm"
+
+Mindy_palette:
+  drgb $FFFFFF, $FFFFFF, $FFAAAA, $AA5555
+  drgb $FFFFFF, $AAFF00, $5555AA, $000055
+  .end
 
 section "Mindy_chr", ROMX, bank[1], align[4]
 Mindy_chr:

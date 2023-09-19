@@ -63,7 +63,7 @@ blit_one_col_new::
   add low(metatiles_defs)
   ldh [.hMtDefsLo], a
   ld a, 0
-  add high(metatiles_defs)
+  adc high(metatiles_defs)
   ldh [.hMtDefsHi], a
 
   ld c, low(wMapVicinity)

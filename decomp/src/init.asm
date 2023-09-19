@@ -12,7 +12,13 @@ section "header", ROM0[$100]
 init:
   di
   ld sp, wStackStart
-  call lcd_off
+  xor $11
+  cp 1  ; Carry true if GBC or GBA, false for mono or SGB
+  sbc a
+  and $80
+  ldh [hCapability], a
+
+  call clear_gbc_attr
   ld a, $FF
   ldh [hCurKeys], a
   ld hl, hramcode_LOAD
