@@ -24,17 +24,21 @@ blit_one_col_new::
   add high(wMapVicinity)
   ldh [.hThisColumnXAddr], a
 
-  ; Find the adjacent column for autotiling comparison
-  ld a, e
-  and a
-  jr z, .haveAdjacentColumnX
+  ; Find the adjacent column for autotiling comparison.
+  ; If the left half of the leftmost column is being drawn,
+  ; use self.  Otherwise, use the column to the left.
+  ld a, [wMapVicinityLeft]
+  or e 
+  jr z, .haveAdjacentColumnWrappedX
+    ld a, e
     rra
     ; decrease by 1 if NC or increase by 1 if C
     dec a
-    jr nc, .haveAdjacentColumnX
-    add 2
-  .haveAdjacentColumnX:
-  and MAP_VICINITY_WIDTH_MT-1
+    jr nc, .adjacentColumnIsPrevious
+      add 2
+    .adjacentColumnIsPrevious:
+    and MAP_VICINITY_WIDTH_MT-1
+  .haveAdjacentColumnWrappedX:
   add high(wMapVicinity)
   ldh [.hAdjacentColumnXAddr], a
 

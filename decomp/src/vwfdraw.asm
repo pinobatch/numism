@@ -228,7 +228,7 @@ vwfStrWidth::
 ; @return C = 0; HL = lineImgBuf + lineImgBufLen
 vwfClearBuf::
   ld hl,lineImgBuf
-  ld c,lineImgBufLen/4
+  ld c,lineImgBufLen/4+2
   xor a
 .loop:
   rept 4

@@ -30,7 +30,7 @@ section "mapdecodestate", WRAM0, ALIGN[1]
 
 wCameraY:: ds 1
 wCameraX:: ds 2         ; pixel position (1/16 column) of camera
-wMapVicinityLeft: ds 1  ; left column of valid area of sliding window
+wMapVicinityLeft:: ds 1 ; left column of valid area of sliding window
 wMapFetchedX: ds 1      ; Column corresponding to wMapCol
 wMapDecodeX: ds 1       ; Column corresponding to wMapContentsPtr
 wMapBitmapBase: ds 2    ; Pointer to the base of a map's bitmap
@@ -1138,6 +1138,7 @@ show_title:
   ldh [rLCDC], a
 
   .loop:
+    halt
     call read_pad
     ldh a, [hNewKeys]
     and PADF_START|PADF_A
