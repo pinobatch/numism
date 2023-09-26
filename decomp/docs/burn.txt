@@ -1,20 +1,27 @@
+Editor
+------
+
+- Render an entire level map
+- Scroll over the level map
+- Place a block
+- Choose block to place
+- Remove a block
+- Save
+- Open
+- Convert editor format to game format
+- Calculate time since last save when asking to save changes
+
 Camera behavior
 ---------------
 
 - Track drawn area and vicinity separately to draw one half column
   at a time instead of 2 to 3
-
-Tools
------
-
-- Figure out how to use some sort of metatile laying program
-- Convert metatile maps from that tool to Markov maps
 - Load more than one map
 
 Mindy graphics
 --------------
 
-- observe how Peach from Brawl climbs ladders
+- draw ladder climbing modeled on Peach
 - walk tweening
 - commission a less ugly drawing of Mindy for the title screen
 
