@@ -1,11 +1,18 @@
 Editor
 ------
 
-- Render an entire level map
-- Scroll over the level map
+- Build a struct representing the entire view state
+- Draw the list of available blocks (with 3 rows of Markov below)
+- Choose compact or Markov-preview block palette
+- Middle click drag to scroll focused camera
+- Hit-test mouse against a map
 - Place a block
-- Choose block to place
-- Remove a block
+- Choose block to place from block palette
+- Choose block to place from map (eyedropper)
+- Display with or without Markov chains
+- Display with no grid, grid on explicit blocks, or grid on all blocks
+- Insert columns
+- Undo and redo
 - Save
 - Open
 - Convert editor format to game format
