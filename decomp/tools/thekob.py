@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, argparse
+import os, sys, argparse, bisect
 from itertools import zip_longest as zippad
 import pygame as pg
 import mtsetparse, pgbmfont, pgui
@@ -219,11 +219,176 @@ class KobView(object):
     def __init__(self):
         pass
 
+    def load_mtset(self, lines, im):
+        mtset_sections = mtsetparse.parse_sections(lines)
+        result = mtsetparse.parse_metatile_section(mtset_sections["metatiles"])
+        _, self.mtid_to_nick, self.mtchains = result
+        self.mtids_with_nick = sorted(self.mtid_to_nick)
+        self.mtim = im.convert()
+        self.mthalves = mtim_dupe_halves(self.mtim, TILE_WIDTH, TILE_HEIGHT)
+        self.make_markov_picker()
+        self.picker_is_markov = True
+        self.mtmap_is_markov = True
+        self.mtmap_grid_level = 1
+        self.painting_tile = 1
+
+    def load_font(self, im, max_width, max_height,
+                  first_char=" ", sep_color=2):
+        im.set_colorkey(0)
+        if isinstance(first_char, str): first_char = ord(first_char)
+        self.font = pgbmfont.BMFont(im, max_width, max_height,
+                                    first_char, sep_color)
+
+    def render_tilemap(self, mtmap, gridcolor=None, explicitcolor=None,
+                       markov=True):
+        return render_tilemap(self.mtim, self.mtchains if markov else None,
+                              mtmap, gridcolor, explicitcolor)
+
+    def make_markov_picker(self):
+        mtmap = [
+            bytes([x, 0, 0, 0])
+            for x in self.mtids_with_nick for xsub in (0, 1)
+        ]
+        self.markov_picker_im = self.render_tilemap(mtmap)
+
+    def make_mapim(self):
+        g_l = self.mtmap_grid_level
+        ecolor = (0, 0, 0) if g_l >= 1 else None
+        gcolor = (128, 128, 128) if g_l >= 2 else None
+        print("markov: %s" % repr(self.mtmap_is_markov))
+        self.mapim = self.render_tilemap(
+            self.mtmap, explicitcolor=ecolor, gridcolor=gcolor,
+            markov=self.mtmap_is_markov
+        )
+
+    def init_cameras(self):
+        screen = pg.display.get_surface()
+        self.focused_cam = self.mapcam = HscrollableView(
+            self.mapim.get_width(), screen.get_width(), TILE_WIDTH, TILE_WIDTH
+        )
+        self.palettecam = HscrollableView(
+            self.mtim.get_width(), screen.get_width(), TILE_WIDTH, TILE_WIDTH
+        )
+
+    def update_layout(self):
+        screen = pg.display.get_surface()
+        s_w = screen.get_width()
+        em = self.font.ch
+        mtim = self.markov_picker_im if self.picker_is_markov else self.mtim
+        self.mapcam.view_width = self.palettecam.view_width = s_w
+        self.palettecam.width = mtim.get_width()
+        self.mapcam.width = self.mapim.get_width()
+        self.palette_top = 2 * em
+        self.palette_bottom = self.palette_top + mtim.get_height()
+        self.map_top = self.palette_bottom + em
+        self.map_bottom = self.map_top + self.mapim.get_height()
+
+    def update_focus_by_mouse(self, pos):
+        m_y = pos[1]
+        if self.palette_top <= m_y < self.palette_bottom:
+            self.focused_cam = self.palettecam
+        elif self.map_top <= m_y < self.map_bottom:
+            self.focused_cam = self.mapcam
+
+    def toggle_focused_grid(self):
+        if self.focused_cam is self.mapcam:
+            self.mtmap_grid_level = (self.mtmap_grid_level + 1) % 3
+            self.make_mapim()
+
+    def toggle_focused_markov(self):
+        if self.focused_cam is self.mapcam:
+            self.mtmap_is_markov = not self.mtmap_is_markov
+            self.make_mapim()
+        elif self.focused_cam is self.palettecam:
+            self.picker_is_markov = not self.picker_is_markov
+
+    def paint_elements(self):
+        screen = pg.display.get_surface()
+        s_w = screen.get_width()
+        em = self.font.ch
+        mtim = self.markov_picker_im if self.picker_is_markov else self.mtim
+        tile_name = self.mtid_to_nick.get(self.painting_tile, '<unknown>')
+        tile_name = "%s (%d)" % (tile_name, self.painting_tile)
+        self.font.textout(screen, tile_name, 1 * em, 1 * em, (0, 0, 0))
+        self.palettecam.update()
+        screen.blit(mtim, (-self.palettecam.x, self.palette_top))
+        self.mapcam.update()
+        screen.blit(self.mapim, (-self.mapcam.x, self.map_top))
+
+        focusrect = None
+        if self.focused_cam is self.palettecam:
+            focus_ht = self.palette_bottom - self.palette_top + 2
+            focusrect = pg.Rect(0, self.palette_top - 1, s_w, focus_ht)
+        elif self.focused_cam is self.mapcam:
+            focus_ht = self.map_bottom - self.map_top + 2
+            focusrect = pg.Rect(0, self.map_top - 1, s_w, focus_ht)
+        if focusrect:
+            pg.draw.rect(screen, (0, 0, 0), focusrect, width=1)
+
+        if self.picker_is_markov:
+            picker_y = 0
+            try:
+                picker_x = self.mtids_with_nick.index(self.painting_tile)
+            except ValueError:
+                picker_x = None
+        else:
+            tiles_per_row = self.mtim.get_width() // (TILE_WIDTH * 2)
+            picker_y, picker_x = divmod(self.painting_tile, tiles_per_row)
+        if picker_x is not None:
+            pickerrect = pg.Rect(
+                picker_x * TILE_WIDTH * 2 - self.palettecam.x,
+                picker_y * TILE_HEIGHT + self.palette_top,
+                TILE_WIDTH * 2, TILE_HEIGHT
+            )
+            pg.draw.rect(screen, (0, 0, 0), pickerrect, width=1)
+
+        bottom_row_cues = ["F1: Help"]
+        self.font.textout(screen, "; ".join(bottom_row_cues),
+                          1 * em, screen.get_height() - 1 * em, (0, 0, 0))
+
+
+    def num_metatiles(self):
+        tiles_per_row = self.mtim.get_width() // (TILE_WIDTH * 2)
+        num_rows = self.mtim.get_height() // TILE_HEIGHT
+        return tiles_per_row * num_rows
+
+    def set_next_painting_tile(self):
+        if self.picker_is_markov:
+            index = bisect.bisect_right(self.mtids_with_nick, self.painting_tile)
+            if index >= len(self.mtids_with_nick): index = 0
+            self.painting_tile = self.mtids_with_nick[index]
+        else:
+            self.painting_tile += 1
+            if self.painting_tile >= self.num_metatiles():
+                self.painting_tile = 0
+
+    def set_previous_painting_tile(self):
+        if self.picker_is_markov:
+            index = bisect.bisect_left(self.mtids_with_nick, self.painting_tile) - 1
+            if index < 0: index = len(self.mtids_with_nick) - 1
+            self.painting_tile = self.mtids_with_nick[index]
+        else:
+            self.painting_tile -= 1
+            if self.painting_tile < 0:
+                self.painting_tile = self.num_metatiles() - 1
+
 # the front end #####################################################
 
 def parse_argv(argv):
     p = argparse.ArgumentParser()
     return p.parse_args(argv[1:])
+
+help_texts = ["""Keyboard
+
+Arrows, PageUp, PageDown: scroll
+Home, End: scroll to ends
+, (comma) and . (period): choose block
+M: toggle Markov mode in map or palette
+G: toggle grid in map
+""","""Mouse
+
+Wheel: scroll
+"""]
 
 def main(argv=None):
     args = parse_argv(argv or sys.argv)
@@ -246,21 +411,15 @@ def main(argv=None):
     pg.init()
     pg.display.set_caption("Numism Builder")
     screen = pg.display.set_mode((800, 480), pg.RESIZABLE)
-    mtim = pg.image.load(mtimname).convert()
-    mthalves = mtim_dupe_halves(mtim, TILE_WIDTH, TILE_HEIGHT)
-    print("mthalves is %s" % repr(mthalves))
-    futu_png = pg.image.load(os.path.join(progpath, fontname))
-    futu_png.set_colorkey(0)
-    font = pgbmfont.BMFont(futu_png, 16, 16, ord(" "), sepColor=2)
-
-    mapim = render_tilemap(mtim, chains, mtmap,
-                           explicitcolor=(0, 0, 0))
-
-    mapcam = HscrollableView(mapim.get_width(), screen.get_width(),
-                             TILE_WIDTH, TILE_WIDTH)
-    palettecam = HscrollableView(mtim.get_width(), screen.get_width(),
-                                 TILE_WIDTH, TILE_WIDTH)
-    focused_cam = mapcam
+    view = KobView()
+    view.load_font(pg.image.load(os.path.join(progpath, fontname)), 16, 16)
+    with open(mtsetname, "r", encoding="utf-8") as infp:
+        mtset_lines = list(infp)
+    view.load_mtset(mtset_lines, pg.image.load(mtimname))
+    del mtset_lines
+    view.mtmap = mtmap
+    view.make_mapim()
+    view.init_cameras()
     clock = pg.time.Clock()
     running = True
     while running:
@@ -280,65 +439,51 @@ def main(argv=None):
             else:
                 print(repr(event), file=sys.stderr)
 
-        # Notify cameras of view resize
-        mapcam.view_width = palettecam.view_width = screen.get_width()
-
-        palette_top = font.ch * 2
-        palette_bottom = palette_top + mtim.get_height()
-        map_top = palette_bottom + font.ch
-        map_bottom = map_top + mapim.get_height()
+        view.update_layout()
 
         for button, pos in mouse_events:
-            m_y = pos[1]
-            if palette_top <= m_y < palette_bottom:
-                focused_cam = palettecam
-            elif map_top <= m_y < map_bottom:
-                focused_cam = mapcam
+            view.update_focus_by_mouse(pos)
             if button == 4:
-                focused_cam.on_wheel_up()
+                view.focused_cam.on_wheel_up()
             elif button == 5:
-                focused_cam.on_wheel_down()
+                view.focused_cam.on_wheel_down()
 
         for key, mod in keys:
             if key == pg.K_q and (mod & pg.KMOD_CTRL):
                 running = False
             elif key == pg.K_HOME:
-                mapcam.on_home()
+                view.focused_cam.on_home()
             elif key == pg.K_END:
-                mapcam.on_end()
+                view.focused_cam.on_end()
             elif key == pg.K_LEFT:
-                mapcam.on_left()
+                view.focused_cam.on_left()
             elif key == pg.K_RIGHT:
-                mapcam.on_right()
+                view.focused_cam.on_right()
             elif key == pg.K_PAGEUP:
-                mapcam.on_pageup()
+                view.focused_cam.on_pageup()
             elif key == pg.K_PAGEDOWN:
-                mapcam.on_pagedown()
+                view.focused_cam.on_pagedown()
+            elif key == pg.K_g:
+                view.toggle_focused_grid()
+            elif key == pg.K_m:
+                view.toggle_focused_markov()
+            elif key == pg.K_PERIOD:
+                view.set_next_painting_tile()
+            elif key == pg.K_COMMA:
+                view.set_previous_painting_tile()
+            elif key == pg.K_F1:
+                pgui.help(help_texts, view.font)
 
         # erase last frame and draw new frame
         screen.fill((192, 192, 192))
-        font.textout(screen, "loaded", font.ch, font.ch, (0, 0, 0))
-        palettecam.update()
-        screen.blit(mtim, (-palettecam.x, palette_top))
-        mapcam.update()
-        screen.blit(mapim, (-mapcam.x, map_top))
-
-        focusrect = None
-        if focused_cam is palettecam:
-            focusrect = pg.Rect(0, palette_top - 1,
-                                screen.get_width(), palette_bottom - palette_top + 2)
-        elif focused_cam is mapcam:
-            focusrect = pg.Rect(0, map_top - 1,
-                                screen.get_width(), map_bottom - map_top + 2)
-        if focusrect:
-            pg.draw.rect(screen, (0, 0, 0), focusrect, width=1)
+        view.paint_elements()
 
         # present the frame
         pg.display.flip()
         clock.tick(60)
 
     chosen = pgui.alert("Save changes to Park over the past 120 minutes?",
-                        font, ["Discard", "Cancel", "Save"], 2)
+                        view.font, ["Discard", "Cancel", "Save"], 2)
     print("Chose %d" % chosen)
 
     pg.quit()

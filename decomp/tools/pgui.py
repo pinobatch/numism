@@ -148,3 +148,13 @@ def alert(text, font, buttons=None, focus=0):
     screen.blit(blur_screen, (0, 0))
     pg.display.flip()
     return focus
+
+
+def help(pages, font):
+    buttons = ["Next Page", "Close"] if len(pages) > 1 else ["Close"]
+    cur_page = 0
+    while True:
+        chosen = alert(pages[cur_page], font, buttons)
+        if chosen > 0 or len(pages) <= 1: break
+        cur_page += 1
+        if cur_page >= len(pages): cur_page = 0
