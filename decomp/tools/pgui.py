@@ -8,6 +8,31 @@ class PopupMenu(object):
 class Menubar(object):
     pass
 
+class DAS(object):
+    """Autorepeat or typematic or Delayed Auto Shift"""
+
+    def __init__(self, allowed_keys, repeat_delay=15, repeat_rate=3):
+        self.allowed_keys = set(allowed_keys)
+        self.repeat_delay = repeat_delay
+        self.repeat_rate = repeat_rate
+        self.on_keyup()
+
+    def on_keyup(self):
+        self.held_key = self.held_mod = None
+
+    def on_keydown(self, key, mod=None):
+        if key not in self.allowed_keys: return self.on_keyup()
+        self.countdown = self.repeat_delay
+        self.held_key = key
+        self.held_mod = mod
+
+    def update(self):
+        if self.held_key is None: return None
+        self.countdown -= 1
+        if self.countdown > 0: return None
+        self.countdown = self.repeat_rate
+        return self.held_key, self.held_mod
+
 ink_color = pg.Color(0, 0, 0)
 bg_color = pg.Color(204, 204, 204)
 
@@ -26,7 +51,15 @@ def alert_draw_buttons(button_rects, buttons, font, hover=None, focus=None, acti
         text_top = r.centery - font.ch // 2
         font.textout(screen, line, text_left, text_top, text_color)
 
-def alert(text, font, buttons=None, focus=0):
+def alert(text, font, buttons=None, focus=0, cancel=1):
+    """Display an alert box over the parent window, with text and buttons.
+
+Automatically resize and rewrap the text if the user resizes the parent
+window.
+
+Return the focused button, or cancel if the user clicked the close box
+or pressed Escape.
+"""
     screen = pg.display.get_surface()
     if buttons is None: buttons = ['OK']
     button_widths = [
@@ -51,7 +84,7 @@ def alert(text, font, buttons=None, focus=0):
         lmb_change = None
         for event in pg.event.get():
             if event.type == pg.QUIT:  # close button
-                running, want_redraw, focus = False, True, 1
+                running, want_redraw, focus = False, True, cancel
             elif event.type == pg.KEYDOWN:
                 keys.append((event.key, event.mod))
             elif event.type == pg.VIDEORESIZE:  # resize
@@ -71,7 +104,7 @@ def alert(text, font, buttons=None, focus=0):
                 running, want_redraw = False, True
                 active_button = focus
             elif key == pg.K_ESCAPE:
-                running, want_redraw, focus = False, True, 1
+                running, want_redraw, focus = False, True, cancel
                 active_button = focus
             elif key == pg.K_TAB:
                 focus_change = -1 if mod & pg.KMOD_SHIFT else 1
@@ -149,8 +182,8 @@ def alert(text, font, buttons=None, focus=0):
     pg.display.flip()
     return focus
 
-
 def help(pages, font):
+    """Display a looping sequence of alerts."""
     buttons = ["Next Page", "Close"] if len(pages) > 1 else ["Close"]
     cur_page = 0
     while True:
@@ -158,3 +191,14 @@ def help(pages, font):
         if chosen > 0 or len(pages) <= 1: break
         cur_page += 1
         if cur_page >= len(pages): cur_page = 0
+
+if __name__=='__main__':
+    import pgbmfont
+    pg.init()
+    pg.display.set_caption("pgui alert")
+    screen = pg.display.set_mode((640, 400), pg.RESIZABLE)
+    fontim = pg.image.load("Fauxtura14.png")
+    fontim.set_colorkey(0)
+    font = pgbmfont.BMFont(fontim, 16, 16, ord(" "), 2)
+    alert("Hello World", font)
+    pg.quit()

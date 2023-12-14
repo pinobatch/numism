@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, argparse, bisect
+import os, sys, argparse, bisect, time
 from itertools import zip_longest as zippad
 import pygame as pg
 import mtsetparse, pgbmfont, pgui
@@ -215,6 +215,75 @@ class HscrollableView(object):
     def hittest(self, mouse_pos):
         return None
 
+class UndoStack(object):
+    """
+
+Init sequence:
+undo = UndoStack()
+undo.do(state, "Open")
+undo.mark_saved()
+
+Brush stroke:
+undo.begin_continuous()
+undo.do(newState, "Paint")
+undo.do(newState, "Paint")
+undo.do(newState, "Paint")
+undo.do(newState, "Paint")
+undo.do(newState, "Paint")
+undo.end_continuous()
+"""
+    def __init__(self):
+        self.savedState = None
+        self.saveTime = None
+        self.inContinuous = False
+        self.undoStack = []
+        self.redoStack = []
+        self.drag = None
+
+    def do(self, state, actionName=""):
+        """Erase redo and do an action."""
+        del self.redoStack[:]
+        if self.inContinuous:
+            self.undoStack[-1] = state, actionName
+        else:
+            self.undoStack.append((state, actionName))
+
+    def begin_continuous(self):
+        self.inContinuous = True
+        if len(self.undoStack) > 1 and self.state[-1] != self.state[-2]:
+            self.state.append(self.state[-1])
+
+    def end_continuous(self):
+        self.inContinuous = False
+
+    def undo(self):
+        """Undo an action and save it to the redo stack.
+
+Return (state after undo, name of undone action) or None if "Open" on top
+"""
+        if len(undoStack) < 2: return None
+        redoStack.append(self.undoStack.pop())
+        return undoStack[-1][0], redoStack[-1][1]
+
+    def redo(self):
+        """Redo an action from the redo stack.
+
+Return (state after redo, name of redone action) or None if stack is empty
+"""
+        if not redoStack: return None
+        undoStack.append(self.redoStack.pop())
+        return undoStack[-1]
+
+    def mark_saved(self):
+        self.savedState = self.undoStack[-1]
+        self.saveTime = time.time()
+
+    def is_unsaved(self):
+        return self.undoStack[-1] is not self.savedState
+
+    def elapsed_since_save(self):
+        return time.time() - self.saveTime
+
 class KobView(object):
     def __init__(self):
         pass
@@ -239,6 +308,13 @@ class KobView(object):
         self.font = pgbmfont.BMFont(im, max_width, max_height,
                                     first_char, sep_color)
 
+    def set_mtmap(self, mtmap):
+        """Load a map as if the user has done File > Open"""
+        self.mtmap = [bytes(x) for x in mtmap]
+        self.undo = UndoStack()
+        self.undo.do(self.mtmap, "Open")
+        self.undo.mark_saved()
+
     def render_tilemap(self, mtmap, gridcolor=None, explicitcolor=None,
                        markov=True):
         return render_tilemap(self.mtim, self.mtchains if markov else None,
@@ -255,7 +331,6 @@ class KobView(object):
         g_l = self.mtmap_grid_level
         ecolor = (0, 0, 0) if g_l >= 1 else None
         gcolor = (128, 128, 128) if g_l >= 2 else None
-        print("markov: %s" % repr(self.mtmap_is_markov))
         self.mapim = self.render_tilemap(
             self.mtmap, explicitcolor=ecolor, gridcolor=gcolor,
             markov=self.mtmap_is_markov
@@ -385,10 +460,43 @@ Home, End: scroll to ends
 , (comma) and . (period): choose block
 M: toggle Markov mode in map or palette
 G: toggle grid in map
-""","""Mouse
+
+Mouse
 
 Wheel: scroll
+""","""To do
+
+- Middle click drag to scroll focused camera
+- Hit-test mouse against a map
+- Place a block
+- Choose block to place from block palette with mouse
+- Choose block to place from map (eyedropper)
+- Insert columns
+- Undo and redo
+- Save
+- Open
+- Convert editor format to game format
+- Calculate time since last save when asking to save changes
 """]
+
+das_allowed_keys = {
+    pg.K_LEFT, pg.K_RIGHT, pg.K_PAGEUP, pg.K_PAGEDOWN, pg.K_PERIOD, pg.K_COMMA,
+}
+
+def format_unsaved_duration(duration_secs):
+    minutes = duration_secs // 60 + 1
+    if minutes < 2: return "minute"
+    if minutes < 60: return "%d minutes" % (minutes,)
+    hours, minutes = divmod(minutes, 60)
+    minutes = minutes // 5 * 5
+    parts = ["%d hours" if hours > 1 else "hour"]
+    if minutes: parts.append("and %d minutes" % minutes)
+    return " ".join(parts)
+
+def alert_save_changes(filename, duration, font):
+    msg = ("Save changes to %s over the past %s?"
+           % (filename, format_unsaved_duration(duration)))
+    return pgui.alert(msg, font, ["Discard", "Cancel", "Save"], 2)
 
 def main(argv=None):
     args = parse_argv(argv or sys.argv)
@@ -417,28 +525,34 @@ def main(argv=None):
         mtset_lines = list(infp)
     view.load_mtset(mtset_lines, pg.image.load(mtimname))
     del mtset_lines
-    view.mtmap = mtmap
+    view.set_mtmap(mtmap)
+    del mtmap
     view.make_mapim()
     view.init_cameras()
     clock = pg.time.Clock()
+    das = pgui.DAS(das_allowed_keys)
     running = True
+    want_close = False
     while running:
         # poll for events
         keys, mouse_events = [], []
         for event in pg.event.get():
             if event.type == pg.QUIT:  # close button
-                running = False
+                want_close = True
             elif event.type == pg.KEYDOWN:
                 keys.append((event.key, event.mod))
+                das.on_keydown(event.key, event.mod)
+            elif event.type == pg.KEYUP:
+                das.on_keyup()
             elif event.type == pg.MOUSEBUTTONDOWN:
                 mouse_events.append((event.button, event.pos))
             elif event.type == pg.MOUSEBUTTONUP:
                 mouse_events.append((-event.button, event.pos))
             elif event.type == pg.MOUSEMOTION:
                 mouse_events.append((0, event.pos))
-            else:
-                print(repr(event), file=sys.stderr)
 
+        das_key = das.update()
+        if das_key: keys.append(das_key)
         view.update_layout()
 
         for button, pos in mouse_events:
@@ -473,6 +587,8 @@ def main(argv=None):
                 view.set_previous_painting_tile()
             elif key == pg.K_F1:
                 pgui.help(help_texts, view.font)
+            elif key == pg.K_DELETE:
+                view.undo.do(view.mtmap, "Delete Key")
 
         # erase last frame and draw new frame
         screen.fill((192, 192, 192))
@@ -482,9 +598,14 @@ def main(argv=None):
         pg.display.flip()
         clock.tick(60)
 
-    chosen = pgui.alert("Save changes to Park over the past 120 minutes?",
-                        view.font, ["Discard", "Cancel", "Save"], 2)
-    print("Chose %d" % chosen)
+        if want_close:
+            want_close = False
+            running = view.undo.is_unsaved()
+            if running:
+                chosen = alert_save_changes(
+                    "Park", view.undo.elapsed_since_save(), view.font
+                )
+                if chosen != 1: running = 0
 
     pg.quit()
 

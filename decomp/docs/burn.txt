@@ -1,17 +1,7 @@
 Editor
 ------
 
-- Middle click drag to scroll focused camera
-- Hit-test mouse against a map
-- Place a block
-- Choose block to place from block palette with mouse
-- Choose block to place from map (eyedropper)
-- Insert columns
-- Undo and redo
-- Save
-- Open
-- Convert editor format to game format
-- Calculate time since last save when asking to save changes
+- See "To do" in the editor's help
 
 Camera behavior
 ---------------
