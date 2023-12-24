@@ -263,15 +263,17 @@ coin_gbc_or_mask::
   jr .start
   db "OR mask for GBC registers",10
   db "Unused bits of SVBK, VBK,",10
-  db "KEY1, SC, BCPS, OCPS, RP ",10
+  db "KEY1, SC, BCPS, OCPS, RP",10
   db "read as 1; more are unused",10
   db "on B&W",0
 .start:
   ; Registers with GBC-specific functionality that may include an
-  ; OR-maskable read not tested elsewhere
-  ; rSC (FF02), rKEY1 (FF4D), rVBK (FF4F), rHDMA* (FF51-FF54),
-  ; rRP (FF56), rBCPS (FF58), rOCPS (FF5A), rSVBK (FF70)
+  ; OR-maskable read not tested elsewhere:
+  ; rSC (FF02), rKEY1 (FF4D), rVBK (FF4F), rRP (FF56),
+  ; rBCPS (FF58), rOCPS (FF5A), rSVBK (FF70)
   ;
+  ; rHDMA* (FF51-FF54) are read-only on DMG and GBC,
+  ; which coin_other_or_mask in coins.z08 tests.
   ; rHDMA5 is supposedly readable, but it only matters during
   ; an ongoing HDMA, and HDMA is for a later stage
   ;
@@ -305,7 +307,7 @@ coin_gbc_or_mask::
     xor low(gbc_regs_exact_end)
     jr nz, .regloop
 
-  ; xor a
+  ; xor a  ; guaranteed by xor then jr nz
   ldh [rRP], a
   if DEBUGHEX_GBC_ORMASK
     ld a, low(rRP)

@@ -71,7 +71,7 @@ coin_list::
 
 ; Controls whether tests using init_silent_apu are audible.
 ; Set to nonzero during debugging.
-APU_NOT_SILENT equ 0
+def APU_NOT_SILENT equ 0
 
 ; When turning off a coin temporarily to troubleshoot an
 ; emulator getting hung up on it, change it to

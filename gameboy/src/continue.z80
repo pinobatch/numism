@@ -837,7 +837,7 @@ draw_coin_desc:
   ld [hl], HBAR_TILE
   ret
 
-WYBASE equ 96
+def WYBASE equ 96
 wnd_y_sequence:
   db 144
   db WYBASE+40
