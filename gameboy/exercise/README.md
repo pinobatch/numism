@@ -72,30 +72,31 @@ Controls
 
 DAA exhaustive tester
 ---------------------
-Almost all electronic digital computers count in base two, whereas
-most human cultures count in base ten.  The Game Boy CPU includes an
-instruction `daa` (decimal adjust accumulator) to support calculation
-in [binary-coded decimal] (BCD), where each nibble (4-bit hexadecimal
-digit) in a number represents one digit 0 through 9.  In essence, the
-instruction pretends that the nibbles in the operands of the last
-`add`, `adc`, `sub`, or `sbc` were decimal digits and calculates
-what the result in base 10 should have been.
+Almost all electronic digital computers count in binary (base two),
+whereas most human cultures count in decimal (base ten).
+The Game Boy CPU includes an instruction `daa` (decimal adjust
+accumulator) to support calculation in [binary-coded decimal] (BCD).
+In BCD, each nibble (4-bit hexadecimal digit) in a number represents
+one digit 0 through 9.  In essence, the instruction pretends that
+the nibbles in the operands of the last `add`, `adc`, `sub`, or
+`sbc` were decimal digits and calculates what the result in base ten
+should have been.  Many games use `daa` for scorekeeping.
 
 The following steps model what the CPU does:
 
-1. If N == 0 (addition) and A >= $9F: Set C (carry)
-2. If N == 0 and (A & $0F) >= $0A: Set H (half carry)
+1. If N == 0 (addition) and A >= $9F: Set C (carry) to 1
+2. If N == 0 and (A & $0F) >= $0A: Set H (half carry) to 1
 3. `adjustment` is ($06 if H else $00) | ($60 if C else $00)
 4. Add `adjustment` if N is 0 or subtract `adjustment` if N is 1
-5. Z (zero) = A == 0, N unchanged, clear H to 0
+5. Z (zero) = A == 0, clear H to 0, and leave N unchanged
 
-This tests the `daa` (decimal adjust accumulator) instruction on
-all 4,096 distinct AF (accumulator and flags) values, compares them
-to the result of a software implementation of the above steps, and
-draws a plot of where they do not match.  The black pixels in each
-16x16-pixel square represents the errors from calculating `daa` with
-one set of flags: bits 3-0 as X and bits 7-4 as Y.  The different
-squares represent results with different sets of NHC flags.
+This tests `daa` on all 4,096 distinct AF (accumulator and flags)
+values, compares them to the result of a software implementation
+of the above steps, and draws a plot of where they do not match.
+The black pixels in each 16x16-pixel square represents the errors
+from calculating `daa` with one set of flags: bits 3-0 as X and
+bits 7-4 as Y.  The different squares represent results with
+different sets of NHC flags.
 
 ![Screenshot of DAA test](../../docs/gb_exerciser_daa.png)
 
