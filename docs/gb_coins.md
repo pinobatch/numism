@@ -133,16 +133,30 @@ I don't have a lot of options to test the cartridge.
   (works on MBC1, MBC3, and MBC5; breaks on insideGadgets
   4MB + 32k FRAM flash cart as reported by Sono)
 
+For GBC double speed stage:
+
+- CPU speed, timer/DIV speed, APU speed, mode 3 length,
+  GDMA vs. HDMA vs. OAM DMA speed
+- In GBC double speed, use `ld [hl], c` and `ld [hl], b` to alternate
+  bit 2 of SCX during the preroll tile at left so that it never
+  finishes, delaying the first pixel output of mode 3 by at least
+  208 pixels to cancel mode 0 for that line (suggested by LIJI)
+
 Unranked:
 
-- Something something mid-scanline WX changes (suggested by LIJI)
+- Repeatedly increase WX mid-scanline so that the window restarts
+  over and over, delaying the end of mode 3 by 6 dots each time and
+  (if enough delay can be arranged) canceling mode 0 for that line
+  (suggested by LIJI)
+- Execute from ROM and WRAM during OAM DMA,
+  as in [Bully's DMA bus conflict test]
 - `di halt halt halt` keeps reading the last `halt` until something
   changes the last `halt` to a non-`halt` opcode, such as VRAM
   inaccessibility (see [double halt cancel] by nitro2k01)
-- Consider a stage of GBC double speed tests: CPU speed, timer/DIV
-  speed, APU speed, mode 3 length, GDMA vs. HDMA vs. OAM DMA speed
 - Does `halt` pause GBC DMA?
 - How much time HDMA takes from a scanline
+- HDMA from echo RAM catches a particular opcode on the open bus,
+  as in [Aevilia's HDMA timing test]
 - APU length counters do not automatically reload per note the
   way TIMA reloads from TMA.  If NRx1 is not rewritten, a second
   consecutive note lasts the maximum length: 1 s (wave) or 1/4 s
@@ -156,7 +170,9 @@ periods of development hiatus due to the day job of Numism's
 maintainer, it has been suggested to prototype SGB coins in a
 separate ROM and merge them once complete.
 
+[Bully's DMA bus conflict test]: https://github.com/Hacktix/BullyGB/blob/main/src/tests/dmabusconflict.asm
 [double halt cancel]: https://github.com/nitro2k01/little-things-gb/tree/main/double-halt-cancel
+[Aevilia's HDMA timing test]: https://github.com/ISSOtm/Aevilia-GB/blob/9b4e233bac6fbf175ca9ae7e4c0a8f16c8222275/home.asm#L305-L366
 
 Why GBC first?
 --------------

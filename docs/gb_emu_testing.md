@@ -488,8 +488,9 @@ debug clocks after the instruction that turns on the LCD, not 114 as
 expected.  I also noticed that DIV changes greatly when LCD is turned
 back on.  KiGB also fails, and it has no debugger to explain why.
 
-VBA-M, mGBA, Mesen, and BGB all fail 2 (02), 4 (03), 5 (02),
-7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
+VBA-M, mGBA, older Mesen, and older BGB all fail 2 (02), 4 (03),
+5 (02), 7 (01), and 8 (02): everything but LCD sync and the
+non-cause tests.
 
 To write my own rough OAM bug test, I first needed to prove to myself
 that the unused bits 3-0 of the attribute byte at $FE03+4n (palette,
@@ -509,9 +510,9 @@ My test performs the following steps:
 3. Read back OAM.  On GBC, fail on difference; otherwise fail on
    no difference.
 
-No$gmb, KiGB, rew., Goomba, VBA, VBA-M, BGB, mGBA, Gambatte, and
-BizHawk Gambatte all fail in Game Boy mode.  Among tested emulators,
-only SameBoy passes.
+No$gmb, KiGB, rew., Goomba, VBA, VBA-M, mGBA, Gambatte, and BizHawk
+Gambatte all fail in Game Boy mode.  Among tested emulators, only
+SameBoy and newer versions of bgb pass.
 
 Numism original tests
 ---------------------
