@@ -71,7 +71,7 @@ coin_list::
 
 ; Controls whether tests using init_silent_apu are audible.
 ; Set to nonzero during debugging.
-APU_NOT_SILENT equ 0
+def APU_NOT_SILENT equ 0
 
 ; When turning off a coin temporarily to troubleshoot an
 ; emulator getting hung up on it, change it to
@@ -1178,7 +1178,7 @@ fail_and_turn_off_ppu:
 ;;
 ; Waits for mode 3 then writes C to STAT.  Changing STAT while in
 ; mode 3 helps avoid the DMG-only STAT bug (on which Road Rash and
-; Xerd rely).
+; Legend of Zerd rely).
 ; @return A = C = new STAT value; B = STATF_LCD
 set_stat_c_in_mode_3:
   ld b, STATF_LCD

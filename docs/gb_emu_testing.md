@@ -45,7 +45,7 @@ This is run in OpenJDK 17:
 
 This is run in mGBA:
 
-* [Goomba Color](https://www.dwedit.org/gba/goombacolor.php) 12-14-2014
+* [Jagoomba Color](https://github.com/EvilJagaGenius/jagoombacolor) 0.5
 
 This is run in Firefox:
 
@@ -83,19 +83,19 @@ VisualBoyAdvance 1.7.2 for Windows (from before the VBA-M fork)
 requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
 redistributable package, sometimes called [vcredist].
 
-The Goomba Color ROM builder is written in Visual Basic 6 and needs
+The `goombafront` ROM builder is written in Visual Basic 6 and needs
 the [Visual Basic 6 runtime].  Skip it.  Just use `cat` 😸️
 ```
-$ cat goomba.gba libbet.gb gb240p.gb exerciser.gb > magicflr.gba
-C:\>copy /b goomba.gba+libbet.gb+gb240p.gb+exerciser.gb magicflr.gba
+$ cat jagoomba.gba libbet.gb gb240p.gb exercise.gb > magicflr.gba
+C:\>copy /b jagoomba.gba+libbet.gb+gb240p.gb+exercise.gb magicflr.gba
 ```
-Better yet, use this Bash script:
+Better yet, use a Bash script like this:
 ```
 #!/bin/sh
 set -e
 tmpfile=$(mktemp /tmp/goombaXXXXXX.gba) || exit 1
 trap "rm -f $tmpfile" EXIT
-cat "/home/pino/develop/emulators/goomba.gba" "$1" > "$tmpfile"
+cat "/home/pino/develop/emulators/jagoomba.gba" "$1" > "$tmpfile"
 mgba-qt "$tmpfile"
 ```
 
@@ -488,8 +488,9 @@ debug clocks after the instruction that turns on the LCD, not 114 as
 expected.  I also noticed that DIV changes greatly when LCD is turned
 back on.  KiGB also fails, and it has no debugger to explain why.
 
-VBA-M, mGBA, Mesen, and BGB all fail 2 (02), 4 (03), 5 (02),
-7 (01), and 8 (02): everything but LCD sync and the non-cause tests.
+VBA-M, mGBA, older Mesen, and older BGB all fail 2 (02), 4 (03),
+5 (02), 7 (01), and 8 (02): everything but LCD sync and the
+non-cause tests.
 
 To write my own rough OAM bug test, I first needed to prove to myself
 that the unused bits 3-0 of the attribute byte at $FE03+4n (palette,
@@ -509,9 +510,9 @@ My test performs the following steps:
 3. Read back OAM.  On GBC, fail on difference; otherwise fail on
    no difference.
 
-No$gmb, KiGB, rew., Goomba, VBA, VBA-M, BGB, mGBA, Gambatte, and
-BizHawk Gambatte all fail in Game Boy mode.  Among tested emulators,
-only SameBoy passes.
+No$gmb, KiGB, rew., Goomba, VBA, VBA-M, mGBA, Gambatte, and BizHawk
+Gambatte all fail in Game Boy mode.  Among tested emulators, only
+SameBoy and newer versions of bgb pass.
 
 Numism original tests
 ---------------------

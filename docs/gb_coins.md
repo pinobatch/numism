@@ -133,16 +133,30 @@ I don't have a lot of options to test the cartridge.
   (works on MBC1, MBC3, and MBC5; breaks on insideGadgets
   4MB + 32k FRAM flash cart as reported by Sono)
 
+For GBC double speed stage:
+
+- CPU speed, timer/DIV speed, APU speed, mode 3 length,
+  GDMA vs. HDMA vs. OAM DMA speed
+- In GBC double speed, use `ld [hl], c` and `ld [hl], b` to alternate
+  bit 2 of SCX during the preroll tile at left so that it never
+  finishes, delaying the first pixel output of mode 3 by at least
+  208 pixels to cancel mode 0 for that line (suggested by LIJI)
+
 Unranked:
 
-- Something something mid-scanline WX changes (suggested by LIJI)
+- Repeatedly increase WX mid-scanline so that the window restarts
+  over and over, delaying the end of mode 3 by 6 dots each time and
+  (if enough delay can be arranged) canceling mode 0 for that line
+  (suggested by LIJI)
+- Execute from ROM and WRAM during OAM DMA,
+  as in [Bully's DMA bus conflict test]
 - `di halt halt halt` keeps reading the last `halt` until something
   changes the last `halt` to a non-`halt` opcode, such as VRAM
   inaccessibility (see [double halt cancel] by nitro2k01)
-- Consider a stage of GBC double speed tests: CPU speed, timer/DIV
-  speed, APU speed, mode 3 length, GDMA vs. HDMA vs. OAM DMA speed
 - Does `halt` pause GBC DMA?
 - How much time HDMA takes from a scanline
+- HDMA from echo RAM catches a particular opcode on the open bus,
+  as in [Aevilia's HDMA timing test]
 - APU length counters do not automatically reload per note the
   way TIMA reloads from TMA.  If NRx1 is not rewritten, a second
   consecutive note lasts the maximum length: 1 s (wave) or 1/4 s
@@ -156,7 +170,9 @@ periods of development hiatus due to the day job of Numism's
 maintainer, it has been suggested to prototype SGB coins in a
 separate ROM and merge them once complete.
 
+[Bully's DMA bus conflict test]: https://github.com/Hacktix/BullyGB/blob/main/src/tests/dmabusconflict.asm
 [double halt cancel]: https://github.com/nitro2k01/little-things-gb/tree/main/double-halt-cancel
+[Aevilia's HDMA timing test]: https://github.com/ISSOtm/Aevilia-GB/blob/9b4e233bac6fbf175ca9ae7e4c0a8f16c8222275/home.asm#L305-L366
 
 Why GBC first?
 --------------
@@ -199,7 +215,7 @@ legally must make a copy of SGB system software from an authentic
 SGB accessory.  A few HLEs optionally include sound enhancement,
 which still relies on Nintendo's copyrighted Kankichi sound driver.
 
-The combination of familiarity, noticeability, library size,
+The combination of familiarity, noticeability, game selection,
 open-loop design, hardware complexity, and copyright compliance
 makes testable SGB support less common in emulators than GBC support.
 Emulicious, for example, emulates GBC and not SGB.  The only known
@@ -228,18 +244,19 @@ Emulator             | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Notes
 -------------------- | ------: | ------: | ------: | ------: | ------: | -----
 mesen2 2023-05-15    |  10/10  |  10/10  |  10/10  |  10/10  |   1/1   | SGB is LLE
 emulicious 2023-06-30|  10/10  |  10/10  |  10/10  |  10/10  |   1/1   | DMG/GBC
-sameboy v0.15.8      |  10/10  |  10/10  |  10/10  |   9/10  |   1/1   |
+sameboy v0.15.8-180  |  10/10  |  10/10  |  10/10  |  10/10  |   1/1   |
 gambatte r747        |  10/10  |   9/10  |  10/10  |  10/10  |   1/1   |
 bgb 1.5.10           |  10/10  |  10/10  |  10/10  |   8/10  |   1/1   |
-mgba 0.11.0          |  10/10  |   9/10  |   8/10  |   7/10  |   1/1   |
+mgba 0.11-538        |  10/10  |   9/10  |   8/10  |   8/10  |   1/1   |
 binjgb v0.1.11       |   9/10  |   9/10  |   9/10  |   6/10  |   1/1   | GBC only
 vba-m 2.1.5-fda429fc |  10/10  |   8/10  |   6/10  |   8/10  |   1/1   |
 ares 132             |   9/10  |   9/10  |   8/10  |   6/10  |   1/1   | SGB is LLE
 kigb v2.05           |   3/10  |   6/10  |   6/10  |   7/10  |   1/1   |
 xgnuboy 1.0.3        |   6/10  |   6/10  |   5/10  |   3/10  |   1/1   | DMG/GBC
-goomba 12-14-14      |   6/10  |   6/10  |   3/10  |   4/10  |   1/1   |
+jagoomba 0.5         |   6/10  |   6/10  |   3/10  |   5/10  |   1/1   |
 peanut-gb 1.2.0      |   4/10  |   5/10  |   2/10  |   6/10  |   1/1   | DMG only
 no$gmb 2.5           |   0/10  |   7/10  |   4/10  |   4/10  |   1/1   | DMG/SGB
 vba 1.7.2            |   6/10  |   1/10  |   2/10  |   4/10  |   1/1   |
 jsgb v0.02           |   3/10  |   3/10  |   3/10  |   3/10  |   1/1   | DMG only; click Run after each of four pauses for `di halt`
+3ds-vc               |   5/10  |   1/10  |   2/10  |   3/10  |   1/1   | DMG/GBC; use `rgbfix` to switch (thanks Sono)
 rew. 12stx           |   2/10  |   2/10  |   4/10  |   3/10  |   1/1   |
