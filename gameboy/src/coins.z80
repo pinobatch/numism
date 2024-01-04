@@ -889,9 +889,9 @@ coin_apu_status_ro:
   ld a, $70
   cp [hl]       ; bits 6-4 should remain on
   jr nz, .local_pass_if_Z1C0
-  ld [hl], $FF  ; turn off APU
+  ld [hl], $FF  ; turn APU back on and write 1 to all status
   ld a, $F0
-  cp [hl]       ; bits 3-0 should remain off
+  cp [hl]       ; bits 3-0 (channel status) should remain off
 .local_pass_if_Z1C0:
   ret z
   scf
@@ -1113,7 +1113,7 @@ coin_ei_di:
   nop
   jp pass_if_b_in_red_zone
 
-STAT_BLOCKING_LY = 16
+def STAT_BLOCKING_LY equ 16
 coin_stat_blocking:
   jr .start
   db "STAT blocking",10

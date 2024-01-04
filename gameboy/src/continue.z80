@@ -541,23 +541,23 @@ continue_read_pad:
 
 not_ready_msg: db "Platformer isn't ready yet", 0
 
-DESCRIPTION_TILE = $80
-DIGITS_BAR_TILE = $C0
-STAGE_PLUS_0_TILE = $CA
-STAGE_PLUS_1_TILE = $CB
-TEST_OK_TILE = $CC
-BLANK_TILE = $CD
-LEFT_ARROW_TILE = $CE
-RIGHT_ARROW_TILE = $CF
-TLCORNER_TILE = $D0
-VBAR_TILE = $D1
-TRCORNER_TILE = $D2
-BLCORNER_TILE = $D3
-HBAR_TILE = $D4
-BRCORNER_TILE = $D5
-LABELS_TILE = $D6
-COINNAMES_TILE = $E0
-COINNAMES_Y = 7
+def DESCRIPTION_TILE equ $80
+def DIGITS_BAR_TILE equ $C0
+def STAGE_PLUS_0_TILE equ $CA
+def STAGE_PLUS_1_TILE equ $CB
+def TEST_OK_TILE equ $CC
+def BLANK_TILE equ $CD
+def LEFT_ARROW_TILE equ $CE
+def RIGHT_ARROW_TILE equ $CF
+def TLCORNER_TILE equ $D0
+def VBAR_TILE equ $D1
+def TRCORNER_TILE equ $D2
+def BLCORNER_TILE equ $D3
+def HBAR_TILE equ $D4
+def BRCORNER_TILE equ $D5
+def LABELS_TILE equ $D6
+def COINNAMES_TILE equ $E0
+def COINNAMES_Y equ 7
 
 load_digits_bar_stage_a:
   push af
