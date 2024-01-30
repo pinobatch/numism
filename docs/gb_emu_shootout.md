@@ -35,9 +35,9 @@ Tests whose result the CPU cannot observe are out of scope.
 
 To promote the use of noninfringing replacements for Game Boy boot
 ROM, I've declared a few register values at power up out of scope:
-BC, DE, HL, DIV, and serial port clock.  In this way, I deliberately
-depart from the reasoning of the _Pokémon_ speedrunning community
-that currently maintains Gambatte.
+BC, DE, HL, DIV, LY (and hidden LX), and serial port clock.
+In this way, I deliberately depart from the reasoning of the
+_Pokémon_ speedrunning community that currently maintains Gambatte.
 
 - mooneye ​boot_div-dmgABCmgb
 - mooneye ​boot_regs-dmgABC
@@ -52,8 +52,7 @@ A counterpart to [Holy Mapperel] would be a more suitable venue.
 - ax6 rtc*
 - mooneye emulator_only
 
-Tests that are meaningless on DMG shouldn't be included before
-stage 4 in case I want to extend No$gmb results to stage 3.
+Tests that are meaningless on DMG begin at stage 4.
 
 - blargg interrupt_time
 - daid CGB ​speed_switch_timing_*
@@ -63,8 +62,8 @@ stage 4 in case I want to extend No$gmb results to stage 3.
 Tests where Gambatte, mGBA, bgb, and VBA-M differ
 -------------------------------------------------
 With the exception of mapper tests, visual-only tests, and Daid's
-stop_instr, Gambatte passes all tests that at least one of mGBA, bgb,
-and VBA-M also pass.
+stop_instr, Gambatte passes all tests that at least one of mGBA,
+bgb (the older version in the shootout), and VBA-M also pass.
 
 VBA-M alone fails
 

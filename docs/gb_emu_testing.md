@@ -27,9 +27,9 @@ These are built from source:
 * [SameBoy](https://sameboy.github.io) 0.14.3
 * [VisualBoyAdvance-M](https://vba-m.com/) 2.1.4
 
-These are run in Wine 6.0 (Ubuntu 22.04):
+These are run in Wine 9.1 (as provided by WineHQ for Ubuntu 23.10):
 
-* [BGB](https://bgb.bircd.org/) 1.5.10
+* [BGB](https://bgb.bircd.org/) 1.6
 * [KiGB](http://kigb.emuunlim.com/) 2.05
 * [No$gmb](https://problemkaputt.de/gmb.htm) 2.5
 * [rew.](https://www.emuparadise.me/emulators/gb.php) 12STX
@@ -123,7 +123,7 @@ Results of Blargg's emulator tests
 ROMs by Shay Green (known in the scene as Blargg) that measure
 CPU-visible behaviors.  The tests show the following results in
 No$gmb 2.5, VisualBoyAdvance 1.7.2, VisualBoyAdvance-M 2.1.4,
-Goomba Color 2019-05-04, KiGB v2.05, BGB 1.5.10, rew. 12STX,
+Goomba Color 2019-05-04, KiGB v2.05, BGB 1.6, rew. 12STX,
 Mesen-S 0.4.0.66, Gambatte r696, BizHawk 2.5.2 Gambatte,
 SDL2 gnuboy 1.0.3, and mGBA 0.9-6554-a2cd8f6cc:
 
@@ -148,8 +148,7 @@ SDL2 gnuboy 1.0.3, and mGBA 0.9-6554-a2cd8f6cc:
   others unmeasurable; rew., VBA-M, Mesen, and mGBA 3 of 8.
   BGB passes since 1.5.10.
 
-SameBoy v0.13.6 passes everything.  Results of Gambatte Classic and
-BizHawk Gambatte are identical to BGB.
+SameBoy has been passing everything since v0.13.6 if not earlier.
 
 VBA is a train wreck.  The Hill zone test of 144p Test Suite freezes,
 and _Libbet and the Magic Floor_ didn't even boot until a workaround
@@ -161,6 +160,7 @@ These emulators have not yet been tested:
 - helloGB
 - TGB Dual
 - Virtual GameBoy by Marat
+- Gambatte deserves a retest in 2024
 
 Some notes from research into behavior differences follow:
 
@@ -564,7 +564,7 @@ and measures the time from 20 cycles after the start of
 mode 2 on that line to the start of the following mode 0.
 
 - High-tier emulators match the Game Boy exactly.  
-  42 to 69 (Game Boy, SameBoy, bgb, Gambatte classic, BizHawk Gambatte)
+  42 to 69 (Game Boy, SameBoy, bgb, Gambatte)
 - Mid-tier emulators show some variance between 0 and 10 sprites.  
   42 to 67 (VBA-M), 42 to 57 (mGBA), 42 to 70 (Mesen)
 - Low-tier emulators show constant duration.  
