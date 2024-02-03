@@ -21,8 +21,8 @@ nes/numism.nes
 nes/map.txt
 nes/obj/nes/*.s
 gameboy/obj/gb/*.border
-decomp/obj/gb/*.asm
-decomp/*src.zip
+hike-gb/obj/gb/*.asm
+hike-gb/*src.zip
 reporting/.cache
 reporting/sortshootout.html
 world/.cache

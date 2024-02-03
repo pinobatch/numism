@@ -21,8 +21,7 @@ Player characters
 
 Mindy Beageonton, the player character, is naturally blonde, dyes her
 hair green, and wears it in a ponytail.  Emily F. MacProut, her
-rival, keeps her red hair in a bun.  (Don't know yet if the bun will
-be wrapped in cloth.)
+rival, keeps her red hair in a bun wrapped in cloth.
 
 David Narter in *Don't Name Your Baby* describes the names of the
 characters as follows:
@@ -72,9 +71,10 @@ with individuals or fictional characters of a particular gender:
 
 - Briar is in *Thwaite*, named after the *Sleeping Beauty* character.
 - Hunter evokes the masculinity of Hunter Hearst Helmsley ("Triple H"
-  for short) in the wrestling promotion WWE.  In addition, both
-  Sydney and Hunter are linked to negative reviews by [drewskyh] and
-  [Julian Hill] of a Super NES game with lo-fi graphics.
+  for short), who performed in the wrestling promotion WWE.  In
+  addition, both Sydney and Hunter are linked to negative reviews by
+  [drewskyh] and [Julian Hill] of a Super NES game with noticeable
+  layer loading lag.
 - Kirby is a famous Nintendo character, described with "he" in all
   *Super Smash Bros.* games, and Nintendo is known for lawyering up.
 - Logan evokes the masculinity of Wolverine from *X-Men* and the
@@ -109,7 +109,7 @@ Locations
 Mindy's adventure begins in a park along a trail.  The trail has
 three segments:
 from the playground to a trading post,
-from there to a pond beside a river with a bridge out,
+through the woods to a pond beside a river with a bridge out,
 and from there to a strip mall with a general store and a bus stop.
 Each has ten coins to find.
 

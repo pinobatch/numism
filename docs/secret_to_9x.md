@@ -9,7 +9,7 @@ responsibilities, such as school, a job, or parenting.  Sometimes a
 dev quits when it is discovered that one dev paraphrased another's
 code too closely.  And sometimes cracks, keygens, and a flood of
 novice users unable to follow instructions threaten a dev's revenue
-and support channels, as described in "[The X-Rated Nightmare FAQ]". 
+and support channels, as described in "[The X-Rated Nightmare FAQ]".
 Downstream users may not even be aware that an emulator is no longer
 maintained or that emulators with better game compatibility exist.
 
@@ -83,11 +83,11 @@ between us, OK?")
 [The X-Rated Nightmare FAQ]: https://problemkaputt.de/mailcrap.htm
 [enablers]: https://en.wikipedia.org/wiki/Codependency
 [Why No HTTPS?]: https://whynohttps.com/
-[nesdev BBS #263204]: https://forums.nesdev.com/viewtopic.php?p=263204#p263204
+[nesdev BBS #263204]: https://forums.nesdev.org/viewtopic.php?p=263204#p263204
 [Qualys SSL Labs]: https://www.ssllabs.com/ssltest/
 [RFC 5246]: https://tools.ietf.org/html/rfc5246
 [RetroZilla Suite]: https://rn10950.github.io/RetroZillaWeb/
 [Pat07's question]: https://support.mozilla.org/en-US/questions/1262427
-[nesdev BBS #263685]: https://forums.nesdev.com/viewtopic.php?p=263685#p263685
+[nesdev BBS #263685]: https://forums.nesdev.org/viewtopic.php?p=263685#p263685
 [commit 87466ead27]: https://github.com/Guspaz/Gusboy/commit/87466ead27677ddabe7e42822aa71425a53b6c3a
 [Moblin]: https://zeldauniverse.net/2020/08/18/zeldas-study-its-a-secret-to-nobody/
