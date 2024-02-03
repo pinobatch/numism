@@ -1,0 +1,53 @@
+Editor
+------
+
+- See "To do" in the editor's help
+
+Camera behavior
+---------------
+
+- Track drawn area and vicinity separately to draw one half column
+  at a time instead of 2 to 3
+- Load more than one map
+
+Mindy graphics
+--------------
+
+- draw ladder climbing modeled on Peach
+- walk tweening
+- commission a less ugly drawing of Mindy for the title screen
+
+little things side projects
+---------------------------
+
+sgbears was only the beginning
+
+### borderflash
+
+Visual test of quirks of Super Game Boy fade animation.
+
+- tile 0 is transparent and used for playfield
+- tile 0 is opaque and tile 2 is used for playfield
+- tile 0 is transparent and tile 2 is used for playfield
+- tile 0 is checkerboard and tile 2 is used for playfield
+- tiles 10-1F use the game window palette (0) instead of one of the
+  fading palettes (4-6)
+
+### trn-stress
+
+Visual tests to rule out shortcuts taken by a Super Game Boy emulator
+when receiving a border or set of 45 attribute shapes.  They should
+load correctly even if:
+
+- the border is presented as usual (SCX=SCY=0, WX=FF, BGP=E4, base $8000)
+- first 2 KiB of payload is at $9000, not $8000
+- tilemap is scrolled by 1 row and column (SCX=SCY=8)
+- 16-byte chunks of payload are in reverse order (tilemap FF-00)
+- payload is bit inverted (BGP 0123)
+- payload is byte swapped (BGP 3120)
+- every row is offset by 8 more pixels (SCX raster)
+- rows are in reverse order (SCY raster)
+- right half of tilemap is in the window (WX=7, WY=0)
+- part of tilemap is in the OAM (OBP0=E4)
+- bytes are in reverse order (SCY raster and BGP=3120)
+- payload is shifted left 1 bit (SCX=1)

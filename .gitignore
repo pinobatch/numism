@@ -8,6 +8,7 @@
 *.map
 *.sym
 *.chr
+*.nam
 *.2b
 *.1b
 *.pb16
@@ -20,6 +21,8 @@ nes/numism.nes
 nes/map.txt
 nes/obj/nes/*.s
 gameboy/obj/gb/*.border
+decomp/obj/gb/*.asm
+decomp/*src.zip
 reporting/.cache
 reporting/sortshootout.html
 world/.cache
