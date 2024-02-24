@@ -277,7 +277,13 @@ loop:
   sta OAM+5
   lda #0
   sta OAM+6
-  lda #48
+  ; jiggle arrow X to show the menu is still running
+  ; even if a bug prevents it from receiving input
+  lda nmis
+  and #$30
+  cmp #1
+  lda #0
+  adc #48
   sta OAM+7
 
   ; Draw OK/NG sprite

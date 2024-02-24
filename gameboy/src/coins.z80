@@ -1398,9 +1398,9 @@ coin_mode_3_length:
 
 ;;
 ; Measures the duration of mode 3 on a scanline with several sprites
-; spaced 8 pixels apart.
+; spaced a few pixels apart.
 ; @param B sprite count (1-40)
-; @param C Horizontal position of leftmost sprite
+; @param C Horizontal spacing of sprites
 ; @param rLCDC bit 7 must be true
 ; @param vblank_lcdc_value value to write to rLCDC before the test
 ; @param stat_lcdc_value value to write to rLCDC during OAM scan

@@ -116,6 +116,13 @@ get_coin_list_stage_a:
 def ALLOWED_MISSES_STAGE_1 equ 5
 def ALLOWED_MISSES_TOTAL equ 10
 
+;;
+; Counts how many stages have been completed for Continue.
+; - Stage 1 is completed if no more than 5 coins from stage 1
+;   are missed.
+; - A later stage N is completed if no more than 10 coins from
+;   stages 1 through N are missed.
+; @return A completed stage count (0 to NUM_STAGES)
 section "continue_grading", ROM0
 count_completed_stages::
   ld hl, wPassBits
@@ -344,7 +351,8 @@ show_stages::
   push af
   rst wait_vblank_irq
 
-  ; Draw coin if stage is selectable
+  ; The stage is selectable if previous stages are completed.
+  ; Draw coin over 'i' if the stage is selectable, or hide it if not.
   call logo_hide_spinning_coin_above_i
   pop af
   push af
@@ -425,8 +433,16 @@ show_stages::
   add a
   add a
   ld [hl+], a
-  ld a, 4+8  ; arrow X
+
+  ; jiggle arrow X to show the menu is still running
+  ; even if a bug prevents it from receiving input
+  ldh a, [nmis]
+  and $30
+  cp 1  ; CF = 1, 0, 0, 0
+  sbc a
+  add 4+8
   ld [hl+], a
+
   ld a, RIGHT_ARROW_TILE
   ld [hl+], a
   xor a
@@ -452,7 +468,7 @@ show_stages::
   ldh [rWY], a
   ldh a, [hNewKeys]
   and PADF_START
-  jr z, .waitloop
+  jp z, .waitloop
 
   ; 2021-04-25: The response to the Start Button before the
   ; implementation of platformer mode confused beware.

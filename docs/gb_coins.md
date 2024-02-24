@@ -144,6 +144,8 @@ For GBC double speed stage:
 
 Unranked:
 
+- More precise mode 3 length with 10 objects, at various SCX and
+  spacing values
 - Repeatedly increase WX mid-scanline so that the window restarts
   over and over, delaying the end of mode 3 by 6 dots each time and
   (if enough delay can be arranged) canceling mode 0 for that line
