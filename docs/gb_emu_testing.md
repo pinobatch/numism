@@ -27,7 +27,7 @@ These are built from source:
 * [SameBoy](https://sameboy.github.io) 0.14.3
 * [VisualBoyAdvance-M](https://vba-m.com/) 2.1.4
 
-These are run in Wine 9.1 (as provided by WineHQ for Ubuntu 23.10):
+These are run in Wine 9.12 (as provided by WineHQ for Ubuntu 24.04):
 
 * [BGB](https://bgb.bircd.org/) 1.6
 * [KiGB](http://kigb.emuunlim.com/) 2.05
@@ -35,9 +35,9 @@ These are run in Wine 9.1 (as provided by WineHQ for Ubuntu 23.10):
 * [rew.](https://www.emuparadise.me/emulators/gb.php) 12STX
 * [VisualBoyAdvance](https://sourceforge.net/projects/vba) 1.7.2
 
-This is run in .NET 6:
+This is run in .NET 8:
 
-* [Mesen](https://github.com/SourMesen/Mesen2) 2.0.0-preview1
+* [Mesen](https://github.com/SourMesen/Mesen2) 2.nightly
 
 This is run in OpenJDK 17:
 
@@ -68,16 +68,16 @@ created a script to change to KiGB's directory before running a ROM.
 
 In July 2021, Gambatte developer Sinamas stepped down and handed
 maintenance to the _Pokémon_ speedrunning community, which publishes
-Gambatte-Speedrun.  Its default front end is opinionated, assuming
-that the user is attempting a speedrun of a _Pokémon_ game with
-intent to verify it later on a Game Boy Player.  To ensure cycle
-accuracy of the timers that _Pokémon_ relies on for random number
-generation, GSR requires a boot ROM and rejects boot ROMs that are
-not bit-identical to Nintendo's copyrighted boot ROM.  Unlike with
-the Game Boy Advance BIOS, there is no known loophole through which
-to dump the Game Boy Color boot ROM through the Game Pak slot.
-Instead, we use either BizHawk or a forked front end that accepts
-SameBoot, the boot ROM of SameBoy.
+GSR (formerly Gambatte-Speedrun).  This front end to Gambatte and
+mGBA is opinionated, assuming that the user is attempting a speedrun
+of a _Pokémon_ game with intent to verify it later on a Game Boy
+Player.  To ensure cycle accuracy of the timers that _Pokémon_
+relies on for random number generation, GSR requires a boot ROM
+and rejects boot ROMs that are not bit-identical to Nintendo's
+copyrighted boot ROM. Unlike with the Game Boy Advance BIOS, there
+is no known loophole through which to dump the Game Boy Color boot
+ROM through the Game Pak slot.  Instead, we use either BizHawk or
+a forked front end that accepts SameBoot, the boot ROM of SameBoy.
 
 VisualBoyAdvance 1.7.2 for Windows (from before the VBA-M fork)
 requires `mfc42.dll`.  This is part of the Microsoft Visual C++ 6
