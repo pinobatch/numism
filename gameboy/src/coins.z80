@@ -295,6 +295,11 @@ init_silent_apu::
   ld [hl], a
   ret
 
+;;
+; Plays a swept pulse note.
+; @param A sweep direction to write to NR10
+; @param BC period value to write to NR13-NR14; bit 7 must be true
+; @return D: $00 if stopped, negative if still playing
 time_sweep_note:
   ld hl, rNR10
   ld [hl+], a  ; sweep direction
@@ -308,7 +313,7 @@ time_sweep_note:
 
 ;;
 ; Waits a tenth of a second for a note to end.
-; @return DE: negative if stopped or 0 if still playing
+; @return D: $00 if stopped, negative if still playing
 time_pulse1_note:
   ; Give a sweep 1/8 second cycles to ring out
   ld hl, rNR52
@@ -322,6 +327,12 @@ time_pulse1_note:
     jr nz, .waitloop
   ret
 
+
+;;
+; Plays an unswept pulse note with length counter on and times it.
+; @param C duty and length to write to NR11
+; @param B envelope setting to write to NR12
+; @return D: $00 if stopped, negative if still playing
 time_pulse1_envb_lenc:
   call play_pulse1_envb_lenc
   jr time_pulse1_note
@@ -341,9 +352,9 @@ play_pulse1_envb_lenc:
 coin_apu_len_env00_status:
   jr .start
   db "APU length & envelope 00",10
-  db "Length counter expiry or",10
-  db "envelope set to 0 clears",10
-  db "channel status",0
+  db "Length counter expiry",10
+  db "or envelope set to 0",10
+  db "clears channel status",0
 .start:
   call init_silent_apu
   di
@@ -816,8 +827,8 @@ coin_div_stops_apu:
   ldh [rDIV], a
   ld bc,65536-24576
   .loop:
-    inc c  ; If I inc c only once, the test fails.
-    inc c  ; Apparently I need to keep it UNDER 1024 cycles per write
+    inc c  ; Do 128 iterations at 5 cycles each
+    inc c  ; to stay under 1024 cycles
     jr nz, .loop
     ldh [rDIV], a
     ldh a, [rNR52]  ; bit 1 becomes 0 when it stops
@@ -1215,8 +1226,8 @@ coin_other_or_mask:
   jr .start
   db "OR mask for other regs",10
   db "Unused bits of P1, TAC,",10
-  db "IF, and STAT read as 1",10
-  db "but not OBP0/1 or IE;",10
+  db "IF, and STAT read as 1 but",10
+  db "not BGP, OBP0/1, or IE;",10
   db "unmapped regs read $FF",0
 .start:
   ld hl, regs_with_ormask
@@ -1343,7 +1354,7 @@ regs_with_ormask:
   db low(rIF),    %11100000, %11100000
   db low(rSTAT),  STATF_UNUSED, STATF_UNUSED
 regs_wo_ormask:
-  db low(rOBP0), low(rOBP1), low(rIE)
+  db low(rBGP), low(rOBP0), low(rOBP1), low(rIE)
 regs_unmapped:
   ; low, high
   db $03, $03
