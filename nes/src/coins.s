@@ -16,10 +16,12 @@ coin_names:
   .addr coin_name_nmi_suppression
 
   .addr coin_name_ack_nmi
-  .addr coin_name12, coin_name13
+  .addr coin_name12
+  .addr coin_name13
   .addr coin_name_branch_wrap
-  .addr coin_name15
+  .addr coin_name_ppubus_7f
   .addr coin_name16, coin_name17, coin_name18, coin_name19, coin_name20
+
   .addr coin_name21, coin_name22, coin_name23, coin_name24, coin_name25
   .addr coin_name26, coin_name27, coin_name28, coin_name29, coin_name30
 
@@ -39,7 +41,7 @@ coin_routines:
   .addr coin_12
   .addr coin_13
   .addr coin_branch_wrap
-  .addr coin_15
+  .addr coin_ppubus_7f
   .addr coin_16
   .addr coin_17
   .addr coin_18
@@ -455,9 +457,8 @@ coin_ppu_sta_absx:
 
 coin_name_9sprites_coarse:
   .byte "Sprite overflow coarse time",10
-  .byte "9 or more sprites on a line",10
-  .byte "sets $2002 bit 5, provided",10
-  .byte "rendering is on for that line",0
+  .byte "A line with 9 sprites sets",10
+  .byte "$2002 bit 5 if rendering is on",0
 coin_9sprites_coarse:
   ; Clear all OAM first
   lda #$F0
@@ -599,11 +600,28 @@ coin_branch_wrap:
 @have_c:
   rts
 
-coin_name15:
-  .byte "Coin #15",10
-  .byte "Always pass for now",0
-coin_15:
+coin_name_ppubus_7f:
+  .byte "OAM write sets PPU bus",10
+  .byte "Value written to $2004 can",10
+  .byte "be read back at $2000",0
+; In Nestopia, writes to PPUGenLatch via OAMDATA ($2004) get
+; corrupted about 1 out of 4 times, and it might be related to
+; discarding unused OAM attribute 2 bits (VHPxxxCC).
+; Concept by Fiskbit in NESdev Discord server on 2024-10-24
+; who claims that Nestopia UE 1.47 and 1.49 fail.
+; Nestopia 1.40 also fails; Nestopia UE 1.52 appears fixed.
+coin_ppubus_7f:
+  ldy #16
+  sec
+@loop:
+  lda #$7F
+  sta $2004
+  eor $2000
+  bne @have_c
+  dey
+  bne @loop
   clc
+@have_c:
   rts
 
 coin_name16:
