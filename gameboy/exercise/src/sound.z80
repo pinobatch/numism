@@ -144,7 +144,7 @@ write_channel_byte:
 
   ; Copy one byte
   ld a, [hl]
-  ld [$FF00+c], a
+  ldh [c], a
   ret
 
 write_channel_new_note:
@@ -163,13 +163,13 @@ write_channel_a_new_note:
   ld l, a
 
   ld a, [hl+]
-  ld [$FF00+c], a
+  ldh [c], a
   inc c
   ld a, [hl+]
-  ld [$FF00+c], a
+  ldh [c], a
   inc c
   ld a, [hl+]
-  ld [$FF00+c], a
+  ldh [c], a
   inc c
 
   ; write the last two bytes only to genuine channels
@@ -177,11 +177,11 @@ write_channel_a_new_note:
   cp low(rNR52)
   ret nc
   ld a, [hl+]
-  ld [$FF00+c], a
+  ldh [c], a
   inc c
   ld a, [hl]
   or $80
-  ld [$FF00+c], a
+  ldh [c], a
   ret
 
 

@@ -279,7 +279,7 @@ INST FBC5C1E22A46, AF 0400, BC 010F, HL CFFE, SP D000, IEIF 0400
 ei
 push bc          ; initialize the red zone to 010F
 pop bc
-ld [$ff00+C], a  ; write $04 to IF, causing an interrupt
+ldh [c], a       ; write $04 to IF, causing an interrupt
 ; Return address should point here, in HRAM
 ld a, [hl+]
 ld b, [hl]
@@ -302,9 +302,9 @@ instructions to explore APU reset:
 ```
 INST E21FE2F01100, AF 0010, BC 0026
 ; disassembles to
-ld [$FF00+C], a  ; Turn off APU, clearing all regs
+ldh [c], a       ; Turn off APU, clearing all regs
 rra              ; Put 1 in bit 7
-ld [$FF00+C], a  ; Turn on APU
+ldh [c], a       ; Turn on APU
 ldh a, [$FF11]   ; Audio regs are FF10-FF25
 ```
 The resulting OR mask pattern matched that in Blargg's test,
@@ -351,9 +351,9 @@ Most emulators' behavior can be characterized with this exerciser:
 ```
 INST E27614761C00, AF 0700, BC 0007, IEIF 0100
 ; disassembles to
-ld [$FF00+c], a  ; Set timer mode to 7 for use with IEIF 0400
+ldh [c], a  ; Set timer mode to 7 for use with IEIF 0400
 halt
-inc d  ; If no interrupt is pending, this runs once
+inc d       ; If no interrupt is pending, this runs once
 halt
 inc e  ; This runs twice because an interrupt is still pending
 ; ei   ; Change last byte to FB to see queued interrupts get handled
@@ -416,7 +416,7 @@ Run this first:
 ```
 INST E2AF22222200, AF 0700, BC 0007, HL FF04
 ; disassembles to
-ld [$FF00+c], a
+ldh [c], a
 xor a
 ld [hl+], a  ; reset DIV
 ld [hl+], a  ; set TIMA value to 0
@@ -589,11 +589,11 @@ initial SP and initial IEIF variables in the exerciser.
 INST FB40000000E2, AF 0200, BC 00FF, IEIF 0112
 ; disassembles to
 ei
-ld b, b          ; source code breakpoint
+ld b, b     ; source code breakpoint
 nop
 nop
 nop
-ld [$FF00+C], a  ; write to IF
+ldh [c], a  ; write to IF
 ```
 
 [Heisenbug]: https://en.wikipedia.org/wiki/Heisenbug

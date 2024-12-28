@@ -132,7 +132,7 @@ display_onenibble:
   .rowloop:
     push bc
     push hl  ; labels
-    ld a, [$FF00+c]  ; get one nibble reading
+    ldh a, [c]  ; get one nibble reading
     call .twobits
     call .twobits
     push af

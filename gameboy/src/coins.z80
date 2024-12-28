@@ -245,7 +245,7 @@ pass_if_apu_equals_or_mask:
   lb bc, apu_or_mask_values_end-apu_or_mask_values, low(rNR10)
   ld hl, apu_or_mask_values
   .compareloop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     cp [hl]  ; last thing that touches the carry.  Z after CP means NC.
     jp nz, test_failed
     inc hl
@@ -588,12 +588,12 @@ write_in_all_modes:
 write_D_notD_mode_E:
   lb bc, STATF_LCD, low(rSTAT)
   .wait0loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr z, .wait0loop
   .wait1loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr nz, .wait1loop
@@ -635,7 +635,7 @@ measure_mode3:
   ; Allow only IRQs on the chosen scanline to cause an interrupt
   ld c, low(rSTAT)
   ld a, STATF_LYC
-  ld [$FF00+C], a
+  ldh [c], a
   ldh a, [rIE]
   push af
   ld a, IEF_STAT
@@ -665,7 +665,7 @@ measure_mode3:
   ; This causes an extra interrupt during mode 3 outside line LYC,
   ; on which Road Rash (DMG version) and Legend of Zerd depend.
   ; But because we're in LYC, we're safe.
-  ld [$FF00+C], a
+  ldh [c], a
 
   ; now we are in mode 2 and measuring the remainder of mode 2
   ; plus all of mode 3
@@ -701,7 +701,7 @@ coin_ei_if_write:
   ei
   push bc
   pop bc           ; Place IF address in the red zone
-  ldh [$FF00+c], a ; Trigger an interrupt, overwriting the red zone
+  ldh [c], a ; Trigger an interrupt, overwriting the red zone
 .return_addy:      ; with this return address
   ld a, [hl-]      ; the return address should match 
   cp high(.return_addy)

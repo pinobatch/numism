@@ -172,12 +172,12 @@ write_statbug_mode_E:
   lb bc, STATF_LCD, low(rSTAT)
   ld hl, sp-1
   .wait0loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr z, .wait0loop
   .wait1loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr nz, .wait1loop
@@ -766,12 +766,12 @@ coin_cram_blocked_writes::
 write_D_mode_E:
   lb bc, STATF_LCD, low(rSTAT)
   .wait0loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr z, .wait0loop
   .wait1loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr nz, .wait1loop
@@ -787,12 +787,12 @@ write_D_mode_E:
 read_D_mode_E:
   lb bc, STATF_LCD, low(rSTAT)
   .wait0loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr z, .wait0loop
   .wait1loop:
-    ld a, [$FF00+c]
+    ldh a, [c]
     xor e
     and b
     jr nz, .wait1loop

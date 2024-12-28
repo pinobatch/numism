@@ -543,13 +543,13 @@ change_nibble_a_of_c::
     and e
     ld d, a  ; D: amount to add
 
-    ld a, [$FF00+c]
+    ldh a, [c]
     ld b, a
     add d
     xor b
     and e
     xor b
-    ld [$FF00+c], a
+    ldh [c], a
   scf
   adc a
   ret
@@ -683,15 +683,15 @@ draw_labels::
     jr .charloop
 
 ;;
-; Waits for mode 1, draws 2 digits at [$FF00+C] to [DE]
+; Waits for mode 1, draws 2 digits in byte at [$FF00+C] to [DE]
 ; @return C increased by 1; DE increased by 2
 draw_2dig_c::
   push bc
-  ld a, [$FF00+c]
+  ldh a, [c]
   and $F0
   swap a
   ld b, a
-  ld a, [$FF00+c]
+  ldh a, [c]
   and $0F
   ld c, a
   call hblank_put_bc
