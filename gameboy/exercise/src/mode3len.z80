@@ -1,11 +1,11 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-LYC_TO_MEASURE equ 64
-PRIO_BOX_Y equ 80
-WITH_INACCESS equ 0
-GRAY_TILE equ $6F
-DIGIT_TILE_BASE equ $70
+def LYC_TO_MEASURE equ 64
+def PRIO_BOX_Y equ 80
+def WITH_INACCESS equ 0
+def GRAY_TILE equ $6F
+def DIGIT_TILE_BASE equ $70
 
 section "mode3len_test", ROM0
 

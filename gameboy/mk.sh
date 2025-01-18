@@ -37,11 +37,10 @@ for filename in $iurlist; do
   python3 tools/incruniq.py "obj/gb/$filename.2b" "obj/gb/$filename.iur"
 done
 for filename in $allobjlist; do
-  # need -h to make double-inc halts
-  rgbasm -o "obj/gb/$filename.o" -h "src/$filename.z80"
+  rgbasm -o "obj/gb/$filename.o" "src/$filename.z80"
 done
 for filename in $genobjlist; do
-  rgbasm -o "obj/gb/$filename.o" -h "obj/gb/$filename.z80"
+  rgbasm -o "obj/gb/$filename.o" "obj/gb/$filename.z80"
 done
 objlisto=$(printf "obj/gb/%s.o " $objlist $genobjlist)
 rgblink -o "$title.gb" -d -p 0xFF -m "$title.map" -n "$title.sym" $objlisto

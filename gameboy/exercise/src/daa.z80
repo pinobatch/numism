@@ -9,7 +9,7 @@ def ERRORS_DIGITS equ 4
 def DAA_PLOT_IGNORE_H equ 1
 def DAA_VALID_PAIR_IGNORE_H equ 0
 
-errors_count_ones equ $98D1
+def errors_count_ones equ $98D1
 
 section "daa_test", ROM0
 

@@ -1,24 +1,24 @@
 include "src/hardware.inc"
 include "src/global.inc"
 
-WITH_DEBUGHEX equ 0
+def WITH_DEBUGHEX equ 0
 
 ; Workaround for exercising JSGB emulator by Pedro Ladaria,
 ; whose ld [abs], sp is broken.  This causes incorrect output for HL
 ; and AF (HL=SP, A=H).
-WITH_PLADARIA_JSGB_WORKAROUND equ 0
+def WITH_PLADARIA_JSGB_WORKAROUND equ 0
 
-inst_length equ 6
-inst_epilog_length equ 5
+def inst_length equ 6
+def inst_epilog_length equ 5
 
-RUNTYPE_OFF equ 0
-RUNTYPE_PRESS_A equ 1
-RUNTYPE_AUTO equ 2
-NUM_RUNTYPES equ 3
+def RUNTYPE_OFF equ 0
+def RUNTYPE_PRESS_A equ 1
+def RUNTYPE_AUTO equ 2
+def NUM_RUNTYPES equ 3
 
-NUM_ABOVE_REGPAIRS equ 2
-NUM_BELOW_REGPAIRS equ 1
-NUM_REGPAIRS equ 6
+def NUM_ABOVE_REGPAIRS equ 2
+def NUM_BELOW_REGPAIRS equ 1
+def NUM_REGPAIRS equ 6
 
 ; Interrupts ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -799,7 +799,7 @@ font_ptrs:
   dw font_wasted_name, font_wasted
   dw font_liji_name, font_liji
 .end:
-NUM_FONTS equ (font_ptrs.end - font_ptrs) / 4
+def NUM_FONTS equ (font_ptrs.end - font_ptrs) / 4
 
 font_uncial:   incbin "obj/gb/font_uncial.1b"
 font_issotm:   incbin "obj/gb/font_ISSOtm.1b"

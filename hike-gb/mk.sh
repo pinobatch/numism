@@ -35,10 +35,10 @@ python3 tools/savescan.py -o obj/gb/localvars.asm src/*.asm
 
 # assemble
 for filename in $objlist; do
-  rgbasm -hL -p 0xFF -o "obj/gb/$filename.o" "src/$filename.asm"
+  rgbasm -p 0xFF -o "obj/gb/$filename.o" "src/$filename.asm"
 done
 for filename in $genobjlist $tilesetlist; do
-  rgbasm -hL -p 0xFF -o "obj/gb/$filename.o" "obj/gb/$filename.asm"
+  rgbasm -p 0xFF -o "obj/gb/$filename.o" "obj/gb/$filename.asm"
 done
 
 # make executable

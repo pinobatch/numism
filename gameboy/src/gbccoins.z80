@@ -570,7 +570,7 @@ coin_gbc_palette_readback::
   ldh [c], a
   ld a, $81
   ldh [rBCPS], a
-  ld a, [c]
+  ldh a, [c]
   cp $7F
   jr nz, .fail1
 
