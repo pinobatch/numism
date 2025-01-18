@@ -58,7 +58,7 @@ coin_list::
   dw coin_cram_blocked_writes
   ; stage 5: begin sgb differences and joypad specifics
   dw coin_no_sgbc
-  dw coin_no_42
+  dw coin_lcdc_on_mode_0
   dw coin_no_43
   dw coin_no_44
   dw coin_no_45

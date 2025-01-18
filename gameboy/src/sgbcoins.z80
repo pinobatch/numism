@@ -19,11 +19,32 @@ coin_no_sgbc::
   ccf
   ret
 
-coin_no_42::
+coin_lcdc_on_mode_0::
   jr .start
-  db "Always pass",0
+  db "LCD begins in mode 0",10
+  db "The first scanline after",10
+  db "turning on LCD begins with",10
+  db "hblank (mode 0) instead of",10
+  db "OAM scan (mode 2)",0
 .start:
-  or a
+  call lcd_off
+
+  ; make sure the vblank has completely ended
+  ld b, 0
+  .wait_frame_end:  ; 14 cycles per iteration
+    call .knownret
+    dec b
+    jr nz, .wait_frame_end
+  
+  ld b, b
+  ld c, low(rSTAT)
+  ld a, LCDCF_ON|LCDCF_BGON|LCDCF_BG8800|LCDCF_BG9800
+  ldh [rLCDC], a
+  ldh a, [c]
+  and $03
+  cp $01  ; mode 2 (OAM scan): fail; mode 3 (rendering): pass
+  ccf
+.knownret:
   ret
 
 coin_no_43::
