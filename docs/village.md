@@ -35,17 +35,19 @@ characters as follows:
 
 I'm deliberately avoiding referring to the "stranger danger" hysteria
 of the 1980s and 1990s that has been seen to slow children's social
-development. (See "Why talking to strangers can make us smarter" by
+development. (See "[Why talking to strangers can make us smarter]" by
 Joe Keohane.)
+
+[Why talking to strangers can make us smarter]: https://www.bbc.com/future/article/20221026-why-talking-to-strangers-can-make-us-happier
 
 Classmates
 ----------
 
 Mindy and Emily are the only ones in class with a distinctly feminine
-name.  The rest of them have androgynous names for a couple reasons.
+name.  Their classmates have androgynous names for a couple reasons.
 In-universe, some families have a family history of ambiguous
-presentation at birth (5-ARD) and therefore give their children
-names that match either gender.
+presentation at birth in boys (5-ARD) and therefore give their
+children names that match either gender.
 
 Out-of-universe, it's that their gender doesn't matter for the story.
 Compare "[Guidelines for Inclusive Language]", published by
@@ -60,7 +62,7 @@ Linguistic Society of America in 2016, which recommends:
 
 Some names that may be used:
 
-Alex, Ash, Avery, Bryn,
+Alex, Avery, Bryn,
 Cameron, Casey, Charlie, Chris, Clem, Connie, Cory,
 Danny, Drew, Gabby, Hayden, Jackie, Jamie, Jean, Jordan,
 Leslie, Mel, Morgan, Nicky, Pat, Pepper, Reggie, Robin,
@@ -69,6 +71,10 @@ Sam, Skylar, Taylor, Tracy
 We avoid some names in unisex lists on the web for strong association
 with individuals or fictional characters of a particular gender:
 
+- Ash is  a boy in the *Pokémon* animated series, and The Pokémon
+  Company is known for lawyering up.  Not to mention Bruce Campbell
+  as Ash "This is my boomstick" Williams in the 1992 film
+  *Army of Darkness*.
 - Briar is in *Thwaite*, named after the *Sleeping Beauty* character.
 - Hunter evokes the masculinity of Hunter Hearst Helmsley ("Triple H"
   for short), who performed in the wrestling promotion WWE.  In
