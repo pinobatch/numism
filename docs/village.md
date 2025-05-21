@@ -9,8 +9,9 @@ The scenario
 Ten-year-old Mindy sees classmate Emily reading a video game manual
 at recess and gets jealous.  When Mindy gets home, she asks her
 parents to buy her a game console.  Parents tell her they don't have
-the money, suggest that she search for loose change in the city park,
-and warn her about counterfeit money.
+the money.  Classmate Clem suggests that Mindy search for loose
+change in the city park.  Parents approve of her initiative and warn
+her about counterfeit money.
 
 She ends up spending her money on everything but the game console,
 such as athletic shoes and a pool float, in hopes that it'll help her
