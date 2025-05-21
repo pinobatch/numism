@@ -1,1 +1,1 @@
-include "../src/hardware.inc"
+include "../../gameboy/src/hardware.inc"
