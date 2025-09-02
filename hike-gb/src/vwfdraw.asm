@@ -124,7 +124,7 @@ vwfPutTile::
   ; Calculate address of glyph
   ld h,0
   ld l,a
-  ld de,vwfChrData - (" "*GLYPH_HEIGHT)
+  ld de,vwfChrData - (' '*GLYPH_HEIGHT)
   rept LOG_GLYPH_HEIGHT
     add hl,hl
   endr
@@ -181,7 +181,7 @@ vwfPuts::
 .nodrawspace:
   
   ; Add up the width of the glyph
-  ld de,vwfChrWidths-" "
+  ld de,vwfChrWidths-' '
   add e
   ld e,a
   jr nc,.gwnowrap

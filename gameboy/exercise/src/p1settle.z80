@@ -30,7 +30,7 @@ p1settle_test::
   call twonibbles
 
   ; Display what's first
-  ld b, " "
+  ld b, ' '
   ldxy de, 0, 1
   ldh a, [doing_p14_first]
   rra
@@ -155,11 +155,11 @@ display_onenibble:
 
   rra         ; Hide labels of unpressed buttons
   jr nc, .pressed0
-    ld b, ":"
+    ld b, ':'
   .pressed0:
   rra
   jr nc, .pressed1
-    ld c, ":"
+    ld c, ':'
   .pressed1:
 
   push af     ; Write the labels

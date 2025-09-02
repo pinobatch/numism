@@ -164,7 +164,7 @@ valid_pair_test:
     bit 2, d
     jr z, .dloop
   ldxy de, 11, 8
-  lb bc, "O", "K"
+  lb bc, 'O', 'K'
   call hblank_put_bc
   jr .valids_ok
 

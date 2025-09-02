@@ -30,14 +30,14 @@ log_coins_to_sram::
     call stpcpy
     ldh a, [hSeenCoinsBCD]
     swap a
-    add "1"
+    add '1'
     assert NUM_STAGES < 10  ; will need to write 2 digits if so
     ld [de], a
     inc de
-    ld a, ":"
+    ld a, ':'
     ld [de], a
     inc de
-    ld a, " "
+    ld a, ' '
     ld [de], a
     inc de
 
@@ -77,12 +77,12 @@ log_coins_to_sram::
     ld a, c
     cp 10
     jr c, .popcnt_no_tens
-      ld a, "1"
+      ld a, '1'
       ld [de], a
       inc de
       xor a
     .popcnt_no_tens:
-    add "0"
+    add '0'
     ld [de], a
     inc de
     ld hl, word_out_of_ten
@@ -99,14 +99,14 @@ log_coins_to_sram::
       swap a
       and $0F  ; get leading digit
       jr z, .leading_digit_zero
-        xor " " ^ "0"
+        xor ' ' ^ '0'
       .leading_digit_zero:
-      xor " "
+      xor ' '
       ld [de], a
       inc de
       ldh a, [hSeenCoinsBCD]
       and $0F
-      xor "0"
+      xor '0'
       ld [de], a
       inc de
 
@@ -159,13 +159,13 @@ log_coins_to_sram::
   and $0F
   assert NUM_STAGES < 10  ; will need to write 3 digits if so
   jr z, .total_less_than_ten
-    xor "0"
+    xor '0'
     ld [de], a
     inc de
   .total_less_than_ten:
   ldh a, [hTotalScoreBCD]
   and $0F
-  xor "0"
+  xor '0'
   ld [de], a
   inc de
 
@@ -173,7 +173,7 @@ log_coins_to_sram::
   ld a, LF
   ld [de], a
   inc de
-  ld a, " "
+  ld a, ' '
   .space_fill_loop:
     ld [de], a
     inc de

@@ -326,9 +326,9 @@ draw_result_regs:
   ; Draw flags ZNHC
   ldh a, [result_af+0]
   ldxy de, 15, 4
-  lb bc, "Z", "N"
+  lb bc, 'Z', 'N'
   call draw_2flags
-  lb bc, "H", "C"
+  lb bc, 'H', 'C'
   call draw_2flags
   
   ld c, low(last_int)
@@ -369,11 +369,11 @@ draw_regvalues:
 draw_2flags:
   add a
   jr c, .clear_b
-    ld b, " "
+    ld b, ' '
   .clear_b:
   add a
   jr c, .clear_c
-    ld c, " "
+    ld c, ' '
   .clear_c:
   push af
   call hblank_put_bc

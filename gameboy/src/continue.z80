@@ -201,9 +201,9 @@ putnibble::
   and $0F
   cp $0A
   jr c,.not_letter
-  add ("A"-"9"-1)
+  add ('A'-'9'-1)
 .not_letter:
-  add "0"
+  add '0'
   ld [hl+],a
   ret
 
@@ -609,7 +609,7 @@ load_digits_bar_stage_a:
   ; Draw one-based stage number
   cp 9
   jr c, .less_than_ten
-    ld a, "1"
+    ld a, '1'
     ld b, 8*11-1
     call vwfPutTile
     ld a, $FF

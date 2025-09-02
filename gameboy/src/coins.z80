@@ -564,21 +564,21 @@ coin_vram_blocked_writes:
   ret
 
 write_in_all_modes:
-  lb de, "0", 0
+  lb de, '0', 0
   call write_D_notD_mode_E
-  lb de, "1", STATF_VBL
+  lb de, '1', STATF_VBL
   call write_D_notD_mode_E
-  lb de, "2", STATF_OAM
+  lb de, '2', STATF_OAM
   call write_D_notD_mode_E
-  lb de, "3", STATF_LCD
+  lb de, '3', STATF_LCD
   call write_D_notD_mode_E
-  lb de, "O", STATF_OAM
+  lb de, 'O', STATF_OAM
   call write_D_notD_mode_E
-  lb de, "P", STATF_LCD
+  lb de, 'P', STATF_LCD
   call write_D_notD_mode_E
-  lb de, "H", 0
+  lb de, 'H', 0
   call write_D_notD_mode_E
-  lb de, "V", STATF_VBL
+  lb de, 'V', STATF_VBL
   ; fall through
 ;;
 ; Writes a byte followed by its complement

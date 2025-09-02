@@ -136,7 +136,7 @@ load_obj_digit_chr:
 draw_obj_loc:
   ldh a, [cursor_x]
   ld b, a
-  ld c, " "
+  ld c, ' '
   ldxy de, 5, 1
   call hblank_put_bc
 
