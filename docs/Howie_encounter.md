@@ -1,6 +1,8 @@
 Howie
 =====
 
+![Mindy meets Howie on the street](Mindy_and_Howie.png)
+
 Howie is a four-year-old runaway boy in the City who thinks he's
 homeless.  He wears a blue hooded shirt over a green sleeping bag.
 Because his legs developed differently, instead of walking, he jumps
@@ -14,6 +16,8 @@ laundry Squeaky Clean, and 5🪙️ on a second trip to Seed.
 
 Walkthrough
 -----------
+
+After gaining access to the City via the bus:
 
 1. Talk to Howie.  Mindy explains that she's been told not to give
    money to panhandlers who might misuse it but is willing to help
@@ -134,9 +138,9 @@ still push gardening with store-brand chia planters.  One gets the
 impression that one of the chain's owners believes in decentralized
 food security through backyard gardening.
 
-The logo of Seed resembles a seedling (🌱, U+1F331) stylized to
-resemble the letter S in featural (two strokes starting at top left
-that curve inward and toward right center).
+The logo of Seed resembles a seedling (🌱, U+1F331) to represent
+freshness while resembling the letter S in featural (two strokes
+starting at top left that curve inward and toward right center).
 
 To deter cart theft, Seed keeps its shopping carts locked.  A 1 cio
 coin (value 1/40🪙️) unlocks a cart and is refunded when the cart is
@@ -149,11 +153,10 @@ for Howie:
 - A box of 10 meal bars (1🪙️) from grain snacks aisle
 - Batteries for his headlamp and music player (1🪙️) from checkout
 - Spare undershirt (1🪙️) from ImPulse
-
-And now Howie tells that he really just wanted to start a business
-to help his poor single mom who is struggling to care for a special
-needs kid?  A [Step 2 lemonade cart] is 5🪙️.  Uh-oh, Mindy is out
-of money for this episode...
+- A lemonade cart (5🪙️) from ImPulse, resembling [Step 2's cart],
+  once Howie tells Mindy that he really just wanted to start a
+  business to help his poor single mom who is struggling to care for
+  a special needs kid
 
 Note: Unlike real-life ALDI, Seed sells alkaline batteries.
 
@@ -161,11 +164,11 @@ Special thanks:
 
 - Roksim on eevee's hobbies for being the first to suggest garden
   supplies
-- Zeta on NESdev for helping 
+- Zeta on NESdev for helping to find Howie's misunderstanding
 
 [Gardenline gear]: https://www.aldireviewer.com/ive-been-gardening-most-of-my-life-and-these-are-the-best-aldi-gardening-supplies-ive-used/
 [seasonal items]: https://www.aldireviewer.com/what-are-aldi-seasonal-favorites/
-[Step 2 lemonade cart](https://www.aldireviewer.com/alexs-lemonade-stand-back-at-aldi-for-the-6th-year/)
+[Step 2's cart](https://www.aldireviewer.com/alexs-lemonade-stand-back-at-aldi-for-the-6th-year/)
 
 ### Squeaky Clean
 
@@ -176,3 +179,157 @@ Special thanks:
 Once Howie has a spare shirt to wear, Mindy buys a box of detergent
 and washer and dryer tokens (total 1🪙️) from a cashier who's some
 species of anthro rodent and washes and dries Howie's clothes.
+
+Dialogue
+--------
+
+```
+MINDY
+How'd you end up on the
+street?
+
+HOWIE
+Mom told me to go outside
+and not come back in.
+
+MINDY
+When was that?
+
+HOWIE
+I don't know. It's been
+days. I was trying to
+be good and do what Mom
+told me.
+
+I thought Mom didn't want
+me around because we're
+so poor. So maybe I could
+help her not be poor.
+
+MINDY
+What made you think that?
+
+HOWIE
+Mom told me about these two
+kids whose dad couldn't
+afford to feed them, so
+their mom kicked them out.
+
+They ended up at a cookie
+shop in the woods whose
+owner wanted to eat them.
+
+Mom told me about this other
+girl whose dad would beat
+her unless she sold matches
+on the street.
+
+She lit all the matches
+she had to keep warm and
+remember her grandma until
+she froze to death.
+
+MINDY
+Oh wait, I think I've heard
+those stories.
+
+It looks like the washer
+is done. Let me go get
+your clothes out.
+
+(Mindy moves the clothes from the washer to the dryer.)
+
+MINDY
+Do you know where you used
+to live before you were
+kicked out?
+
+HOWIE
+Sure.
+
+MINDY
+Maybe we can go there once
+your clothes are dry.
+
+(Clock wipe.  Mindy pulls the clothes out of the dryer.)
+
+MINDY
+Here are your clothes.
+Will you need any help?
+
+HOWIE
+No thanks. I can do this
+all by myself.
+
+(Howie sits down and lifts his feet to slide them into the bag.)
+
+MINDY
+What's that around your
+legs?
+
+HOWIE
+Mom told me I'm like a
+little penguin with my
+legs stuck together.
+
+MINDY
+Oh, so that's why you hop.
+
+(Mindy follows Howie to a house.)
+
+MINDY
+Is this where you used
+to live?
+
+HOWIE
+Yep.
+
+(Mindy tries the door and knocks.)
+
+MINDY
+I don't think anyone's home.
+
+I wonder if there's anything
+you can do for money other
+than begging. Can you sing?
+Play an instrument?
+
+HOWIE
+I've got my music player.
+
+(Howie turns on a music player.)
+
+HOWIE
+Twinkle, twinkle, little
+star, how I wonder what you
+are. Up above the world--
+
+(Mindy cringes and puts her hands to her ears.)
+
+MINDY
+I think you'd need more
+practice to carry a tune.
+
+What to do, what to do...
+
+Wait... I saw something
+at Seed that might help.
+You wait here behind the
+house.
+
+HOWIE
+Okay.
+
+(Howie hops behind the house.  Mindy returns to Seed, buys a
+flat-pack lemonade cart, and carries it back to Howie.)
+
+MINDY
+Look what I bought!
+You can sell lemonade and
+make money that way.
+
+Just give me a few minutes
+to put it together.
+
+(Mindy unpacks and assembles the cart.  Howie's mom arrives.)
+```
