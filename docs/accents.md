@@ -10,7 +10,8 @@ ukoda wrote in "[A defense]":
 > and it is no longer a barrier to communications.
 
 We can simulate Mindy's accent accommodation by writing the first few
-sentences with eye dialect and then flip to standard spelling.
+sentences with eye dialect and then flip to standard spelling once
+the accent "fades" as a barrier to comprehension.
 
 [A defense]: https://slashdot.org/comments.pl?sid=23626173&cid=65208235
 
@@ -36,9 +37,9 @@ for short stature (about 1.1 to 1.2 metres adult height), pointed
 caps, and skills at digging and tinkering.
 
 The Gnomes you meet in the city speak Gnomish Creole, a language
-that is somewhat mutually intelligible with English with some effort
-on the listener's part.  Because Gnomish is so "thick" (different
-from standard), it doesn't fade as thoroughly as some other accents.
+partly mutually intelligible with English.  Because Gnomish is so
+"thick" (different from standard), it doesn't fade as thoroughly
+as some other accents.
 
 Gnomish has its own phonology inspired by that of Austronesian
 languages.  There is a strong tendency for Gnomish words to be one

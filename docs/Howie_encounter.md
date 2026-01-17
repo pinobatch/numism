@@ -177,11 +177,21 @@ Special thanks:
 - Objective for boss: Howie
 
 Once Howie has a spare shirt to wear, Mindy buys a box of detergent
-and washer and dryer tokens (total 1🪙️) from a cashier who's some
-species of anthro rodent and washes and dries Howie's clothes.
+and washer and dryer tokens (total 1🪙️) from a cashier and washes
+and dries Howie's clothes.
+
+Sue is a Broonie, an anthro chipmunk roughly a yard tall.  She has
+light brown fur, wears an orange ankle-length hooded robe with
+numerous patches with the hood down, a kerchief (color to be
+determined), and a bib apron with the Squeaky Clean logo and a badge.
+Mindy finds Sue at one of two places: either at the till or with a
+step stool near a washing machine, loading clothes that a customer
+dropped off.
 
 Dialogue
 --------
+
+### After clothes are loaded
 
 ```
 MINDY
